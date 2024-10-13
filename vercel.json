@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "https://dsvdaten.dsv.de/$1"
+    }
+  ]
+}
