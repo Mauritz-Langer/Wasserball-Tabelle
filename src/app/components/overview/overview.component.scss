@@ -1,0 +1,79 @@
+.container {
+  margin: 20px;
+}
+
+mat-expansion-panel {
+  margin-bottom: 10px;
+}
+
+mat-list-item {
+  margin-bottom: 5px;
+}
+
+.favorites-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: space-between; /* Distribute space between items */
+}
+
+.favorite-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex: 1 1 150px; /* Allow the card to grow and shrink, with a base width of 150px */
+  padding: 5px;
+  box-sizing: border-box; /* Include padding and border in the element's total width and height */
+}
+
+.button-container {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  flex: 0 0 auto;
+}
+
+@media (max-width: 600px) {
+  .favorite-card {
+    flex: 1 1 100%;
+  }
+}
+
+.divider {
+  border: none;
+  border-top: 2px solid black;
+  margin: 20px 0;
+}
+
+.subitem-container {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px;
+  border-bottom: 1px solid #ccc;
+  flex-wrap: wrap;
+}
+
+.subitem-name {
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.subitem-gender {
+  margin-left: 10px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.subitem-actions {
+  margin-left: 10px;
+}
+
+.spinner-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 40vh;
+}

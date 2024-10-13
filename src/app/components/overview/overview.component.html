@@ -1,0 +1,48 @@
+<div *ngIf="isLoading" class="spinner-container">
+  <mat-spinner></mat-spinner>
+</div>
+
+<div class="container" *ngIf="!isLoading">
+  <h5>Favoriten</h5>
+  <div class="favorites-container">
+    <mat-card *ngFor="let favorite of favorites" class="favorite-card" (click)="navigateToLiga(favorite)">
+      <mat-card-content>
+        <span>{{ favorite.name }}</span>
+      </mat-card-content>
+      <div class="button-container">
+        <button mat-icon-button>
+          <mat-icon>open_in_new</mat-icon>
+        </button>
+      </div>
+    </mat-card>
+  </div>
+
+  <hr class="divider">
+
+  <mat-accordion>
+    <mat-expansion-panel *ngFor="let item of items">
+      <mat-expansion-panel-header>
+        <mat-panel-title>
+          {{ item.name }}
+        </mat-panel-title>
+      </mat-expansion-panel-header>
+      <mat-list>
+        <mat-list-item *ngFor="let subItem of item.subItems">
+          <div class="subitem-container">
+            <div class="subitem-name" (click)="navigateToLiga(subItem)" matTooltip="{{ subItem.name }}">
+              <span>{{ subItem.name }}</span>
+            </div>
+            <div class="subitem-gender">
+              <span>{{ subItem.gender }}</span>
+            </div>
+            <div class="subitem-actions">
+              <button mat-icon-button (click)="toggleFavorite(subItem)">
+                <mat-icon>{{ subItem.isFavorite ? 'favorite' : 'favorite_border' }}</mat-icon>
+              </button>
+            </div>
+          </div>
+        </mat-list-item>
+      </mat-list>
+    </mat-expansion-panel>
+  </mat-accordion>
+</div>
