@@ -71,6 +71,24 @@ mat-list-item {
   margin-left: 10px;
 }
 
+@media (max-width: 600px) {
+  .favorite-card {
+    flex: 1 1 100%;
+  }
+
+  .subitem-name {
+    flex: 1;
+  white-space: break-spaces;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+
+  .subitem-gender {
+    display: none;
+  }
+}
+
 .spinner-container {
   display: flex;
   justify-content: center;

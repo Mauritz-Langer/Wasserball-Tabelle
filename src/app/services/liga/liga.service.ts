@@ -110,10 +110,15 @@ export class LigaService {
           continue;
         }
 
+        let info = '';
+        if (cells[1].textContent.split(' - ').length > 1) {
+          info = cells[1].textContent.split(' - ')[1].trim();
+        }
+
         const tableElement: Table = {
           place: parseInt(cells[0].textContent.trim()),
-          team: cells[1].textContent.split('-')[0].trim(),
-          info: cells[1].textContent.split('-')[1].trim(),
+          team: cells[1].textContent.split(' - ')[0].trim(),
+          info: info,
           games: parseInt(cells[2].textContent.trim()),
           wins: parseInt(cells[3].textContent.trim()),
           draws: parseInt(cells[4].textContent.trim()),

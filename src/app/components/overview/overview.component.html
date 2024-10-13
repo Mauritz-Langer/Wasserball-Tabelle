@@ -29,7 +29,7 @@
       <mat-list>
         <mat-list-item *ngFor="let subItem of item.subItems">
           <div class="subitem-container">
-            <div class="subitem-name" (click)="navigateToLiga(subItem)" matTooltip="{{ subItem.name }}">
+            <div class="subitem-name" (click)="navigateToLiga(subItem)">
               <span>{{ subItem.name }}</span>
             </div>
             <div class="subitem-gender">

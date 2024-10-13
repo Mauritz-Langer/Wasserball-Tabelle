@@ -20,7 +20,7 @@
 
       <ng-container matColumnDef="location">
         <th mat-header-cell *matHeaderCellDef> Ort</th>
-        <td mat-cell (click)="navigateToMapsLink(element)" *matCellDef="let element">{{ element.location }}</td>
+        <td mat-cell (click)="navigateToMapsLink(element)" (touchend)="navigateToMapsLink(element)" *matCellDef="let element">{{ element.location }}</td>
       </ng-container>
 
       <ng-container matColumnDef="result">
@@ -29,7 +29,8 @@
       </ng-container>
 
       <tr mat-header-row *matHeaderRowDef="displayedColumnsGames"></tr>
-      <tr mat-row *matRowDef="let row; columns: displayedColumnsGames;"></tr>
+      <tr mat-row *matRowDef="let row; columns: displayedColumnsGames;"
+          [class.past-events]="checkEventInPast(row.start)"></tr>
     </table>
   </mat-tab>
   <mat-tab *ngIf="dataSourceTable.length > 0" label="Tabelle">

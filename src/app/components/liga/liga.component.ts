@@ -87,4 +87,23 @@ export class LigaComponent implements OnInit {
   getGamesByRow(row: Table) {
     this.expandedGames = this.dataSourceGames.filter(game => (game.home === row.team || game.guest === row.team) && game.result.includes(':'));
   }
+
+  checkEventInPast(start: string): boolean {
+    try {
+      const [datePart, timePart] = start.replace(' Uhr', '').split(', ');
+      const [day, month, year] = datePart.split('.').map(Number);
+      const [hours, minutes] = timePart.split(':').map(Number);
+
+      // Create a Date object
+      const eventDate = new Date(2000 + year, month - 1, day, hours, minutes);
+
+      // Get the current date and time
+      const now = new Date();
+
+      // Check if the event date is in the past
+      return eventDate < now;
+    } catch (error) {
+      return false;
+    }
+  }
 }
