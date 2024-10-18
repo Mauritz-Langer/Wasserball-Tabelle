@@ -1,6 +1,10 @@
 <div class="liga-name mat-headline-1">{{ ligaName }}</div>
 <mat-tab-group>
   <mat-tab label="Spiele">
+    <mat-form-field>
+      <mat-label>Filter</mat-label>
+      <input matInput (keyup)="applyGamesFilter($event)">
+    </mat-form-field>
     <table mat-table [dataSource]="dataSourceGames" class="mat-elevation-z8">
 
       <ng-container matColumnDef="start">
@@ -33,7 +37,7 @@
           [class.past-events]="checkEventInPast(row.start)"></tr>
     </table>
   </mat-tab>
-  <mat-tab *ngIf="dataSourceTable.length > 0" label="Tabelle">
+  <mat-tab *ngIf="dataSourceTable.data.length > 0" label="Tabelle">
     <section class="mat-elevation-z8">
       <table mat-table [dataSource]="dataSourceTable" multiTemplateDataRows>
 
@@ -113,6 +117,10 @@
     </section>
   </mat-tab>
   <mat-tab label="Torschützen">
+    <mat-form-field>
+      <mat-label>Filter</mat-label>
+      <input matInput (keyup)="applyScorerFilter($event)">
+    </mat-form-field>
     <table mat-table [dataSource]="dataSourceScorer" class="mat-elevation-z8">
 
       <ng-container matColumnDef="place">
