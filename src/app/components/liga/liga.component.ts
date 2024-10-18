@@ -77,7 +77,8 @@ export class LigaComponent implements OnInit {
     });
   }
 
-  navigateToMapsLink(element: Games) {
+  navigateToMapsLink(element: Games, event: Event) {
+    event.stopPropagation()
     this.ligaService.getLocationLink(element.gameLink).then(
       (locationLink: string) => {
         window.open(locationLink, '_blank', 'noopener,noreferrer');
