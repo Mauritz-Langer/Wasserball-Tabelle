@@ -24,7 +24,7 @@
 
       <ng-container matColumnDef="location">
         <th mat-header-cell *matHeaderCellDef> Ort</th>
-        <td mat-cell (click)="navigateToMapsLink(element, $event)" *matCellDef="let element">{{ element.location }}</td>
+        <td mat-cell class="location-link" (click)="navigateToMapsLink(element, $event)" (touchstart)="navigateToMapsLink(element, $event)" *matCellDef="let element">{{ element.location }}</td>
       </ng-container>
 
       <ng-container matColumnDef="result">
