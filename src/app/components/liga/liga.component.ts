@@ -18,6 +18,8 @@ import {Scorer} from "../../models/scorer";
 import {animate, state, style, transition, trigger} from "@angular/animations";
 import {MatFormField, MatLabel} from "@angular/material/form-field";
 import {MatInput} from "@angular/material/input";
+import {lastValueFrom} from "rxjs";
+import {MatButton} from "@angular/material/button";
 
 @Component({
   selector: 'app-liga',
@@ -38,7 +40,8 @@ import {MatInput} from "@angular/material/input";
     NgIf,
     MatFormField,
     MatInput,
-    MatLabel
+    MatLabel,
+    MatButton
   ],
   animations: [
     trigger('detailExpand', [
@@ -83,11 +86,14 @@ export class LigaComponent implements OnInit {
   }
 
   navigateToMapsLink(element: Games, event: Event) {
-    event.stopPropagation()
+    event.preventDefault();
+    event.stopPropagation();
+
     this.ligaService.getLocationLink(element.gameLink).then(
       (locationLink: string) => {
-        window.open(locationLink, '_blank', 'noopener,noreferrer');
-      });
+        window.location.href = locationLink;
+      }
+    );
   }
 
   getGamesByRow(row: Table) {
