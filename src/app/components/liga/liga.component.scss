@@ -1,6 +1,10 @@
+.table-container {
+  overflow: auto;
+  box-sizing: border-box;
+}
+
 table {
   width: 100%;
-  overflow: auto;
 }
 
 .mat-mdc-form-field {
@@ -42,4 +46,11 @@ tr.example-detail-row {
   color: blue;
   text-decoration: underline;
   cursor: pointer;
+}
+
+.spinner-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 40vh;
 }

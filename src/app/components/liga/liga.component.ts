@@ -18,8 +18,8 @@ import {Scorer} from "../../models/scorer";
 import {animate, state, style, transition, trigger} from "@angular/animations";
 import {MatFormField, MatLabel} from "@angular/material/form-field";
 import {MatInput} from "@angular/material/input";
-import {lastValueFrom} from "rxjs";
 import {MatButton} from "@angular/material/button";
+import {MatProgressSpinner} from "@angular/material/progress-spinner";
 
 @Component({
   selector: 'app-liga',
@@ -41,7 +41,8 @@ import {MatButton} from "@angular/material/button";
     MatFormField,
     MatInput,
     MatLabel,
-    MatButton
+    MatButton,
+    MatProgressSpinner
   ],
   animations: [
     trigger('detailExpand', [
@@ -56,6 +57,7 @@ import {MatButton} from "@angular/material/button";
 export class LigaComponent implements OnInit {
 
   ligaName: string = '';
+  isLoading = true;
 
   displayedColumnsGames: string[] = ['start', 'home', 'guest', 'location', 'result'];
   dataSourceGames: MatTableDataSource<Games> = new MatTableDataSource();
@@ -75,11 +77,11 @@ export class LigaComponent implements OnInit {
       let param = params['param'];
       this.ligaService.getItems(param).subscribe(
         (html: string) => {
-          // Process the HTML content to extract items
           this.ligaName = this.ligaService.getLigaName(html);
           this.dataSourceGames.data = this.ligaService.parseHtmlToGames(html)
           this.dataSourceTable.data = this.ligaService.parseHtmlToTable(html)
           this.dataSourceScorer.data = this.ligaService.parseHtmlToScorer(html)
+          this.isLoading = false;
         }
       );
     });
@@ -106,13 +108,10 @@ export class LigaComponent implements OnInit {
       const [day, month, year] = datePart.split('.').map(Number);
       const [hours, minutes] = timePart.split(':').map(Number);
 
-      // Create a Date object
       const eventDate = new Date(2000 + year, month - 1, day, hours, minutes);
 
-      // Get the current date and time
       const now = new Date();
 
-      // Check if the event date is in the past
       return eventDate < now;
     } catch (error) {
       return false;
