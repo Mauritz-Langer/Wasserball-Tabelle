@@ -22,8 +22,8 @@ This project is a web application for managing and displaying water polo league 
 To install this project, clone the repository and install the dependencies using npm:
 
 ```bash
-git clone https://github.com/your-username/waterpolotable.git
-cd waterpolotable
+git clone https://github.com/Mauritz-Langer/Wasserball-Tabelle.git
+cd Wasserball-Tabelle
 npm install
 ```
 
