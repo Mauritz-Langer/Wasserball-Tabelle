@@ -6,19 +6,19 @@ import {HttpClient} from "@angular/common/http";
 import {Games} from "../../models/games";
 import {Table} from "../../models/table";
 import {Scorer} from "../../models/scorer";
+import {ApiProxyService} from "../api-proxy/api-proxy.service";
 
 @Injectable({
   providedIn: 'root'
 })
 export class LigaService {
 
-  private url = '/api/Modules/WB/'; // Replace with your URL
-
-  constructor(private http: HttpClient) {
+  constructor(private http: HttpClient, private apiProxy: ApiProxyService) {
   }
 
   getItems(link: string): Observable<string> {
-    return this.http.get(this.url + link, {responseType: 'text'})
+    const url = this.apiProxy.getApiUrl('/Modules/WB/' + link);
+    return this.http.get(url, {responseType: 'text'})
   }
 
   getLigaName(html: string): string {
@@ -30,7 +30,12 @@ export class LigaService {
       return '';
     }
 
-    return doc.getElementById('ContentSection__headerLabel')!.textContent.trim();
+    const headerLabel = doc.getElementById('ContentSection__headerLabel');
+    if (!headerLabel || !headerLabel.textContent) {
+      console.warn('ContentSection__headerLabel not found or has no textContent');
+      return '';
+    }
+    return headerLabel.textContent.trim();
   }
 
   parseHtmlToGames(html: string): Games[] {
@@ -55,13 +60,21 @@ export class LigaService {
       const rows = gameTable.getElementsByTagName('tr');
       for (let i = 2; i < rows.length; i++) {
         const cells = rows[i].getElementsByTagName('td');
-        if (cells.length < 5) {
+        if (cells.length < 6) {
           continue;
         }
 
         const result = cells[5].textContent.trim() == 'mehr...' ? ' - ' : cells[5].textContent.trim();
 
-        const link = cells[5].childNodes[0].getAttribute('href').replace('https://dsvdaten.dsv.de/Modules/WB/', '');
+        // Check if there's a link (game has been played)
+        let link = '';
+        if (cells[5].childNodes && cells[5].childNodes.length > 0 && cells[5].childNodes[0]) {
+          const firstChild = cells[5].childNodes[0];
+          const href = firstChild.getAttribute ? firstChild.getAttribute('href') : null;
+          if (href) {
+            link = href.replace('https://dsvdaten.dsv.de/Modules/WB/', '');
+          }
+        }
 
         const game: Games = {
           start: cells[1].textContent.trim(),

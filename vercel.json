@@ -1,8 +1,13 @@
 {
+  "functions": {
+    "api/proxy.ts": {
+      "maxDuration": 10
+    }
+  },
   "rewrites": [
     {
-      "source": "/api/(.*)",
-      "destination": "https://dsvdaten.dsv.de/$1"
+      "source": "/api/:path*",
+      "destination": "https://dsvdaten.dsv.de/:path*"
     }
   ]
 }

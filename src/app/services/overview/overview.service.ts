@@ -4,19 +4,19 @@ import {Observable} from 'rxjs';
 import * as DOMParser from 'dom-parser';
 import {Item} from "../../models/item";
 import {Dom} from "dom-parser";
+import {ApiProxyService} from "../api-proxy/api-proxy.service";
 
 @Injectable({
   providedIn: 'root'
 })
 export class OverviewService {
 
-  private url = '/api/Modules/WB/Index.aspx?Season=2024'; // Replace with your URL
-
-  constructor(private http: HttpClient) {
+  constructor(private http: HttpClient, private apiProxy: ApiProxyService) {
   }
 
   getItems(): Observable<string> {
-    return this.http.get(this.url, {responseType: 'text'})
+    const url = this.apiProxy.getApiUrl('/Modules/WB/Index.aspx?Season=2025');
+    return this.http.get(url, {responseType: 'text'})
   }
 
   parseHtmlToItems(html: string): Item[] {
@@ -53,7 +53,6 @@ export class OverviewService {
           if (subItemName === 'keine aktuellen Spiele vorhanden') {
             continue;
           }
-          // Log the sub
           subItems.push({name: subItemName, gender: subItemGender, link: subItemLink, isFavorite: false});
         }
 
