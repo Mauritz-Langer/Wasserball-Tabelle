@@ -13,6 +13,13 @@
           <td mat-cell *matCellDef="let element"> {{ element.start }}</td>
         </ng-container>
 
+        <ng-container matColumnDef="homeImage">
+          <th mat-header-cell *matHeaderCellDef></th>
+          <td mat-cell *matCellDef="let element">
+            <img *ngIf="element.homeImageUrl" [src]="element.homeImageUrl" alt="{{ element.home }}" class="team-logo">
+          </td>
+        </ng-container>
+
         <ng-container matColumnDef="home">
           <th mat-header-cell *matHeaderCellDef> Heim</th>
           <td mat-cell *matCellDef="let element"> {{ element.home }}</td>
@@ -21,6 +28,13 @@
         <ng-container matColumnDef="guest">
           <th mat-header-cell *matHeaderCellDef> Gast</th>
           <td mat-cell *matCellDef="let element"> {{ element.guest }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="guestImage">
+          <th mat-header-cell *matHeaderCellDef></th>
+          <td mat-cell *matCellDef="let element">
+            <img *ngIf="element.guestImageUrl" [src]="element.guestImageUrl" alt="{{ element.guest }}" class="team-logo">
+          </td>
         </ng-container>
 
         <ng-container matColumnDef="location">
@@ -48,6 +62,13 @@
         <ng-container matColumnDef="place">
           <th mat-header-cell *matHeaderCellDef> Platz</th>
           <td mat-cell *matCellDef="let element"> {{ element.place }}</td>
+        </ng-container>
+
+        <ng-container matColumnDef="image">
+          <th mat-header-cell *matHeaderCellDef></th>
+          <td mat-cell *matCellDef="let element">
+            <img *ngIf="element.imageUrl" [src]="element.imageUrl" alt="{{ element.team }}" class="team-logo">
+          </td>
         </ng-container>
 
         <ng-container matColumnDef="team">
@@ -94,17 +115,48 @@
           <td mat-cell *matCellDef="let element" [attr.colspan]="displayedColumnsTable.length">
             <div class="example-element-detail"
                  [@detailExpand]="element == expandedElement ? 'expanded' : 'collapsed'">
-              <div>{{ element.info }}</div>
-              <div>
-                <table>
+
+              <!-- Team Header mit Logo -->
+              <div class="team-header">
+                <img *ngIf="element.imageUrl" [src]="element.imageUrl" alt="{{ element.team }}" class="team-logo-large">
+                <div class="team-info">
+                  <h2>{{ element.team }}</h2>
+                  <p *ngIf="element.info" class="team-subtitle">{{ element.info }}</p>
+                </div>
+              </div>
+
+              <!-- Bisherige Spiele -->
+              <div *ngIf="expandedGames.length > 0" class="games-section">
+                <h3>Bisherige Spiele ({{ expandedGames.length }})</h3>
+                <div class="games-list">
                   @for (expandedGame of expandedGames; track expandedGame.start) {
-                    <tr>
-                      <td>{{ expandedGame.home }}</td>
-                      <td>{{ expandedGame.guest }}</td>
-                      <td>{{ expandedGame.result }}</td>
-                    </tr>
+                    <div class="game-card" [class.game-won]="isGameWon(expandedGame, element.team)"
+                         [class.game-lost]="isGameLost(expandedGame, element.team)"
+                         [class.game-draw]="isGameDraw(expandedGame)">
+                      <div class="game-teams">
+                        <div class="game-team">
+                          <img *ngIf="expandedGame.homeImageUrl" [src]="expandedGame.homeImageUrl"
+                               alt="{{ expandedGame.home }}" class="team-logo-small">
+                          <span [class.bold-team]="expandedGame.home === element.team">{{ expandedGame.home }}</span>
+                        </div>
+                        <div class="game-result">{{ expandedGame.result }}</div>
+                        <div class="game-team">
+                          <span [class.bold-team]="expandedGame.guest === element.team">{{ expandedGame.guest }}</span>
+                          <img *ngIf="expandedGame.guestImageUrl" [src]="expandedGame.guestImageUrl"
+                               alt="{{ expandedGame.guest }}" class="team-logo-small">
+                        </div>
+                      </div>
+                      <div class="game-info">
+                        <span class="game-date">{{ expandedGame.start }}</span>
+                        <span class="game-location" *ngIf="expandedGame.location">📍 {{ expandedGame.location }}</span>
+                      </div>
+                    </div>
                   }
-                </table>
+                </div>
+              </div>
+
+              <div *ngIf="expandedGames.length === 0" class="no-games">
+                <p>Noch keine Spiele gespielt</p>
               </div>
 
             </div>

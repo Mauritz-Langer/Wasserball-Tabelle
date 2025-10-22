@@ -1,6 +1,5 @@
 import {Injectable} from '@angular/core';
-import {Dom} from "dom-parser";
-import * as DOMParser from "dom-parser";
+// entferne externes dom-parser Paket, nutze nativen DOMParser
 import {lastValueFrom, Observable} from "rxjs";
 import {HttpClient} from "@angular/common/http";
 import {Games} from "../../models/games";
@@ -22,9 +21,10 @@ export class LigaService {
   }
 
   getLigaName(html: string): string {
-    let doc: Dom;
+    let doc: any;
     try {
-      doc = DOMParser.parseFromString(html);
+      const parser = new DOMParser();
+      doc = parser.parseFromString(html, 'text/html');
     } catch (error) {
       console.error('Error parsing HTML:', error);
       return '';
@@ -38,52 +38,142 @@ export class LigaService {
     return headerLabel.textContent.trim();
   }
 
+  private extractTeamImages(doc: any): Map<string, string> {
+    const teamImages = new Map<string, string>();
+
+    let tableTable = doc.getElementById('table');
+
+    if (!tableTable) {
+      const tableLabel = doc.getElementById('ContentSection__tableLabel');
+      if (tableLabel) {
+        let parent = tableLabel.parentElement;
+        while (parent && !parent.classList.contains('card-header')) {
+          parent = parent.parentElement;
+        }
+        if (parent && parent.nextElementSibling) {
+          tableTable = parent.nextElementSibling.querySelector('table');
+        }
+      }
+    }
+
+    if (tableTable) {
+      const rows = tableTable.getElementsByTagName('tr');
+      for (let i = 1; i < rows.length; i++) {
+        const cells = rows[i].getElementsByTagName('td');
+        if (cells.length < 10) {
+          continue;
+        }
+
+        const teamText = cells[2].textContent.trim();
+        const teamName = teamText.split(' - ')[0].trim();
+
+        const imgElement = cells[1].querySelector('img');
+        if (imgElement) {
+          const src = imgElement.getAttribute('src');
+          if (src) {
+            let imageUrl = '';
+            if (src.startsWith('data:')) {
+              imageUrl = src;
+            } else if (src.includes('base64,') || src.startsWith('svg+xml')) {
+              if (src.startsWith('svg+xml;base64,')) {
+                imageUrl = 'data:image/svg+xml;base64,' + src.substring(15);
+              } else if (!src.startsWith('data:')) {
+                imageUrl = 'data:image/' + src;
+              } else {
+                imageUrl = src;
+              }
+            } else if (src.startsWith('http')) {
+              imageUrl = src;
+            } else {
+              imageUrl = 'https://dsvdaten.dsv.de' + (src.startsWith('/') ? '' : '/') + src;
+            }
+            teamImages.set(teamName, imageUrl);
+          }
+        }
+      }
+    }
+
+    return teamImages;
+  }
+
   parseHtmlToGames(html: string): Games[] {
     html = html.replace(/<nobr>/g, '')
       .replace(/<\/nobr>/g, '')
       .replace(/target=_blank/g, '');
 
-    let doc: Dom;
-
+    let doc: any;
     const games: Games[] = [];
 
     try {
-      doc = DOMParser.parseFromString(html);
+      const parser = new DOMParser();
+      doc = parser.parseFromString(html, 'text/html');
     } catch (error) {
       console.error('Error parsing HTML:', error);
       return [];
     }
 
-    const gameTable = doc.getElementById('games');
+    // Extrahiere Team-Bilder aus der Tabelle
+    const teamImages = this.extractTeamImages(doc);
+
+    // Neue Struktur: Suche nach der Tabelle unter ContentSection__roundLabel
+    let gameTable = doc.getElementById('games');
+
+    // Fallback: Wenn id="games" nicht existiert, suche nach der Tabelle mit der Spiele-Struktur
+    if (!gameTable) {
+      const roundLabel = doc.getElementById('ContentSection__roundLabel');
+      if (roundLabel) {
+        // Finde das card-body div nach dem roundLabel
+        let parent = roundLabel.parentElement;
+        while (parent && !parent.classList.contains('card-header')) {
+          parent = parent.parentElement;
+        }
+        if (parent && parent.nextElementSibling) {
+          gameTable = parent.nextElementSibling.querySelector('table');
+        }
+      }
+    }
 
     if (gameTable) {
       const rows = gameTable.getElementsByTagName('tr');
-      for (let i = 2; i < rows.length; i++) {
+      // Überspringe die erste Header-Zeile
+      for (let i = 1; i < rows.length; i++) {
         const cells = rows[i].getElementsByTagName('td');
-        if (cells.length < 6) {
+
+        // Überspringe Spieltag-Header (colspan=7) und Zeilen mit zu wenigen Zellen
+        if (cells.length < 7) {
           continue;
         }
 
-        const result = cells[5].textContent.trim() == 'mehr...' ? ' - ' : cells[5].textContent.trim();
+        // Neue Struktur: Spalten sind: Spiel, Beginn, leer, Heim, leer, Gast, Ort, Info/Erg., (Viertelergebnisse)
+        const resultCell = cells[7];
+        let result = resultCell.textContent.trim();
+        if (result === 'mehr...') {
+          result = ' - ';
+        }
 
-        // Check if there's a link (game has been played)
+        // Extrahiere Link falls vorhanden
         let link = '';
-        if (cells[5].childNodes && cells[5].childNodes.length > 0 && cells[5].childNodes[0]) {
-          const firstChild = cells[5].childNodes[0];
-          const href = firstChild.getAttribute ? firstChild.getAttribute('href') : null;
+        const linkElement = resultCell.querySelector('a');
+        if (linkElement) {
+          const href = linkElement.getAttribute('href');
           if (href) {
             link = href.replace('https://dsvdaten.dsv.de/Modules/WB/', '');
           }
         }
 
+        const homeTeam = cells[3].textContent.trim();
+        const guestTeam = cells[5].textContent.trim();
+
         const game: Games = {
           start: cells[1].textContent.trim(),
-          home: cells[2].textContent.trim(),
-          guest: cells[3].textContent.trim(),
-          location: cells[4].textContent.trim(),
+          home: homeTeam,
+          homeImageUrl: teamImages.get(homeTeam) || '',
+          guest: guestTeam,
+          guestImageUrl: teamImages.get(guestTeam) || '',
+          location: cells[6].textContent.trim(),
           gameLink: link,
           result: result
-        }
+        };
         games.push(game);
       }
     }
@@ -93,7 +183,8 @@ export class LigaService {
 
   async getLocationLink(link: string): Promise<string> {
     const htmlResponse = await lastValueFrom(this.getItems(link));
-    const docGame = DOMParser.parseFromString(htmlResponse);
+    const parser = new DOMParser();
+    const docGame: any = parser.parseFromString(htmlResponse, 'text/html');
     return docGame.getElementById('ContentSection__googleHyperLink')?.getAttribute('href') || '';
   }
 
@@ -102,44 +193,107 @@ export class LigaService {
       .replace(/<\/nobr>/g, '')
       .replace(/target=_blank/g, '');
 
-    let doc: Dom;
-
+    let doc: any;
     const tables: Table[] = [];
 
     try {
-      doc = DOMParser.parseFromString(html);
+      const parser = new DOMParser();
+      doc = parser.parseFromString(html, 'text/html');
     } catch (error) {
       console.error('Error parsing HTML:', error);
       return [];
     }
 
-    const tableTable = doc.getElementById('table');
+    // Neue Struktur: Suche nach der Tabelle unter ContentSection__tableLabel
+    let tableTable = doc.getElementById('table');
+
+    // Fallback: Wenn id="table" nicht existiert, suche nach der Tabelle mit der Tabellen-Struktur
+    if (!tableTable) {
+      const tableLabel = doc.getElementById('ContentSection__tableLabel');
+      if (tableLabel) {
+        // Finde das card-body div nach dem tableLabel
+        let parent = tableLabel.parentElement;
+        while (parent && !parent.classList.contains('card-header')) {
+          parent = parent.parentElement;
+        }
+        if (parent && parent.nextElementSibling) {
+          tableTable = parent.nextElementSibling.querySelector('table');
+        }
+      }
+    }
 
     if (tableTable) {
       const rows = tableTable.getElementsByTagName('tr');
       for (let i = 1; i < rows.length; i++) {
         const cells = rows[i].getElementsByTagName('td');
-        if (cells.length < 5) {
+        if (cells.length < 10) {
           continue;
         }
 
+        // Neue League.aspx Struktur hat eine leere Spalte (Index 1)
+        // Spalte 0: Platz
+        // Spalte 1: Bild (Team-Logo)
+        // Spalte 2: Verein (Team-Name)
+        // Spalte 3: Spiele
+        // Spalte 4: S* (Siege)
+        // Spalte 5: U* (Unentschieden)
+        // Spalte 6: N* (Niederlagen)
+        // Spalte 7: Tore
+        // Spalte 8: TD* (Tordifferenz)
+        // Spalte 9: Punkte
+
         let info = '';
-        if (cells[1].textContent.split(' - ').length > 1) {
-          info = cells[1].textContent.split(' - ')[1].trim();
+        const teamText = cells[2].textContent.trim();
+        if (teamText.includes(' - ')) {
+          const parts = teamText.split(' - ');
+          info = parts[1].trim();
+        }
+
+        // Extrahiere Bild aus Spalte 1
+        let imageUrl = '';
+        const imgElement = cells[1].querySelector('img');
+        if (imgElement) {
+          const src = imgElement.getAttribute('src');
+          if (src) {
+            // Prüfe ob es sich um eine Data-URL handelt
+            if (src.startsWith('data:')) {
+              imageUrl = src;
+            }
+            // Prüfe ob es eine Base64-kodierte SVG ohne data: Präfix ist
+            else if (src.includes('base64,') || src.startsWith('svg+xml')) {
+              // Füge den korrekten data: URI Präfix hinzu
+              if (src.startsWith('svg+xml;base64,')) {
+                imageUrl = 'data:image/svg+xml;base64,' + src.substring(15);
+              } else if (!src.startsWith('data:')) {
+                imageUrl = 'data:image/' + src;
+              } else {
+                imageUrl = src;
+              }
+            }
+            // Normale URL
+            else if (src.startsWith('http')) {
+              imageUrl = src;
+            }
+            // Relative URL
+            else {
+              imageUrl = 'https://dsvdaten.dsv.de' + (src.startsWith('/') ? '' : '/') + src;
+            }
+          }
         }
 
         const tableElement: Table = {
           place: parseInt(cells[0].textContent.trim()),
-          team: cells[1].textContent.split(' - ')[0].trim(),
+          team: teamText.split(' - ')[0].trim(),
           info: info,
-          games: parseInt(cells[2].textContent.trim()),
-          wins: parseInt(cells[3].textContent.trim()),
-          draws: parseInt(cells[4].textContent.trim()),
-          losses: parseInt(cells[5].textContent.trim()),
-          goals: cells[6].textContent.trim(),
-          goalDifference: parseInt(cells[7].textContent.trim()),
-          points: parseInt(cells[8].textContent.trim())
-        }
+          imageUrl: imageUrl,
+          games: parseInt(cells[3].textContent.trim().split('/')[0]), // "2/10" -> nimm erste Zahl
+          wins: parseInt(cells[4].textContent.trim()),
+          draws: parseInt(cells[5].textContent.trim()),
+          losses: parseInt(cells[6].textContent.trim()),
+          goals: cells[7].textContent.trim(),
+          goalDifference: parseInt(cells[8].textContent.trim().replace('+', '')), // "+53" -> 53
+          points: parseInt(cells[9].textContent.trim())
+        };
         tables.push(tableElement);
       }
     }
@@ -152,18 +306,34 @@ export class LigaService {
       .replace(/<\/nobr>/g, '')
       .replace(/target=_blank/g, '');
 
-    let doc: Dom;
-
+    let doc: any;
     const scorers: Scorer[] = [];
 
     try {
-      doc = DOMParser.parseFromString(html);
+      const parser = new DOMParser();
+      doc = parser.parseFromString(html, 'text/html');
     } catch (error) {
       console.error('Error parsing HTML:', error);
       return [];
     }
 
-    const scorer = doc.getElementById('scorer');
+    // Neue Struktur: Suche nach der Tabelle unter ContentSection__scorerLabel
+    let scorer = doc.getElementById('scorer');
+
+    // Fallback: Wenn id="scorer" nicht existiert, suche nach der Tabelle mit der Torschützen-Struktur
+    if (!scorer) {
+      const scorerLabel = doc.getElementById('ContentSection__scorerLabel');
+      if (scorerLabel) {
+        // Finde das card-body div nach dem scorerLabel
+        let parent = scorerLabel.parentElement;
+        while (parent && !parent.classList.contains('card-header')) {
+          parent = parent.parentElement;
+        }
+        if (parent && parent.nextElementSibling) {
+          scorer = parent.nextElementSibling.querySelector('table');
+        }
+      }
+    }
 
     if (scorer) {
       const rows = scorer.getElementsByTagName('tr');
@@ -175,8 +345,9 @@ export class LigaService {
           continue;
         }
 
-        if (!isNaN(parseInt(cells[0].textContent))) {
-          lastPlace = parseInt(cells[0].textContent.trim());
+        const placeText = cells[0].textContent.trim();
+        if (placeText && !isNaN(parseInt(placeText))) {
+          lastPlace = parseInt(placeText);
         }
 
         const scorerElement: Scorer = {
@@ -185,7 +356,7 @@ export class LigaService {
           team: cells[2].textContent.trim(),
           goals: parseInt(cells[3].textContent.trim()),
           games: parseInt(cells[4].textContent.trim())
-        }
+        };
         scorers.push(scorerElement);
       }
     }

@@ -59,9 +59,9 @@ export class LigaComponent implements OnInit {
   ligaName: string = '';
   isLoading = true;
 
-  displayedColumnsGames: string[] = ['start', 'home', 'guest', 'location', 'result'];
+  displayedColumnsGames: string[] = ['start', 'homeImage', 'home', 'guest', 'guestImage', 'location', 'result'];
   dataSourceGames: MatTableDataSource<Games> = new MatTableDataSource();
-  displayedColumnsTable: string[] = ['place', 'team', 'games', 'wins', 'draws', 'losses', 'goals', 'goalDifference', 'points'];
+  displayedColumnsTable: string[] = ['place', 'image', 'team', 'games', 'wins', 'draws', 'losses', 'goals', 'goalDifference', 'points'];
   dataSourceTable: MatTableDataSource<Table> = new MatTableDataSource();
   displayedColumnsScorer = ['place', 'player', 'team', 'goals', 'games'];
   dataSourceScorer: MatTableDataSource<Scorer> = new MatTableDataSource();
@@ -126,5 +126,45 @@ export class LigaComponent implements OnInit {
   applyScorerFilter(event: Event) {
     const filterValue = (event.target as HTMLInputElement).value;
     this.dataSourceScorer.filter = filterValue.trim().toLowerCase();
+  }
+
+  isGameWon(game: Games, teamName: string): boolean {
+    const resultParts = game.result.split(':');
+    if (resultParts.length !== 2) return false;
+
+    const homeGoals = parseInt(resultParts[0]);
+    const guestGoals = parseInt(resultParts[1]);
+
+    if (game.home === teamName) {
+      return homeGoals > guestGoals;
+    } else if (game.guest === teamName) {
+      return guestGoals > homeGoals;
+    }
+    return false;
+  }
+
+  isGameLost(game: Games, teamName: string): boolean {
+    const resultParts = game.result.split(':');
+    if (resultParts.length !== 2) return false;
+
+    const homeGoals = parseInt(resultParts[0]);
+    const guestGoals = parseInt(resultParts[1]);
+
+    if (game.home === teamName) {
+      return homeGoals < guestGoals;
+    } else if (game.guest === teamName) {
+      return guestGoals < homeGoals;
+    }
+    return false;
+  }
+
+  isGameDraw(game: Games): boolean {
+    const resultParts = game.result.split(':');
+    if (resultParts.length !== 2) return false;
+
+    const homeGoals = parseInt(resultParts[0]);
+    const guestGoals = parseInt(resultParts[1]);
+
+    return homeGoals === guestGoals;
   }
 }
