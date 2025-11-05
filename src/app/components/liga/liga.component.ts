@@ -119,9 +119,25 @@ export class LigaComponent implements OnInit {
 
   checkEventInPast(start: string): boolean {
     try {
-      const [datePart, timePart] = start.replace(' Uhr', '').split(', ');
-      const [day, month, year] = datePart.split('.').map(Number);
-      const [hours, minutes] = timePart.split(':').map(Number);
+      if (!start || start.trim() === '') {
+        return false;
+      }
+
+      const parts = start.replace(' Uhr', '').split(', ');
+      if (parts.length < 2) {
+        return false;
+      }
+
+      const [datePart, timePart] = parts;
+      const dateParts = datePart.split('.');
+      const timeParts = timePart.split(':');
+
+      if (dateParts.length < 3 || timeParts.length < 2) {
+        return false;
+      }
+
+      const [day, month, year] = dateParts.map(Number);
+      const [hours, minutes] = timeParts.map(Number);
 
       const eventDate = new Date(2000 + year, month - 1, day, hours, minutes);
 
@@ -211,7 +227,8 @@ export class LigaComponent implements OnInit {
 
     games.forEach(game => {
       // Extrahiere nur das Datum (ohne Uhrzeit) z.B. "04.10.24"
-      const datePart = game.start.split(',')[0].trim();
+      const splitResult = game.start.split(',');
+      const datePart = splitResult.length > 0 ? splitResult[0].trim() : game.start;
 
       if (!this.groupedGames.has(datePart)) {
         this.groupedGames.set(datePart, []);
@@ -236,11 +253,18 @@ export class LigaComponent implements OnInit {
    * Parse deutsches Datum (DD.MM.YY)
    */
   private parseGermanDate(dateStr: string): Date {
-    const parts = dateStr.split('.');
-    const day = parseInt(parts[0]);
-    const month = parseInt(parts[1]) - 1;
-    const year = parseInt(parts[2]) + 2000;
-    return new Date(year, month, day);
+    try {
+      const parts = dateStr.split('.');
+      if (parts.length < 3) {
+        return new Date();
+      }
+      const day = parseInt(parts[0]);
+      const month = parseInt(parts[1]) - 1;
+      const year = parseInt(parts[2]) + 2000;
+      return new Date(year, month, day);
+    } catch {
+      return new Date();
+    }
   }
 
   /**

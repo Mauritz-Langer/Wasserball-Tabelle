@@ -3,42 +3,50 @@ import {Router} from '@angular/router';
 import {MatIcon} from "@angular/material/icon";
 import {
   MatAccordion,
-  MatExpansionPanel, MatExpansionPanelDescription,
+  MatExpansionPanel,
   MatExpansionPanelHeader,
-  MatExpansionPanelTitle
+  MatExpansionPanelTitle,
+  MatExpansionPanelDescription
 } from "@angular/material/expansion";
-import {MatList, MatListItem} from "@angular/material/list";
-import {MatButton, MatIconButton} from "@angular/material/button";
+import {MatIconButton} from "@angular/material/button";
 import {NgForOf, NgIf} from "@angular/common";
 import {MatCard, MatCardContent} from "@angular/material/card";
-import {MatToolbar} from "@angular/material/toolbar";
 import {OverviewService} from "../../services/overview/overview.service";
+import {FavoritesService} from "../../services/favorites/favorites.service";
 import {Item} from "../../models/item";
 import {SubItem} from "../../models/subItem";
 import {MatProgressSpinner} from "@angular/material/progress-spinner";
 import {MatTooltip} from "@angular/material/tooltip";
+import {MatFormField, MatLabel, MatPrefix, MatSuffix} from "@angular/material/form-field";
+import {MatInput} from "@angular/material/input";
+import {FormsModule} from "@angular/forms";
 
 @Component({
   selector: 'app-overview',
   standalone: true,
-  imports: [MatIcon, MatAccordion, MatExpansionPanel, MatList, MatListItem, MatIconButton, NgForOf, MatExpansionPanelTitle, MatExpansionPanelDescription, MatExpansionPanelHeader, MatCard, MatCardContent, MatToolbar, MatButton, MatProgressSpinner, NgIf, MatTooltip],
+  imports: [MatIcon, MatAccordion, MatExpansionPanel, MatIconButton, NgForOf, MatExpansionPanelTitle, MatExpansionPanelDescription, MatExpansionPanelHeader, MatCard, MatCardContent, MatProgressSpinner, NgIf, MatTooltip, MatFormField, MatInput, MatLabel, MatPrefix, MatSuffix, FormsModule],
   templateUrl: './overview.component.html',
   styleUrl: './overview.component.scss'
 })
 export class OverviewComponent implements OnInit {
 
   items: Item[] = [];
+  filteredItems: Item[] = [];
   isLoading = true;
+  searchTerm = '';
 
-  constructor(private overviewService: OverviewService, private router: Router) {
-  }
-
+  constructor(
+    private overviewService: OverviewService,
+    private favoritesService: FavoritesService,
+    private router: Router
+  ) {}
 
   ngOnInit(): void {
     this.overviewService.getItems().subscribe(
       (html: string) => {
         // Process the HTML content to extract items
         this.items = this.overviewService.parseHtmlToItems(html);
+        this.filteredItems = [...this.items];
         this.loadFavorites();
         this.isLoading = false;
       }
@@ -49,14 +57,50 @@ export class OverviewComponent implements OnInit {
     return this.items.flatMap(item => item.subItems.filter(subItem => subItem.isFavorite));
   }
 
+  filterItems(): void {
+    const term = this.searchTerm.toLowerCase().trim();
+
+    if (!term) {
+      this.filteredItems = [...this.items];
+      return;
+    }
+
+    this.filteredItems = this.items
+      .map(item => {
+        const filteredSubItems = item.subItems.filter(subItem =>
+          subItem.name.toLowerCase().includes(term) ||
+          (subItem.gender?.toLowerCase().includes(term) ?? false)
+        );
+
+        // Wichtig: Wir erstellen eine Kopie des Items, aber behalten die originalen SubItem-Referenzen
+        return {
+          ...item,
+          subItems: filteredSubItems
+        };
+      })
+      .filter(item => item.subItems.length > 0);
+  }
+
   toggleFavorite(subItem: SubItem): void {
-    subItem.isFavorite = !subItem.isFavorite;
+    // Finde das SubItem im originalen items Array und aktualisiere es dort
+    this.items.forEach(item => {
+      const originalSubItem = item.subItems.find(si => si.link === subItem.link && si.name === subItem.name);
+      if (originalSubItem) {
+        originalSubItem.isFavorite = !originalSubItem.isFavorite;
+        // Synchronisiere mit dem gefilterten Item
+        subItem.isFavorite = originalSubItem.isFavorite;
+      }
+    });
     this.saveFavorites();
+    // Aktualisiere die gefilterten Items, um Änderungen zu reflektieren
+    this.filterItems();
   }
 
   saveFavorites(): void {
     const favorites = this.items.flatMap(item => item.subItems.filter(subItem => subItem.isFavorite));
     localStorage.setItem('favorites', JSON.stringify(favorites));
+    // Notify the service about the change
+    this.favoritesService.updateCount();
   }
 
   loadFavorites(): void {
@@ -66,6 +110,10 @@ export class OverviewComponent implements OnInit {
         subItem.isFavorite = favorites.some((fav: SubItem) => fav.name === subItem.name);
       });
     });
+    // Update filtered items to reflect favorites
+    this.filterItems();
+    // Update the count after loading
+    this.favoritesService.updateCount();
   }
 
   navigateToLiga(subItem: SubItem) {

@@ -1,4 +1,48 @@
-<mat-toolbar>
-  <span>Deutsche Wasserball Tabellen</span>
+<mat-toolbar class="app-header">
+  <div class="header-content">
+    <!-- Logo & Title Section -->
+    <div class="brand-section">
+      <button mat-icon-button
+              *ngIf="!isHomePage"
+              (click)="goHome()"
+              class="home-button"
+              matTooltip="Zurück zur Übersicht">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+
+      <div class="logo-container">
+        <mat-icon class="logo-icon">pool</mat-icon>
+        <div class="brand-text">
+          <span class="brand-title">Wasserball Live</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="spacer"></div>
+
+    <!-- Info Section -->
+    <div class="info-section">
+      <!-- Favorites Counter -->
+      <div class="info-item" *ngIf="favoritesCount > 0" matTooltip="Favorisierte Ligen">
+        <mat-icon class="info-icon">favorite</mat-icon>
+        <span class="info-text">{{ favoritesCount }}</span>
+      </div>
+
+      <!-- Season Info -->
+      <div class="info-item" matTooltip="Aktuelle Saison">
+        <mat-icon class="info-icon">event</mat-icon>
+        <span class="info-text">{{ currentYear }}/{{ currentYear + 1 }}</span>
+      </div>
+
+      <!-- DSV Link -->
+      <button mat-icon-button
+              class="dsv-button"
+              matTooltip="DSV Datenbank öffnen"
+              (click)="openDsvWebsite()">
+        <mat-icon>open_in_new</mat-icon>
+      </button>
+    </div>
+  </div>
 </mat-toolbar>
+
 <router-outlet></router-outlet>
