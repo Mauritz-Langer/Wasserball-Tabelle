@@ -253,5 +253,108 @@ export class GameDetailsComponent implements OnInit {
     const scores = this.gameDetails.finalScore.split(':');
     return scores[1]?.trim() || '0';
   }
+
+  /**
+   * Hilfsfunktion: Prüft ob Team-Details vorhanden sind
+   */
+  hasTeamDetails(): boolean {
+    if (!this.gameDetails) return false;
+    const home = this.gameDetails.homeTeam;
+    const guest = this.gameDetails.guestTeam;
+    return !!(home.coach || home.captain || home.teamLeader || home.assistant || home.bestPlayer ||
+              guest.coach || guest.captain || guest.teamLeader || guest.assistant || guest.bestPlayer);
+  }
+
+  /**
+   * Hilfsfunktion: Prüft ob Spielerstatistiken vorhanden sind
+   */
+  hasPlayerStats(): boolean {
+    if (!this.gameDetails) return false;
+    const homePlayers = this.gameDetails.homeTeam?.players;
+    const guestPlayers = this.gameDetails.guestTeam?.players;
+    return !!((homePlayers && homePlayers.length > 0) || (guestPlayers && guestPlayers.length > 0));
+  }
+
+  /**
+   * Hilfsfunktion: Prüft ob Spielverlauf-Events vorhanden sind
+   */
+  hasGameEvents(): boolean {
+    return !!(this.gameDetails?.events && this.gameDetails.events.length > 0);
+  }
+
+  /**
+   * Hilfsfunktion: Prüft ob Statistiken vorhanden sind
+   */
+  hasStatistics(): boolean {
+    return !!this.gameDetails?.statistics;
+  }
+
+  /**
+   * Hilfsfunktion: Prüft ob das Spiel beendet ist
+   */
+  isGameFinished(): boolean {
+    if (!this.gameDetails) return false;
+
+    // 1. Prüfe ob ein gültiges Ergebnis vorliegt (nicht "0:0" oder leer)
+    const finalScore = this.gameDetails.finalScore;
+    if (finalScore && finalScore !== '0:0' && finalScore !== ':' && finalScore.includes(':')) {
+      const scores = finalScore.split(':');
+      const homeScore = parseInt(scores[0]?.trim() || '0');
+      const guestScore = parseInt(scores[1]?.trim() || '0');
+      // Wenn mindestens ein Team Tore hat, ist das Spiel gespielt
+      if (homeScore > 0 || guestScore > 0) {
+        return true;
+      }
+    }
+
+    // 2. Prüfe ob Spielverlauf-Events vorhanden sind (bedeutet Spiel wurde gespielt)
+    if (this.gameDetails.events && this.gameDetails.events.length > 0) {
+      return true;
+    }
+
+    // 3. Prüfe ob das Datum in der Vergangenheit liegt
+    if (this.gameDetails.startDate) {
+      try {
+        // Deutsches Datumsformat parsen: "DD.MM.YYYY, HH:MM Uhr" oder "DD.MM.YY, HH:MM Uhr"
+        const dateStr = this.gameDetails.startDate;
+        const parts = dateStr.replace(' Uhr', '').split(', ');
+
+        if (parts.length >= 1) {
+          const datePart = parts[0].trim();
+          const timePart = parts[1]?.trim() || '00:00';
+
+          const dateParts = datePart.split('.');
+          const timeParts = timePart.split(':');
+
+          if (dateParts.length >= 3 && timeParts.length >= 2) {
+            const day = parseInt(dateParts[0]);
+            const month = parseInt(dateParts[1]) - 1; // Monate sind 0-basiert
+            let year = parseInt(dateParts[2]);
+
+            // Wenn Jahr 2-stellig ist (z.B. 24), zu 4-stellig konvertieren
+            if (year < 100) {
+              year += 2000;
+            }
+
+            const hours = parseInt(timeParts[0]);
+            const minutes = parseInt(timeParts[1]);
+
+            const gameDate = new Date(year, month, day, hours, minutes);
+            const now = new Date();
+
+            // Spiel ist beendet, wenn es mehr als 2 Stunden in der Vergangenheit liegt
+            // (um laufende Spiele zu berücksichtigen)
+            const twoHoursAgo = new Date(now.getTime() - (2 * 60 * 60 * 1000));
+            return gameDate < twoHoursAgo;
+          }
+        }
+      } catch (error) {
+        console.error('Error parsing game date:', error);
+      }
+    }
+
+    // Wenn nichts davon zutrifft, gilt das Spiel als noch nicht beendet
+    return false;
+  }
 }
 

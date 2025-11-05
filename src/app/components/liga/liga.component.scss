@@ -1016,3 +1016,49 @@
   }
 }
 
+// No Data Container (when all tabs are empty)
+.no-data-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 400px;
+  margin-top: 24px;
+
+  .no-data-card {
+    max-width: 500px;
+    text-align: center;
+
+    .no-data-message {
+      padding: 48px 32px;
+
+      .no-data-icon {
+        font-size: 64px;
+        width: 64px;
+        height: 64px;
+        color: #1976d2;
+        opacity: 0.7;
+        margin-bottom: 24px;
+      }
+
+      h2 {
+        margin: 0 0 12px 0;
+        font-size: 24px;
+        font-weight: 600;
+        color: rgba(0, 0, 0, 0.87);
+      }
+
+      p {
+        margin: 0 0 32px 0;
+        font-size: 16px;
+        color: rgba(0, 0, 0, 0.6);
+        line-height: 1.5;
+      }
+
+      button {
+        mat-icon {
+          margin-right: 8px;
+        }
+      }
+    }
+  }
+}

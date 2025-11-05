@@ -38,7 +38,7 @@
             <img [src]="gameDetails.homeTeam.logoUrl"
                  [alt]="gameDetails.homeTeam.name"
                  class="team-logo"
-                 *ngIf="gameDetails.homeTeam.logoUrl">
+                 *ngIf="gameDetails.homeTeam.logoUrl && gameDetails.homeTeam.logoUrl.trim() !== ''">
             <h2 class="team-name">{{ gameDetails.homeTeam.name }}</h2>
             <span class="team-label">Heim</span>
             <div class="team-final-score home">{{ getFinalHomeScore() }}</div>
@@ -48,14 +48,16 @@
           <div class="score-section">
             <div class="final-score-wrapper">
               <div class="versus-label">VS</div>
-              <div class="game-status-badge">Beendet</div>
-              <div class="scoring-system-hint" *ngIf="gameDetails.scoringSystem">
+              <div class="game-status-badge" [class.finished]="isGameFinished()" [class.scheduled]="!isGameFinished()">
+                {{ isGameFinished() ? 'Beendet' : 'Angesetzt' }}
+              </div>
+              <div class="scoring-system-hint" *ngIf="gameDetails.scoringSystem && gameDetails.scoringSystem.trim() !== ''">
                 {{ gameDetails.scoringSystem }}
               </div>
             </div>
 
             <!-- Improved Quarter Scores Display -->
-            <div class="quarter-scores-enhanced" *ngIf="gameDetails.quarterScores.length > 0">
+            <div class="quarter-scores-enhanced" *ngIf="gameDetails.quarterScores && gameDetails.quarterScores.length > 0">
               <div class="quarter-score-item" *ngFor="let quarter of gameDetails.quarterScores">
                 <span class="quarter-label">Q{{ quarter.quarter }}</span>
                 <span class="quarter-value">{{ quarter.home }}:{{ quarter.guest }}</span>
@@ -68,7 +70,7 @@
             <img [src]="gameDetails.guestTeam.logoUrl"
                  [alt]="gameDetails.guestTeam.name"
                  class="team-logo"
-                 *ngIf="gameDetails.guestTeam.logoUrl">
+                 *ngIf="gameDetails.guestTeam.logoUrl && gameDetails.guestTeam.logoUrl.trim() !== ''">
             <h2 class="team-name">{{ gameDetails.guestTeam.name }}</h2>
             <span class="team-label">Gast</span>
             <div class="team-final-score guest">{{ getFinalGuestScore() }}</div>
@@ -101,7 +103,7 @@
             <mat-icon>sports</mat-icon>
             <span>{{ gameDetails.league }}</span>
           </div>
-          <div class="info-chip" *ngIf="gameDetails.playKind">
+          <div class="info-chip" *ngIf="gameDetails.playKind && gameDetails.playKind.trim() !== ''">
             <mat-icon>emoji_events</mat-icon>
             <span>{{ gameDetails.playKind }}</span>
           </div>
@@ -114,10 +116,10 @@
     </mat-card>
 
     <!-- Tabs for different sections -->
-    <mat-tab-group class="details-tabs">
+    <mat-tab-group class="details-tabs" *ngIf="hasTeamDetails() || hasPlayerStats() || hasGameEvents() || hasOfficials() || hasStatistics()">
 
       <!-- Team Details Tab -->
-      <mat-tab label="Teams">
+      <mat-tab label="Teams" *ngIf="hasTeamDetails()">
         <div class="tab-content">
           <div class="teams-grid">
 
@@ -128,19 +130,19 @@
               </mat-card-header>
               <mat-card-content>
                 <div class="team-details">
-                  <div class="detail-item" *ngIf="gameDetails.homeTeam.coach">
+                  <div class="detail-item" *ngIf="gameDetails.homeTeam.coach && gameDetails.homeTeam.coach.trim() !== ''">
                     <strong>Trainer:</strong> {{ gameDetails.homeTeam.coach }}
                   </div>
-                  <div class="detail-item" *ngIf="gameDetails.homeTeam.captain">
+                  <div class="detail-item" *ngIf="gameDetails.homeTeam.captain && gameDetails.homeTeam.captain.trim() !== ''">
                     <strong>Kapitän:</strong> {{ gameDetails.homeTeam.captain }}
                   </div>
-                  <div class="detail-item" *ngIf="gameDetails.homeTeam.teamLeader">
+                  <div class="detail-item" *ngIf="gameDetails.homeTeam.teamLeader && gameDetails.homeTeam.teamLeader.trim() !== ''">
                     <strong>Mannschaftsleiter:</strong> {{ gameDetails.homeTeam.teamLeader }}
                   </div>
-                  <div class="detail-item" *ngIf="gameDetails.homeTeam.assistant">
+                  <div class="detail-item" *ngIf="gameDetails.homeTeam.assistant && gameDetails.homeTeam.assistant.trim() !== ''">
                     <strong>Betreuer:</strong> {{ gameDetails.homeTeam.assistant }}
                   </div>
-                  <div class="detail-item highlight" *ngIf="gameDetails.homeTeam.bestPlayer">
+                  <div class="detail-item highlight" *ngIf="gameDetails.homeTeam.bestPlayer && gameDetails.homeTeam.bestPlayer.trim() !== ''">
                     <strong>Bester Spieler:</strong> {{ gameDetails.homeTeam.bestPlayer }}
                   </div>
                 </div>
@@ -154,19 +156,19 @@
               </mat-card-header>
               <mat-card-content>
                 <div class="team-details">
-                  <div class="detail-item" *ngIf="gameDetails.guestTeam.coach">
+                  <div class="detail-item" *ngIf="gameDetails.guestTeam.coach && gameDetails.guestTeam.coach.trim() !== ''">
                     <strong>Trainer:</strong> {{ gameDetails.guestTeam.coach }}
                   </div>
-                  <div class="detail-item" *ngIf="gameDetails.guestTeam.captain">
+                  <div class="detail-item" *ngIf="gameDetails.guestTeam.captain && gameDetails.guestTeam.captain.trim() !== ''">
                     <strong>Kapitän:</strong> {{ gameDetails.guestTeam.captain }}
                   </div>
-                  <div class="detail-item" *ngIf="gameDetails.guestTeam.teamLeader">
+                  <div class="detail-item" *ngIf="gameDetails.guestTeam.teamLeader && gameDetails.guestTeam.teamLeader.trim() !== ''">
                     <strong>Mannschaftsleiter:</strong> {{ gameDetails.guestTeam.teamLeader }}
                   </div>
-                  <div class="detail-item" *ngIf="gameDetails.guestTeam.assistant">
+                  <div class="detail-item" *ngIf="gameDetails.guestTeam.assistant && gameDetails.guestTeam.assistant.trim() !== ''">
                     <strong>Betreuer:</strong> {{ gameDetails.guestTeam.assistant }}
                   </div>
-                  <div class="detail-item highlight" *ngIf="gameDetails.guestTeam.bestPlayer">
+                  <div class="detail-item highlight" *ngIf="gameDetails.guestTeam.bestPlayer && gameDetails.guestTeam.bestPlayer.trim() !== ''">
                     <strong>Bester Spieler:</strong> {{ gameDetails.guestTeam.bestPlayer }}
                   </div>
                 </div>
@@ -177,7 +179,7 @@
       </mat-tab>
 
       <!-- Player Statistics Tab -->
-      <mat-tab label="Spielerstatistik">
+      <mat-tab label="Spielerstatistik" *ngIf="hasPlayerStats()">
         <div class="tab-content">
           <div class="players-grid">
 
@@ -188,7 +190,7 @@
                   <img [src]="gameDetails.homeTeam.logoUrl"
                        [alt]="gameDetails.homeTeam.name"
                        class="team-logo-small"
-                       *ngIf="gameDetails.homeTeam.logoUrl">
+                       *ngIf="gameDetails.homeTeam.logoUrl && gameDetails.homeTeam.logoUrl.trim() !== ''">
                   <mat-card-title>{{ gameDetails.homeTeam.name }}</mat-card-title>
                 </div>
               </mat-card-header>
@@ -259,7 +261,7 @@
                   <img [src]="gameDetails.guestTeam.logoUrl"
                        [alt]="gameDetails.guestTeam.name"
                        class="team-logo-small"
-                       *ngIf="gameDetails.guestTeam.logoUrl">
+                       *ngIf="gameDetails.guestTeam.logoUrl && gameDetails.guestTeam.logoUrl.trim() !== ''">
                   <mat-card-title>{{ gameDetails.guestTeam.name }}</mat-card-title>
                 </div>
               </mat-card-header>
@@ -335,7 +337,7 @@
       </mat-tab>
 
       <!-- Game Events Tab -->
-      <mat-tab label="Spielverlauf">
+      <mat-tab label="Spielverlauf" *ngIf="hasGameEvents()">
         <div class="tab-content">
           <mat-card>
             <mat-card-content>
@@ -428,17 +430,17 @@
       </mat-tab>
 
       <!-- Statistics Tab -->
-      <mat-tab label="Statistiken" *ngIf="gameDetails.statistics">
+      <mat-tab label="Statistiken" *ngIf="hasStatistics()">
         <div class="tab-content">
           <div class="stats-grid">
             <!-- Home Team Stats -->
             <mat-card>
               <mat-card-header>
-                <mat-card-title>{{ gameDetails.statistics.home.label }}</mat-card-title>
+                <mat-card-title>{{ gameDetails.statistics?.home?.label }}</mat-card-title>
               </mat-card-header>
               <mat-card-content>
                 <div class="stats-list">
-                  <div class="stat-item" *ngFor="let stat of gameDetails.statistics.home.data | keyvalue">
+                  <div class="stat-item" *ngFor="let stat of gameDetails.statistics?.home?.data | keyvalue">
                     <span class="stat-label">{{ stat.key }}:</span>
                     <span class="stat-value">{{ stat.value }}</span>
                   </div>
@@ -449,11 +451,11 @@
             <!-- Guest Team Stats -->
             <mat-card>
               <mat-card-header>
-                <mat-card-title>{{ gameDetails.statistics.guest.label }}</mat-card-title>
+                <mat-card-title>{{ gameDetails.statistics?.guest?.label }}</mat-card-title>
               </mat-card-header>
               <mat-card-content>
                 <div class="stats-list">
-                  <div class="stat-item" *ngFor="let stat of gameDetails.statistics.guest.data | keyvalue">
+                  <div class="stat-item" *ngFor="let stat of gameDetails.statistics?.guest?.data | keyvalue">
                     <span class="stat-label">{{ stat.key }}:</span>
                     <span class="stat-value">{{ stat.value }}</span>
                   </div>
@@ -465,6 +467,19 @@
       </mat-tab>
 
     </mat-tab-group>
+
+    <!-- No tabs available message -->
+    <div *ngIf="!hasTeamDetails() && !hasPlayerStats() && !hasGameEvents() && !hasOfficials() && !hasStatistics()" class="no-tabs-container">
+      <mat-card class="no-tabs-card">
+        <mat-card-content>
+          <div class="no-data-message">
+            <mat-icon class="no-data-icon">info</mat-icon>
+            <h2>Keine weiteren Informationen</h2>
+            <p>Für dieses Spiel sind derzeit keine zusätzlichen Details verfügbar.</p>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
 
     <!-- Notes -->
     <mat-card *ngIf="gameDetails.notes" class="notes-card">

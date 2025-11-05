@@ -21,7 +21,7 @@ import {MatInput} from "@angular/material/input";
 import {MatProgressSpinner} from "@angular/material/progress-spinner";
 import {MatIcon} from "@angular/material/icon";
 import {MatCard, MatCardContent} from "@angular/material/card";
-import {MatIconButton} from "@angular/material/button";
+import {MatButton, MatIconButton} from "@angular/material/button";
 
 @Component({
   selector: 'app-liga',
@@ -50,6 +50,7 @@ import {MatIconButton} from "@angular/material/button";
     MatCardContent,
     RouterLink,
     MatIconButton,
+    MatButton,
     MatPrefix
   ],
   animations: [

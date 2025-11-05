@@ -190,13 +190,22 @@
         .game-status-badge {
           display: inline-block;
           padding: 4px 12px;
-          background: #4caf50;
-          color: white;
           border-radius: 12px;
           font-size: 11px;
           font-weight: 600;
           text-transform: uppercase;
           letter-spacing: 0.5px;
+          transition: all 0.3s ease;
+
+          &.finished {
+            background: #4caf50;
+            color: white;
+          }
+
+          &.scheduled {
+            background: #2196f3;
+            color: white;
+          }
         }
 
         .scoring-system-hint {
@@ -675,6 +684,47 @@
   color: rgba(0, 0, 0, 0.5);
   padding: 48px 24px;
   font-size: 16px;
+}
+
+// No Tabs Container (when all tabs are empty)
+.no-tabs-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 300px;
+  margin-top: 24px;
+
+  .no-tabs-card {
+    max-width: 500px;
+    text-align: center;
+
+    .no-data-message {
+      padding: 48px 32px;
+
+      .no-data-icon {
+        font-size: 64px;
+        width: 64px;
+        height: 64px;
+        color: #1976d2;
+        opacity: 0.7;
+        margin-bottom: 24px;
+      }
+
+      h2 {
+        margin: 0 0 12px 0;
+        font-size: 24px;
+        font-weight: 600;
+        color: rgba(0, 0, 0, 0.87);
+      }
+
+      p {
+        margin: 0;
+        font-size: 16px;
+        color: rgba(0, 0, 0, 0.6);
+        line-height: 1.5;
+      }
+    }
+  }
 }
 
 // Officials Grid

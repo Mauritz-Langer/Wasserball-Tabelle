@@ -16,9 +16,9 @@
     </div>
 
     <!-- Tabs -->
-    <mat-tab-group class="liga-tabs">
+    <mat-tab-group class="liga-tabs" *ngIf="dataSourceGames.data.length > 0 || dataSourceTable.data.length > 0 || dataSourceScorer.data.length > 0">
       <!-- Spiele Tab -->
-      <mat-tab>
+      <mat-tab *ngIf="dataSourceGames.data.length > 0">
         <ng-template mat-tab-label>
           <mat-icon class="tab-icon">sports_soccer</mat-icon>
           Spiele
@@ -62,9 +62,9 @@
                         <div class="game-header">
                           <div class="game-time">
                             <mat-icon>schedule</mat-icon>
-                            <span>{{ game.start.split(',')[1]?.trim() || game.start }}</span>
+                            <span>{{ game.start.split(',')[1]?.trim() ?? game.start }}</span>
                           </div>
-                          <div class="game-status" *ngIf="game.result !== ' - '">
+                          <div class="game-status" *ngIf="game.result && game.result.trim() !== '' && game.result !== ' - ' && game.result !== '-'">
                             <span class="badge">Beendet</span>
                           </div>
                         </div>
@@ -72,24 +72,25 @@
                         <!-- Teams -->
                         <div class="game-teams">
                           <div class="team home-team">
-                            <img *ngIf="game.homeImageUrl" [src]="game.homeImageUrl"
+                            <img *ngIf="game.homeImageUrl && game.homeImageUrl.trim() !== ''" [src]="game.homeImageUrl"
                                  alt="{{ game.home }}" class="team-logo-game">
                             <span class="team-name">{{ game.home }}</span>
                           </div>
 
                           <div class="game-score">
-                            <span class="score-display">{{ game.result }}</span>
+                            <span class="score-display" *ngIf="game.result && game.result.trim() !== '' && game.result !== ' - ' && game.result !== '-'">{{ game.result }}</span>
+                            <span class="score-display score-pending" *ngIf="!game.result || game.result.trim() === '' || game.result === ' - ' || game.result === '-'">-:-</span>
                           </div>
 
                           <div class="team guest-team">
                             <span class="team-name">{{ game.guest }}</span>
-                            <img *ngIf="game.guestImageUrl" [src]="game.guestImageUrl"
+                            <img *ngIf="game.guestImageUrl && game.guestImageUrl.trim() !== ''" [src]="game.guestImageUrl"
                                  alt="{{ game.guest }}" class="team-logo-game">
                           </div>
                         </div>
 
                         <!-- Location -->
-                        <div class="game-footer" *ngIf="game.location">
+                        <div class="game-footer" *ngIf="game.location && game.location.trim() !== ''">
                           <mat-icon class="location-icon">place</mat-icon>
                           <span class="location-text" (click)="navigateToMapsLink(game, $event)">
                             {{ game.location }}
@@ -137,7 +138,7 @@
                   <ng-container matColumnDef="image">
                     <th mat-header-cell *matHeaderCellDef></th>
                     <td mat-cell *matCellDef="let element">
-                      <img *ngIf="element.imageUrl" [src]="element.imageUrl"
+                      <img *ngIf="element.imageUrl && element.imageUrl.trim() !== ''" [src]="element.imageUrl"
                            alt="{{ element.team }}" class="team-logo">
                     </td>
                   </ng-container>
@@ -147,7 +148,7 @@
                     <td mat-cell *matCellDef="let element" class="team-cell">
                       <div class="team-name-wrapper">
                         <span class="team-name">{{ element.team }}</span>
-                        <span class="team-info" *ngIf="element.info">{{ element.info }}</span>
+                        <span class="team-info" *ngIf="element.info && element.info.trim() !== ''">{{ element.info }}</span>
                       </div>
                     </td>
                   </ng-container>
@@ -200,15 +201,15 @@
                            [@detailExpand]="element == expandedElement ? 'expanded' : 'collapsed'">
 
                         <div class="team-detail-header">
-                          <img *ngIf="element.imageUrl" [src]="element.imageUrl"
+                          <img *ngIf="element.imageUrl && element.imageUrl.trim() !== ''" [src]="element.imageUrl"
                                alt="{{ element.team }}" class="team-logo-large">
                           <div>
                             <h3>{{ element.team }}</h3>
-                            <p *ngIf="element.info">{{ element.info }}</p>
+                            <p *ngIf="element.info && element.info.trim() !== ''">{{ element.info }}</p>
                           </div>
                         </div>
 
-                        <div *ngIf="expandedGames.length > 0" class="team-games">
+                        <div *ngIf="expandedGames && expandedGames.length > 0" class="team-games">
                           <h4>Bisherige Spiele ({{ expandedGames.length }})</h4>
                           <div class="team-games-grid">
                             @for (game of expandedGames; track game.start) {
@@ -218,7 +219,7 @@
                                    [class.draw]="isGameDraw(game)">
                                 <div class="team-game-teams">
                                   <div class="team-game-team">
-                                    <img *ngIf="game.homeImageUrl" [src]="game.homeImageUrl"
+                                    <img *ngIf="game.homeImageUrl && game.homeImageUrl.trim() !== ''" [src]="game.homeImageUrl"
                                          alt="{{ game.home }}" class="team-logo-small">
                                     <span [class.current-team]="game.home === element.team">
                                       {{ game.home }}
@@ -229,20 +230,20 @@
                                     <span [class.current-team]="game.guest === element.team">
                                       {{ game.guest }}
                                     </span>
-                                    <img *ngIf="game.guestImageUrl" [src]="game.guestImageUrl"
+                                    <img *ngIf="game.guestImageUrl && game.guestImageUrl.trim() !== ''" [src]="game.guestImageUrl"
                                          alt="{{ game.guest }}" class="team-logo-small">
                                   </div>
                                 </div>
                                 <div class="team-game-info">
-                                  <span>{{ game.start }}</span>
-                                  <span *ngIf="game.location">📍 {{ game.location }}</span>
+                                  <span *ngIf="game.start && game.start.trim() !== ''">{{ game.start }}</span>
+                                  <span *ngIf="game.location && game.location.trim() !== ''">📍 {{ game.location }}</span>
                                 </div>
                               </div>
                             }
                           </div>
                         </div>
 
-                        <div *ngIf="expandedGames.length === 0" class="no-games-message">
+                        <div *ngIf="!expandedGames || expandedGames.length === 0" class="no-games-message">
                           <p>Noch keine Spiele gespielt</p>
                         </div>
                       </div>
@@ -264,14 +265,14 @@
       </mat-tab>
 
       <!-- Torschützen Tab -->
-      <mat-tab>
+      <mat-tab *ngIf="dataSourceScorer.data.length > 0">
         <ng-template mat-tab-label>
           <mat-icon class="tab-icon">emoji_events</mat-icon>
           Torschützen
         </ng-template>
         <div class="tab-content">
           <!-- Filter -->
-          <div class="filter-section">
+          <div class="filter-section" *ngIf="dataSourceScorer.data.length > 0">
             <mat-form-field appearance="outline" class="search-field">
               <mat-label>Spieler durchsuchen</mat-label>
               <input matInput (keyup)="applyScorerFilter($event)" placeholder="Name, Team...">
@@ -280,21 +281,21 @@
           </div>
 
           <!-- Top 3 Podium -->
-          <div class="podium" *ngIf="dataSourceScorer.filteredData.length >= 3">
-            <div class="podium-place place-2" *ngIf="dataSourceScorer.filteredData[1]">
+          <div class="podium" *ngIf="dataSourceScorer.filteredData.length >= 3 && dataSourceScorer.filteredData[0] && dataSourceScorer.filteredData[1] && dataSourceScorer.filteredData[2]">
+            <div class="podium-place place-2">
               <div class="podium-rank">2</div>
               <div class="podium-player">{{ dataSourceScorer.filteredData[1].name }}</div>
               <div class="podium-team">{{ dataSourceScorer.filteredData[1].team }}</div>
               <div class="podium-goals">{{ dataSourceScorer.filteredData[1].goals }} Tore</div>
             </div>
-            <div class="podium-place place-1" *ngIf="dataSourceScorer.filteredData[0]">
+            <div class="podium-place place-1">
               <mat-icon class="trophy-icon">emoji_events</mat-icon>
               <div class="podium-rank">1</div>
               <div class="podium-player">{{ dataSourceScorer.filteredData[0].name }}</div>
               <div class="podium-team">{{ dataSourceScorer.filteredData[0].team }}</div>
               <div class="podium-goals">{{ dataSourceScorer.filteredData[0].goals }} Tore</div>
             </div>
-            <div class="podium-place place-3" *ngIf="dataSourceScorer.filteredData[2]">
+            <div class="podium-place place-3">
               <div class="podium-rank">3</div>
               <div class="podium-player">{{ dataSourceScorer.filteredData[2].name }}</div>
               <div class="podium-team">{{ dataSourceScorer.filteredData[2].team }}</div>
@@ -303,7 +304,7 @@
           </div>
 
           <!-- Scorer List -->
-          <mat-card class="scorers-card">
+          <mat-card class="scorers-card" *ngIf="dataSourceScorer.filteredData.length > 0">
             <mat-card-content>
               <div class="scorers-list">
                 @for (scorer of dataSourceScorer.filteredData; track scorer.name; let i = $index) {
@@ -330,18 +331,41 @@
                     </div>
                   </div>
                 }
-                @empty {
-                  <div class="no-data-message">
-                    <mat-icon>info</mat-icon>
-                    <p>Keine Torschützen gefunden</p>
-                  </div>
-                }
               </div>
             </mat-card-content>
           </mat-card>
+
+          <!-- No data message -->
+          <div *ngIf="dataSourceScorer.filteredData.length === 0 && dataSourceScorer.data.length === 0" class="no-data-message">
+            <mat-icon>info</mat-icon>
+            <p>Keine Torschützen gefunden</p>
+          </div>
+
+          <!-- Filter no results message -->
+          <div *ngIf="dataSourceScorer.filteredData.length === 0 && dataSourceScorer.data.length > 0" class="no-data-message">
+            <mat-icon>search_off</mat-icon>
+            <p>Keine Ergebnisse für diese Suche</p>
+          </div>
         </div>
       </mat-tab>
     </mat-tab-group>
+
+    <!-- No data available message -->
+    <div *ngIf="dataSourceGames.data.length === 0 && dataSourceTable.data.length === 0 && dataSourceScorer.data.length === 0" class="no-data-container">
+      <mat-card class="no-data-card">
+        <mat-card-content>
+          <div class="no-data-message">
+            <mat-icon class="no-data-icon">info</mat-icon>
+            <h2>Keine Daten verfügbar</h2>
+            <p>Für diese Liga sind derzeit keine Informationen vorhanden.</p>
+            <button mat-raised-button color="primary" routerLink="/">
+              <mat-icon>arrow_back</mat-icon>
+              Zurück zur Übersicht
+            </button>
+          </div>
+        </mat-card-content>
+      </mat-card>
+    </div>
   </div>
 </div>
 

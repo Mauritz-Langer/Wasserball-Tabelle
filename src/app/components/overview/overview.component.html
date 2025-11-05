@@ -45,7 +45,7 @@
             <div class="favorite-content">
               <div class="favorite-info">
                 <span class="favorite-name">{{ favorite.name }}</span>
-                <span class="favorite-gender" *ngIf="favorite.gender">{{ favorite.gender }}</span>
+                <span class="favorite-gender" *ngIf="favorite.gender && favorite.gender.trim() !== ''">{{ favorite.gender }}</span>
               </div>
               <mat-icon class="arrow-icon">arrow_forward</mat-icon>
             </div>
@@ -87,7 +87,7 @@
               <div class="subitem-content" (click)="navigateToLiga(subItem)">
                 <div class="subitem-info">
                   <span class="subitem-name">{{ subItem.name }}</span>
-                  <span class="subitem-gender" *ngIf="subItem.gender">{{ subItem.gender }}</span>
+                  <span class="subitem-gender" *ngIf="subItem.gender && subItem.gender.trim() !== ''">{{ subItem.gender }}</span>
                 </div>
                 <mat-icon class="open-icon">open_in_new</mat-icon>
               </div>
