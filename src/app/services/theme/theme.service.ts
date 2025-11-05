@@ -126,24 +126,10 @@ export class ThemeService {
   }
 
   /**
-   * Gibt das aktuelle effektive Theme zurück
-   */
-  public getEffectiveTheme(): 'light' | 'dark' {
-    return this.effectiveTheme();
-  }
-
-  /**
-   * Gibt das aktuelle Theme zurück (inkl. auto)
-   */
-  public getCurrentTheme(): Theme {
-    return this.currentTheme();
-  }
-
-  /**
    * Prüft ob Dark Mode aktiv ist
    */
   public isDarkMode(): boolean {
-    return this.effectiveTheme() === 'dark';
+    return this.currentTheme() === 'dark';
   }
 }
 

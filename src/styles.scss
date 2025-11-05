@@ -10,6 +10,19 @@ body {
   font-family: Roboto, "Helvetica Neue", sans-serif;
   background-color: var(--background-color, #fafafa);
   color: var(--text-primary, rgba(0, 0, 0, 0.87));
+
+  // Mobile-spezifische Optimierungen
+  @media (max-width: 768px) {
+    // Verhindere ungewolltes Zoomen bei Input-Fokus
+    -webkit-text-size-adjust: 100%;
+    -ms-text-size-adjust: 100%;
+
+    // Smooth scrolling
+    scroll-behavior: smooth;
+
+    // Optimiere Touch-Scrolling
+    -webkit-overflow-scrolling: touch;
+  }
 }
 
 // Light Theme Variables (Default)
@@ -445,3 +458,200 @@ body.dark-theme {
   transition-duration: 0.3s;
   transition-timing-function: ease;
 }
+
+// ====================================
+// MOBILE OPTIMIERUNGEN
+// ====================================
+@media (max-width: 768px) {
+  // Verhindere ungewolltes Zoomen bei Input-Fokus (mindestens 16px)
+  input[type="text"],
+  input[type="search"],
+  input[type="email"],
+  input[type="tel"],
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
+
+  // Material Input Fields
+  .mat-mdc-input-element {
+    font-size: 16px !important;
+  }
+
+  // Größere Touch-Targets für Buttons (min 44x44px für iOS, 48x48px für Material)
+  button,
+  a,
+  .mat-mdc-button,
+  .mat-mdc-icon-button {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  // Material Icon Buttons explizit
+  .mat-mdc-icon-button {
+    width: 44px;
+    height: 44px;
+    padding: 10px;
+  }
+
+  // Verbessertes Tap-Highlighting
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  // Links und interaktive Elemente
+  a,
+  button,
+  [role="button"],
+  .clickable {
+    -webkit-tap-highlight-color: rgba(25, 118, 210, 0.1);
+  }
+
+  // Tabellen: Besseres horizontales Scrollen
+  .mat-mdc-table,
+  .mat-table,
+  table {
+    display: block;
+    width: 100%;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  // Material Cards: Edge-to-Edge auf Mobile
+  .mat-mdc-card {
+    border-radius: 0 !important;
+    margin-left: -16px;
+    margin-right: -16px;
+
+    &:not(:last-child) {
+      margin-bottom: 16px;
+    }
+  }
+
+  // Tabs: Kompakteres Layout
+  .mat-mdc-tab-labels,
+  .mat-tab-labels {
+    .mat-mdc-tab,
+    .mat-tab-label {
+      min-width: 90px;
+      padding: 0 8px;
+      font-size: 13px;
+    }
+  }
+
+  // Form Fields: Volle Breite
+  .mat-mdc-form-field {
+    width: 100%;
+  }
+
+  // Dialogs: Volle Breite auf sehr kleinen Bildschirmen
+  @media (max-width: 480px) {
+    .mat-mdc-dialog-container {
+      max-width: 95vw !important;
+      width: 95vw !important;
+    }
+  }
+
+  // Snackbars: Bessere Positionierung
+  .mat-mdc-snack-bar-container {
+    margin: 8px !important;
+    max-width: calc(100vw - 16px) !important;
+  }
+
+  // Expansion Panels: Kompaktere Paddings
+  .mat-expansion-panel-header,
+  .mat-mdc-expansion-panel-header {
+    padding: 12px 16px !important;
+    min-height: 56px !important;
+  }
+
+  // Bessere Lesbarkeit für kleine Texte
+  small,
+  .small-text {
+    font-size: 12px !important;
+    line-height: 1.4 !important;
+  }
+
+  // Verhindere Text-Selection beim Doppeltap
+  .no-select,
+  .mat-mdc-tab-label,
+  .mat-expansion-panel-header {
+    -webkit-user-select: none;
+    -moz-user-select: none;
+    -ms-user-select: none;
+    user-select: none;
+  }
+
+  // Optimierte Scroll-Container
+  .scroll-container {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+  }
+
+  // Sticky Headers in Tabellen
+  .mat-mdc-table {
+    th {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background-color: #fafafa;
+
+      body.dark-theme & {
+        background-color: var(--surface-elevated);
+      }
+    }
+  }
+
+  // Verbessertes Feedback für Touch-Interaktionen
+  .touch-feedback {
+    &:active {
+      opacity: 0.7;
+      transform: scale(0.98);
+    }
+  }
+
+  // Grid-Layouts: Single Column auf Mobile
+  .grid-layout {
+    grid-template-columns: 1fr !important;
+    gap: 12px !important;
+  }
+
+  // Flex-Layouts: Wrap für bessere Mobile-Darstellung
+  .flex-layout {
+    flex-wrap: wrap !important;
+    gap: 8px !important;
+  }
+}
+
+// Sehr kleine Bildschirme (z.B. iPhone SE)
+@media (max-width: 380px) {
+  // Noch kompaktere Schriftgrößen
+  body {
+    font-size: 14px;
+  }
+
+  h1 {
+    font-size: 22px !important;
+  }
+
+  h2 {
+    font-size: 20px !important;
+  }
+
+  h3 {
+    font-size: 18px !important;
+  }
+
+  // Material Cards: Noch kompakteres Padding
+  .mat-mdc-card-content {
+    padding: 12px !important;
+  }
+
+  // Buttons: Volle Breite für bessere Erreichbarkeit
+  .mobile-full-width {
+    width: 100% !important;
+    display: block !important;
+  }
+}
+

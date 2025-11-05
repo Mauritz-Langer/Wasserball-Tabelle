@@ -121,7 +121,18 @@
         <div class="tab-content">
           <mat-card class="table-card">
             <mat-card-content>
-              <div class="table-container">
+              <!-- Mobile Scroll Hint -->
+              <div class="mobile-scroll-hint">
+                <mat-icon>swipe</mat-icon>
+                <span>Wische für mehr Daten</span>
+              </div>
+
+              <!-- Scroll Progress Indicator -->
+              <div class="scroll-progress">
+                <div class="progress-bar"></div>
+              </div>
+
+              <div class="table-container" #tableContainer>
                 <table mat-table [dataSource]="dataSourceTable" multiTemplateDataRows class="standings-table">
 
                   <ng-container matColumnDef="place">

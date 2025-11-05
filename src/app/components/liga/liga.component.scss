@@ -9,6 +9,12 @@
   }
 }
 
+// Content Container - volle Breite für Tabs
+.content {
+  width: 100%;
+  max-width: 100%;
+}
+
 // Loading State
 .spinner-container {
   display: flex;
@@ -38,9 +44,33 @@
   gap: 16px;
   margin-bottom: 24px;
 
+  @media (max-width: 768px) {
+    gap: 12px;
+    margin-bottom: 20px;
+  }
+
   .back-button {
+    width: 48px;
+    height: 48px;
+    flex-shrink: 0;
+
+    @media (max-width: 768px) {
+      width: 44px;
+      height: 44px;
+      // Touch-Feedback
+      -webkit-tap-highlight-color: rgba(25, 118, 210, 0.1);
+
+      &:active {
+        background: rgba(25, 118, 210, 0.08);
+      }
+    }
+
     mat-icon {
       font-size: 24px;
+
+      @media (max-width: 768px) {
+        font-size: 22px;
+      }
     }
   }
 
@@ -52,15 +82,29 @@
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+    min-width: 0;
 
     @media (max-width: 768px) {
-      font-size: 24px;
+      font-size: 20px;
+      line-height: 1.3;
+      // Erlaube Umbruch für lange Ligennamen
+      white-space: normal;
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
     }
   }
 }
 
 // Tabs
 .liga-tabs {
+  // Erlaube volle Breite für Tabs
+  width: 100%;
+
   ::ng-deep {
     .mat-mdc-tab-labels {
       background: #fafafa;
@@ -99,12 +143,32 @@
         height: 18px;
       }
     }
+
+    // Wichtig: Tab-Body Container auf volle Breite
+    .mat-mdc-tab-body-wrapper {
+      width: 100%;
+      max-width: 100%;
+      overflow: visible;
+    }
+
+    .mat-mdc-tab-body {
+      width: 100%;
+      max-width: 100%;
+    }
+
+    .mat-mdc-tab-body-content {
+      width: 100%;
+      max-width: 100%;
+      overflow: visible;
+    }
   }
 }
 
 
 .tab-content {
   padding: 24px 0;
+  width: 100%;
+  max-width: 100%;
 
   @media (max-width: 768px) {
     padding: 16px 0;
@@ -224,9 +288,23 @@
     transition: all 0.3s ease;
     cursor: pointer;
 
+    @media (max-width: 768px) {
+      // Verbessertes Touch-Feedback
+      -webkit-tap-highlight-color: rgba(25, 118, 210, 0.1);
+
+      &:active {
+        transform: scale(0.98);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1) !important;
+      }
+    }
+
     &:hover {
       transform: translateY(-4px);
       box-shadow: 0 8px 16px rgba(0, 0, 0, 0.15) !important;
+
+      @media (max-width: 768px) {
+        transform: none; // Deaktiviere hover auf Mobile
+      }
     }
 
     &.past-game {
@@ -240,6 +318,10 @@
 
     mat-card-content {
       padding: 16px;
+
+      @media (max-width: 768px) {
+        padding: 14px;
+      }
     }
 
     .game-header {
@@ -298,12 +380,20 @@
       gap: 12px;
       margin-bottom: 12px;
 
+      @media (max-width: 768px) {
+        gap: 8px;
+      }
+
       .team {
         flex: 1;
         display: flex;
         align-items: center;
         gap: 8px;
         min-width: 0;
+
+        @media (max-width: 768px) {
+          gap: 6px;
+        }
 
         &.home-team {
           justify-content: flex-start;
@@ -319,6 +409,11 @@
           height: 40px;
           object-fit: contain;
           flex-shrink: 0;
+
+          @media (max-width: 768px) {
+            width: 32px;
+            height: 32px;
+          }
         }
 
         .team-name {
@@ -327,17 +422,36 @@
           overflow: hidden;
           text-overflow: ellipsis;
           white-space: nowrap;
+
+          @media (max-width: 768px) {
+            font-size: 13px;
+            // Erlaube Umbruch für sehr lange Namen auf Mobile
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            white-space: normal;
+            line-height: 1.2;
+          }
         }
       }
 
       .game-score {
         flex-shrink: 0;
+        padding: 0 4px;
 
         .score-display {
           font-size: 24px;
           font-weight: 800;
           font-family: 'Roboto Mono', monospace;
           color: #1976d2;
+
+          @media (max-width: 768px) {
+            font-size: 20px;
+          }
+
+          &.score-pending {
+            color: rgba(0, 0, 0, 0.3);
+          }
         }
       }
     }
@@ -373,12 +487,201 @@
 
 // Table Card
 .table-card {
+  @media (max-width: 768px) {
+    margin: 0 -16px;
+    border-radius: 0 !important;
+  }
+
+  .mobile-scroll-hint {
+    display: none;
+
+    @media (max-width: 768px) {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 8px 16px;
+      background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+      color: #1976d2;
+      font-size: 12px;
+      font-weight: 600;
+      border-radius: 4px;
+      margin-bottom: 12px;
+      animation: pulse-hint 2s ease-in-out infinite;
+
+      mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+      }
+    }
+  }
+
+  @keyframes pulse-hint {
+    0%, 100% {
+      opacity: 1;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 0.8;
+      transform: scale(0.98);
+    }
+  }
+
   .table-container {
     overflow-x: auto;
+    overflow-y: hidden;
+    -webkit-overflow-scrolling: touch;
+    position: relative;
+
+    // Desktop Scrollbar Styling
+    scrollbar-width: thin;
+    scrollbar-color: rgba(25, 118, 210, 0.4) rgba(0, 0, 0, 0.05);
+
+    &::-webkit-scrollbar {
+      height: 10px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: rgba(0, 0, 0, 0.05);
+      border-radius: 5px;
+      margin: 0; // Entferne Margin für exaktes Scrollen
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background: rgba(25, 118, 210, 0.4);
+      border-radius: 5px;
+      transition: background 0.2s;
+
+      &:hover {
+        background: rgba(25, 118, 210, 0.6);
+      }
+
+      &:active {
+        background: rgba(25, 118, 210, 0.8);
+      }
+    }
+
+    @media (max-width: 768px) {
+      // Smooth scrolling für mobile
+      scroll-behavior: smooth;
+
+      // Verbesserte Scroll-Schatten mit mehr Kontrast
+      background:
+        linear-gradient(90deg, white 25%, rgba(255,255,255,0.9) 40%, rgba(255,255,255,0)),
+        linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,0.9) 60%, white 75%) 100% 0,
+        radial-gradient(farthest-side at 0 50%, rgba(0,0,0,.25), rgba(0,0,0,0)),
+        radial-gradient(farthest-side at 100% 50%, rgba(0,0,0,.25), rgba(0,0,0,0)) 100% 0;
+      background-repeat: no-repeat;
+      background-size: 60px 100%, 60px 100%, 25px 100%, 25px 100%;
+      background-attachment: local, local, scroll, scroll;
+
+      // Scroll-Snap für bessere Navigation
+      scroll-snap-type: x mandatory;
+
+      // Momentum scrolling optimieren
+      -webkit-overflow-scrolling: touch;
+      overscroll-behavior-x: contain;
+      overscroll-behavior: none;
+
+      // Verbesserte Touch-Interaktion
+      touch-action: pan-x;
+
+      // Scrollbar auf Mobile ausblenden
+      scrollbar-width: none;
+
+      &::-webkit-scrollbar {
+        display: none;
+      }
+    }
   }
 
   .standings-table {
     width: 100%;
+    min-width: 650px; // Mindestbreite für horizontales Scrollen
+    display: table; // Stelle sicher, dass es als Tabelle gerendert wird
+    table-layout: fixed; // Fixiertes Layout für bessere Kontrolle
+
+    @media (max-width: 768px) {
+      min-width: 580px; // Kompakter für bessere Übersicht
+      font-size: 13px;
+    }
+
+    // Spalten für Scroll-Snap vorbereiten
+    tr {
+      @media (max-width: 768px) {
+        scroll-snap-align: start;
+      }
+    }
+
+    // Optimierte Spaltenbreiten
+    .mat-column-place {
+      width: 50px;
+      min-width: 50px;
+      max-width: 50px;
+      text-align: center;
+
+      @media (max-width: 768px) {
+        width: 45px;
+        min-width: 45px;
+        max-width: 45px;
+      }
+    }
+
+    .mat-column-image {
+      width: 50px;
+      min-width: 50px;
+      max-width: 50px;
+
+      @media (max-width: 768px) {
+        width: 40px;
+        min-width: 40px;
+        max-width: 40px;
+      }
+    }
+
+    .mat-column-team {
+      width: 200px;
+      min-width: 200px;
+      max-width: 250px;
+
+      @media (max-width: 768px) {
+        width: 150px;
+        min-width: 150px;
+        max-width: 180px;
+      }
+    }
+
+    .mat-column-games,
+    .mat-column-wins,
+    .mat-column-draws,
+    .mat-column-losses,
+    .mat-column-points {
+      width: 45px;
+      min-width: 45px;
+      max-width: 50px;
+      text-align: center;
+
+      @media (max-width: 768px) {
+        width: 38px;
+        min-width: 38px;
+        max-width: 42px;
+      }
+    }
+
+    .mat-column-goals,
+    .mat-column-goalDifference {
+      width: 60px;
+      min-width: 60px;
+      max-width: 70px;
+      text-align: center;
+
+      @media (max-width: 768px) {
+        width: 50px;
+        min-width: 50px;
+        max-width: 55px;
+      }
+    }
 
     th {
       background: #fafafa;
@@ -387,6 +690,23 @@
       font-size: 12px;
       letter-spacing: 0.5px;
       color: rgba(0, 0, 0, 0.87);
+      padding: 12px 8px;
+      white-space: nowrap;
+
+      @media (max-width: 768px) {
+        font-size: 10px;
+        padding: 10px 6px;
+        letter-spacing: 0.3px;
+      }
+    }
+
+    td {
+      padding: 12px 8px;
+
+      @media (max-width: 768px) {
+        padding: 10px 6px;
+        font-size: 12px;
+      }
     }
 
     .place-badge {
@@ -401,22 +721,40 @@
       background: #e0e0e0;
       color: rgba(0, 0, 0, 0.87);
 
+      @media (max-width: 768px) {
+        width: 28px;
+        height: 28px;
+        font-size: 12px;
+      }
+
       &.place-1 {
         background: linear-gradient(135deg, #ffd700 0%, #ffed4e 100%);
         color: #333;
         box-shadow: 0 2px 8px rgba(255, 215, 0, 0.4);
+
+        @media (max-width: 768px) {
+          box-shadow: 0 1px 4px rgba(255, 215, 0, 0.4);
+        }
       }
 
       &.place-2 {
         background: linear-gradient(135deg, #c0c0c0 0%, #e8e8e8 100%);
         color: #333;
         box-shadow: 0 2px 8px rgba(192, 192, 192, 0.4);
+
+        @media (max-width: 768px) {
+          box-shadow: 0 1px 4px rgba(192, 192, 192, 0.4);
+        }
       }
 
       &.place-3 {
         background: linear-gradient(135deg, #cd7f32 0%, #e8a87c 100%);
         color: #fff;
         box-shadow: 0 2px 8px rgba(205, 127, 50, 0.4);
+
+        @media (max-width: 768px) {
+          box-shadow: 0 1px 4px rgba(205, 127, 50, 0.4);
+        }
       }
     }
 
@@ -424,9 +762,20 @@
       width: 40px;
       height: 40px;
       object-fit: contain;
+
+      @media (max-width: 768px) {
+        width: 32px;
+        height: 32px;
+      }
     }
 
     .team-cell {
+      max-width: 200px;
+
+      @media (max-width: 768px) {
+        max-width: 150px;
+      }
+
       .team-name-wrapper {
         display: flex;
         flex-direction: column;
@@ -434,11 +783,25 @@
 
         .team-name {
           font-weight: 600;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+
+          @media (max-width: 768px) {
+            font-size: 12px;
+          }
         }
 
         .team-info {
           font-size: 12px;
           color: rgba(0, 0, 0, 0.6);
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+
+          @media (max-width: 768px) {
+            font-size: 10px;
+          }
         }
       }
     }
@@ -480,12 +843,22 @@
       transition: background-color 0.2s;
       border-bottom: none !important;
 
+      @media (max-width: 768px) {
+        // Verbessertes Touch-Feedback
+        -webkit-tap-highlight-color: rgba(25, 118, 210, 0.1);
+      }
+
       td {
         border-bottom: 1px solid rgba(0, 0, 0, 0.08) !important;
+        vertical-align: middle;
       }
 
       &:hover {
         background: rgba(0, 0, 0, 0.04);
+      }
+
+      &:active {
+        background: rgba(25, 118, 210, 0.08);
       }
 
       &.top-3 {
@@ -897,9 +1270,26 @@
       border-bottom: 1px solid rgba(0, 0, 0, 0.08);
       transition: all 0.2s;
 
+      @media (max-width: 768px) {
+        gap: 12px;
+        padding: 12px;
+        // Touch-Feedback
+        -webkit-tap-highlight-color: rgba(25, 118, 210, 0.1);
+      }
+
       &:hover {
         background: rgba(0, 0, 0, 0.02);
         transform: translateX(4px);
+
+        @media (max-width: 768px) {
+          transform: none; // Deaktiviere hover-transform auf Mobile
+        }
+      }
+
+      &:active {
+        @media (max-width: 768px) {
+          background: rgba(25, 118, 210, 0.05);
+        }
       }
 
       &:last-child {
@@ -922,10 +1312,18 @@
         justify-content: center;
         position: relative;
 
+        @media (max-width: 768px) {
+          width: 40px;
+        }
+
         .rank-number {
           font-size: 20px;
           font-weight: 700;
           color: rgba(0, 0, 0, 0.6);
+
+          @media (max-width: 768px) {
+            font-size: 16px;
+          }
         }
 
         .crown-icon {
@@ -933,6 +1331,11 @@
           top: -8px;
           font-size: 24px;
           color: #ffd700;
+
+          @media (max-width: 768px) {
+            font-size: 20px;
+            top: -6px;
+          }
         }
       }
 
@@ -944,11 +1347,26 @@
           font-weight: 600;
           font-size: 16px;
           margin-bottom: 4px;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+
+          @media (max-width: 768px) {
+            font-size: 14px;
+            margin-bottom: 2px;
+          }
         }
 
         .scorer-team {
           font-size: 13px;
           color: rgba(0, 0, 0, 0.6);
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+
+          @media (max-width: 768px) {
+            font-size: 11px;
+          }
         }
       }
 
@@ -958,6 +1376,8 @@
 
         @media (max-width: 768px) {
           gap: 16px;
+          flex-direction: column;
+          align-items: flex-end;
         }
 
         .scorer-goals,
@@ -965,6 +1385,12 @@
           display: flex;
           flex-direction: column;
           align-items: center;
+
+          @media (max-width: 768px) {
+            flex-direction: row;
+            gap: 4px;
+            align-items: center;
+          }
 
           span {
             display: block;
@@ -977,7 +1403,7 @@
             color: #1976d2;
 
             @media (max-width: 768px) {
-              font-size: 20px;
+              font-size: 18px;
             }
           }
 
@@ -987,6 +1413,11 @@
             color: rgba(0, 0, 0, 0.6);
             text-transform: uppercase;
             letter-spacing: 0.5px;
+
+            @media (max-width: 768px) {
+              font-size: 9px;
+              letter-spacing: 0.3px;
+            }
           }
         }
       }

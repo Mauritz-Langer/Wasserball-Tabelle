@@ -1,4 +1,4 @@
-import {Component, OnInit} from '@angular/core';
+import {Component, OnInit, AfterViewInit, ElementRef, ViewChild} from '@angular/core';
 import {ActivatedRoute, Router, RouterLink} from '@angular/router';
 import {
   MatCell,
@@ -63,7 +63,7 @@ import {MatButton, MatIconButton} from "@angular/material/button";
   templateUrl: './liga.component.html',
   styleUrl: './liga.component.scss'
 })
-export class LigaComponent implements OnInit {
+export class LigaComponent implements OnInit, AfterViewInit {
 
   ligaName: string = '';
   isLoading = true;
@@ -80,6 +80,8 @@ export class LigaComponent implements OnInit {
 
   // Gruppierte Spiele nach Spieltag
   groupedGames: Map<string, Games[]> = new Map();
+
+  @ViewChild('tableContainer') tableContainer?: ElementRef<HTMLElement>;
 
   constructor(private route: ActivatedRoute, private router: Router, private ligaService: LigaService) {
   }
@@ -101,6 +103,29 @@ export class LigaComponent implements OnInit {
         }
       );
     });
+  }
+
+  ngAfterViewInit() {
+    // Scroll-Progress-Funktionalität für die Tabelle mit ViewChild
+    setTimeout(() => {
+      if (this.tableContainer) {
+        const tableContainerEl = this.tableContainer.nativeElement;
+        const progressBar = document.querySelector('.scroll-progress .progress-bar') as HTMLElement;
+
+        if (progressBar) {
+          const updateScrollProgress = () => {
+            const scrollLeft = tableContainerEl.scrollLeft;
+            const scrollWidth = tableContainerEl.scrollWidth - tableContainerEl.clientWidth;
+            const scrollPercent = scrollWidth > 0 ? (scrollLeft / scrollWidth) * 100 : 0;
+            progressBar.style.width = Math.min(scrollPercent, 100) + '%';
+          };
+
+          tableContainerEl.addEventListener('scroll', updateScrollProgress);
+          // Initial aufrufen
+          updateScrollProgress();
+        }
+      }
+    }, 200);
   }
 
   navigateToMapsLink(element: Games, event: Event) {
