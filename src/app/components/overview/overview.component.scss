@@ -612,13 +612,11 @@
   .favorite-card {
     background-color: var(--surface-color);
     border: 1px solid var(--border-color);
-    border-left-color: #64b5f6;
-    border-left-width: 3px;
+    border-left: 3px solid #64b5f6;
 
     &:hover {
       background-color: var(--surface-elevated);
       border-left-color: #90caf9;
-      border-color: #64b5f6;
     }
 
     .favorite-content {
@@ -684,7 +682,6 @@
       &:hover {
         border-left-color: #64b5f6;
         background: var(--surface-elevated);
-        border-color: var(--border-color);
       }
 
       .subitem-name {

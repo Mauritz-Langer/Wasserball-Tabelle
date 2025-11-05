@@ -1213,7 +1213,7 @@
     }
 
     .scoring-system-hint {
-      color: var(--text-secondary);
+      color: var(--text-secondary) !important;
     }
 
     // Quarter-Scores-Enhanced - EXPLIZIT
@@ -1277,31 +1277,61 @@
       }
 
       .mat-mdc-tab {
-        color: var(--text-secondary);
+        color: var(--text-secondary) !important;
 
         &.mdc-tab--active {
-          color: #64b5f6;
+          color: #64b5f6 !important;
+        }
+
+        // Alle Text-Elemente in Tabs
+        * {
+          color: inherit !important;
+        }
+
+        // Spezifisch für Tab-Content
+        mat-icon {
+          color: inherit !important;
         }
       }
 
-      .mat-mdc-tab-label {
-        color: inherit;
+      .mat-mdc-tab-labels {
+        color: inherit !important;
+
+        * {
+          color: inherit !important;
+        }
       }
 
       .mat-mdc-tab-label-content {
-        color: inherit;
+        color: inherit !important;
+
+        * {
+          color: inherit !important;
+        }
       }
 
       .mat-mdc-tab-label-active {
-        color: #64b5f6;
+        color: #64b5f6 !important;
+
+        * {
+          color: inherit !important;
+        }
       }
 
       .mdc-tab-indicator__content--underline {
-        border-color: #64b5f6;
+        border-color: #64b5f6 !important;
       }
 
-      .mat-mdc-tab-body-content {
-        color: var(--text-primary);
+      .mat-mdc-tab_body-content {
+        color: var(--text-primary) !important;
+      }
+
+      // Zusätzliche Sicherheit für alle Text-Elemente
+      .mat-mdc-tab-label-content,
+      .mat-mdc-tab-label-content *,
+      .mat-mdc-tab-label *,
+      .mat-mdc-tab * {
+        color: inherit !important;
       }
     }
 

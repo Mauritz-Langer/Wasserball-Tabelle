@@ -102,90 +102,6 @@
   }
 }
 
-.liga-tabs ::ng-deep {
-    // Alle möglichen Tab-Elemente mit höchster Spezifität
-    .mat-mdc-tab,
-    .mat-mdc-tab-label,
-    .mat-mdc-tab-label-content,
-    .mat-mdc-tab-label-active,
-    .mdc-tab,
-    .mdc-tab__content,
-    .mdc-tab__text-label {
-      color: var(--text-primary) !important;
-
-      // Alle Kinder-Elemente
-      * {
-        color: inherit !important;
-      }
-
-      // Spezifische Elemente
-      mat-icon,
-      .mat-icon,
-      .tab-icon {
-        color: inherit !important;
-      }
-
-      // Direkter Text-Content
-      &::before,
-      &::after {
-        color: inherit !important;
-      }
-    }
-
-    // Aktive Tabs
-    .mat-mdc-tab.mdc-tab--active,
-    .mat-mdc-tab-label-active,
-    .mdc-tab--active {
-      color: var(--text-primary) !important;
-
-      * {
-        color: inherit !important;
-      }
-
-      mat-icon,
-      .mat-icon,
-      .tab-icon {
-        color: inherit !important;
-      }
-    }
-
-    // Tab-Labels
-    .mat-mdc-tab-labels {
-      background: var(--surface-elevated);
-      border-bottom: 2px solid var(--border-color);
-    }
-
-    // Tab-Body
-    .mat-mdc-tab-body-content {
-      color: var(--text-primary) !important;
-    }
-
-    // Indicator
-    .mdc-tab-indicator__content--underline {
-      border-color: #64b5f6 !important;
-    }
-
-    // Extrem aggressive Fallbacks für alle Text-Elemente
-    .mat-mdc-tab * {
-      color: inherit !important;
-    }
-
-    .mat-mdc-tab-label * {
-      color: inherit !important;
-    }
-
-    .mat-mdc-tab-label-content * {
-      color: inherit !important;
-    }
-
-    .mdc-tab * {
-      color: inherit !important;
-    }
-
-    .mdc-tab__content * {
-      color: inherit !important;
-    }
-  }
 
 .tab-content {
   padding: 24px 0;
@@ -1175,13 +1091,13 @@
   }
 
   .liga-tabs ::ng-deep {
-    .mat-mdc-tab_label {
+    .mat-mdc-tab-labels {
       background: var(--surface-elevated);
       border-bottom: 2px solid var(--border-color);
     }
 
     .mat-mdc-tab {
-      color: var(--text-primary) !important;
+      color: var(--text-secondary) !important;
 
       &.mdc-tab--active {
         color: #64b5f6 !important;
@@ -1198,7 +1114,7 @@
       }
     }
 
-    .mat-mdc-tab_label {
+    .mat-mdc-tab-labels {
       color: inherit !important;
 
       * {
@@ -1206,7 +1122,7 @@
       }
     }
 
-    .mat-mdc-tab_label_content {
+    .mat-mdc-tab-label-content {
       color: inherit !important;
 
       * {
@@ -1214,7 +1130,7 @@
       }
     }
 
-    .mat-mdc-tab_label-active {
+    .mat-mdc-tab-label-active {
       color: #64b5f6 !important;
 
       * {
@@ -1320,7 +1236,7 @@
     }
 
     .team-info {
-      color: var(--text-secondary);
+      color: var(--text-secondary) !important;
     }
 
     .team-name {
@@ -1474,7 +1390,7 @@
     }
 
     .rank-number {
-      color: var(--text-secondary);
+      color: var(--text-secondary) !important;
     }
 
     .scorer-name {
@@ -1482,7 +1398,7 @@
     }
 
     .scorer-team {
-      color: var(--text-secondary);
+      color: var(--text-secondary) !important;
     }
 
     .goals-number,
