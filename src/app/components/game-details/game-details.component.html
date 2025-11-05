@@ -191,6 +191,102 @@
         </div>
       </mat-tab>
 
+      <!-- Player Statistics Tab -->
+      <mat-tab label="Spielerstatistik">
+        <div class="tab-content">
+          <div class="players-grid">
+
+            <!-- Home Team Players -->
+            <mat-card *ngIf="gameDetails.homeTeam.players && gameDetails.homeTeam.players.length > 0">
+              <mat-card-header>
+                <mat-card-title>{{ gameDetails.homeTeam.name }}</mat-card-title>
+              </mat-card-header>
+              <mat-card-content>
+                <div class="players-table-container">
+                  <table class="players-table">
+                    <thead>
+                      <tr>
+                        <th>Nr.</th>
+                        <th>Name / Vorname</th>
+                        <th>Jg.</th>
+                        <th>Tore</th>
+                        <th colspan="4">persönl. Fehler</th>
+                      </tr>
+                      <tr class="quarters-header">
+                        <th colspan="4"></th>
+                        <th>1</th>
+                        <th>2</th>
+                        <th>3</th>
+                        <th>4</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr *ngFor="let player of gameDetails.homeTeam.players">
+                        <td>{{ player.number }}</td>
+                        <td class="player-name">{{ player.name }}</td>
+                        <td>{{ player.birthYear }}</td>
+                        <td class="goals-cell">{{ player.goals > 0 ? player.goals : '' }}</td>
+                        <td *ngFor="let quarter of [1, 2, 3, 4]">
+                          {{ getFoulForQuarter(player.fouls, quarter) }}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </mat-card-content>
+            </mat-card>
+
+            <!-- Guest Team Players -->
+            <mat-card *ngIf="gameDetails.guestTeam.players && gameDetails.guestTeam.players.length > 0">
+              <mat-card-header>
+                <mat-card-title>{{ gameDetails.guestTeam.name }}</mat-card-title>
+              </mat-card-header>
+              <mat-card-content>
+                <div class="players-table-container">
+                  <table class="players-table">
+                    <thead>
+                      <tr>
+                        <th>Nr.</th>
+                        <th>Name / Vorname</th>
+                        <th>Jg.</th>
+                        <th>Tore</th>
+                        <th colspan="4">persönl. Fehler</th>
+                      </tr>
+                      <tr class="quarters-header">
+                        <th colspan="4"></th>
+                        <th>1</th>
+                        <th>2</th>
+                        <th>3</th>
+                        <th>4</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      <tr *ngFor="let player of gameDetails.guestTeam.players">
+                        <td>{{ player.number }}</td>
+                        <td class="player-name">{{ player.name }}</td>
+                        <td>{{ player.birthYear }}</td>
+                        <td class="goals-cell">{{ player.goals > 0 ? player.goals : '' }}</td>
+                        <td *ngFor="let quarter of [1, 2, 3, 4]">
+                          {{ getFoulForQuarter(player.fouls, quarter) }}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </mat-card-content>
+            </mat-card>
+
+            <!-- No data message -->
+            <mat-card *ngIf="!gameDetails.homeTeam.players && !gameDetails.guestTeam.players">
+              <mat-card-content>
+                <p class="no-data">Keine Spielerstatistiken verfügbar</p>
+              </mat-card-content>
+            </mat-card>
+
+          </div>
+        </div>
+      </mat-tab>
+
       <!-- Game Events Tab -->
       <mat-tab label="Spielverlauf">
         <div class="tab-content">

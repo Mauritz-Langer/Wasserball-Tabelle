@@ -6,7 +6,6 @@ import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { MatIcon } from '@angular/material/icon';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatTab, MatTabGroup } from '@angular/material/tabs';
-import { MatTable, MatColumnDef, MatHeaderCell, MatCell, MatHeaderRow, MatRow, MatHeaderCellDef, MatCellDef, MatHeaderRowDef, MatRowDef } from '@angular/material/table';
 import { GameDetailsService } from '../../services/game-details/game-details.service';
 import { GameDetails } from '../../models/game-details';
 
@@ -24,17 +23,7 @@ import { GameDetails } from '../../models/game-details';
     MatButton,
     MatIconButton,
     MatTabGroup,
-    MatTab,
-    MatTable,
-    MatColumnDef,
-    MatHeaderCell,
-    MatCell,
-    MatHeaderRow,
-    MatRow,
-    MatHeaderCellDef,
-    MatCellDef,
-    MatHeaderRowDef,
-    MatRowDef
+    MatTab
   ],
   templateUrl: './game-details.component.html',
   styleUrl: './game-details.component.scss'
@@ -44,9 +33,6 @@ export class GameDetailsComponent implements OnInit {
   gameDetails: GameDetails | null = null;
   isLoading = true;
   error: string | null = null;
-
-  // Tabellenspalten für Events
-  displayedColumnsEvents: string[] = ['time', 'period', 'score', 'player', 'eventType'];
 
   constructor(
     private route: ActivatedRoute,
@@ -139,13 +125,6 @@ export class GameDetailsComponent implements OnInit {
   }
 
   /**
-   * Hilfsfunktion: Gibt den Score-String für ein Event zurück
-   */
-  getEventScore(event: any): string {
-    return `${event.homeScore}:${event.guestScore}`;
-  }
-
-  /**
    * Hilfsfunktion: Konvertiert Event-Type-Kürzel in verständlichen Text
    */
   getEventTypeName(eventType: string): string {
@@ -185,6 +164,14 @@ export class GameDetailsComponent implements OnInit {
     };
 
     return iconMap[eventType] || 'info';
+  }
+
+  /**
+   * Hilfsfunktion: Gibt das Foul-Zeichen für ein bestimmtes Viertel zurück
+   */
+  getFoulForQuarter(fouls: any[], quarter: number): string {
+    const foul = fouls.find(f => f.quarter === quarter);
+    return foul ? foul.foulType : '';
   }
 }
 

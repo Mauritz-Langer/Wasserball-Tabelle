@@ -41,6 +41,7 @@ export interface TeamDetails {
   teamLeader?: string;
   assistant?: string;
   bestPlayer?: string;
+  players?: PlayerStatistics[];
 }
 
 export interface QuarterScore {
@@ -88,3 +89,15 @@ export interface TeamStatistics {
   data: { [key: string]: string };
 }
 
+export interface PlayerStatistics {
+  number: string;
+  name: string;
+  birthYear: string;
+  goals: number;
+  fouls: PersonalFoul[];
+}
+
+export interface PersonalFoul {
+  quarter: number;
+  foulType: string; // 'S' = Strafwurf, 'A' = Ausschluss, '' = kein Foul
+}

@@ -10,7 +10,9 @@ import {
   TeamDetails,
   Venue,
   GameStatistics,
-  TeamStatistics
+  TeamStatistics,
+  PlayerStatistics,
+  PersonalFoul
 } from '../../models/game-details';
 
 @Injectable({
@@ -155,6 +157,7 @@ export class GameDetailsService {
    */
   private parseTeamDetails(doc: any, prefix: string, logoUrl: string): TeamDetails {
     const name = this.getTextContent(doc, `ContentSection__${prefix}Label`);
+    const players = this.parsePlayerStatistics(doc, prefix);
 
     return {
       name,
@@ -163,8 +166,98 @@ export class GameDetailsService {
       captain: this.getTextContent(doc, `ContentSection__${prefix}captainLabel`) || undefined,
       teamLeader: this.getTextContent(doc, `ContentSection__${prefix}leiterLabel`) || undefined,
       assistant: this.getTextContent(doc, `ContentSection__${prefix}betreuerLabel`) || undefined,
-      bestPlayer: this.getTextContent(doc, `ContentSection__${prefix}bestLabel`) || undefined
+      bestPlayer: this.getTextContent(doc, `ContentSection__${prefix}bestLabel`) || undefined,
+      players: players.length > 0 ? players : undefined
     };
+  }
+
+  /**
+   * Parst Spielerstatistiken für ein Team aus der Tabelle im "players" Tab
+   * Die Tabelle ist im div#players > div.container-fluid > div.row strukturiert
+   * - Erstes div.col-12.col-md-6 = Heim-Team (white)
+   * - Zweites div.col-12.col-md-6 = Gast-Team (blue)
+   */
+  private parsePlayerStatistics(doc: any, prefix: string): PlayerStatistics[] {
+    const players: PlayerStatistics[] = [];
+
+    try {
+      // Finde den players Tab
+      const playersTab = doc.getElementById('players');
+      if (!playersTab) {
+        return players;
+      }
+
+      // Finde alle col-12 col-md-6 divs (Team-Container)
+      const teamContainers = playersTab.querySelectorAll('.col-12.col-md-6');
+
+      // white = erstes Team (Index 0), blue = zweites Team (Index 1)
+      const teamIndex = prefix === 'white' ? 0 : 1;
+
+      if (teamContainers.length <= teamIndex) {
+        return players;
+      }
+
+      const teamContainer = teamContainers[teamIndex];
+      const table = teamContainer.querySelector('table');
+
+      if (!table) {
+        return players;
+      }
+
+      // Finde alle Zeilen in der Tabelle
+      const rows = table.querySelectorAll('tr');
+
+      // Iteriere über Zeilen (überspringe die ersten 2 Header-Zeilen)
+      for (let i = 2; i < rows.length; i++) {
+        const row = rows[i];
+        const cells = row.querySelectorAll('td');
+
+        // Zeile mit colspan ist Team-Info, keine Spieler-Zeile
+        if (cells.length < 8) {
+          continue;
+        }
+
+        // Extrahiere Spieler-Daten
+        const number = cells[0]?.textContent?.trim() || '';
+        const name = cells[1]?.textContent?.trim() || '';
+        const birthYear = cells[2]?.textContent?.trim() || '';
+        const goalsText = cells[3]?.textContent?.trim() || '';
+
+        // Parse Tore (kann leer sein = 0 Tore)
+        const goals = goalsText && goalsText !== '\u00A0' && goalsText !== ''
+          ? parseInt(goalsText)
+          : 0;
+
+        // Parse persönliche Fehler (Viertel 1-4)
+        const fouls: PersonalFoul[] = [];
+        for (let quarter = 1; quarter <= 4; quarter++) {
+          const foulText = cells[3 + quarter]?.textContent?.trim() || '';
+          const foulType = foulText && foulText !== '\u00A0' && foulText !== ''
+            ? foulText
+            : '';
+
+          if (foulType) {
+            fouls.push({
+              quarter,
+              foulType
+            });
+          }
+        }
+
+        // Füge Spieler hinzu (auch wenn 0 Tore und keine Fouls)
+        players.push({
+          number,
+          name,
+          birthYear,
+          goals: isNaN(goals) ? 0 : goals,
+          fouls
+        });
+      }
+    } catch (error) {
+      console.error('Error parsing player statistics:', error);
+    }
+
+    return players;
   }
 
   /**
