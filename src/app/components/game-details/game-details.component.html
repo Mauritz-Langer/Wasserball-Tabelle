@@ -1,0 +1,317 @@
+<div class="game-details-container">
+  <!-- Loading Spinner -->
+  <div *ngIf="isLoading" class="spinner-container">
+    <mat-spinner></mat-spinner>
+  </div>
+
+  <!-- Error Message -->
+  <div *ngIf="error && !isLoading" class="error-container">
+    <mat-card>
+      <mat-card-content>
+        <p class="error-message">{{ error }}</p>
+        <button mat-raised-button color="primary" (click)="goBack()">
+          <mat-icon>arrow_back</mat-icon>
+          Zurück
+        </button>
+      </mat-card-content>
+    </mat-card>
+  </div>
+
+  <!-- Game Details Content -->
+  <div *ngIf="gameDetails && !isLoading" class="content">
+
+    <!-- Header with Back Button -->
+    <div class="header-actions">
+      <button mat-icon-button (click)="goBack()" class="back-button">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <h1 class="page-title">Spieldetails</h1>
+    </div>
+
+    <!-- Game Header -->
+    <mat-card class="game-header-card">
+      <mat-card-content>
+        <div class="game-header">
+          <!-- Home Team -->
+          <div class="team-section">
+            <img [src]="gameDetails.homeTeam.logoUrl"
+                 [alt]="gameDetails.homeTeam.name"
+                 class="team-logo"
+                 *ngIf="gameDetails.homeTeam.logoUrl">
+            <h2>{{ gameDetails.homeTeam.name }}</h2>
+          </div>
+
+          <!-- Score -->
+          <div class="score-section">
+            <div class="final-score">{{ gameDetails.finalScore }}</div>
+            <div class="quarter-scores" *ngIf="gameDetails.quarterScores.length > 0">
+              <span *ngFor="let quarter of gameDetails.quarterScores; let last = last">
+                ({{ quarter.home }}:{{ quarter.guest }})<span *ngIf="!last">, </span>
+              </span>
+            </div>
+          </div>
+
+          <!-- Guest Team -->
+          <div class="team-section">
+            <img [src]="gameDetails.guestTeam.logoUrl"
+                 [alt]="gameDetails.guestTeam.name"
+                 class="team-logo"
+                 *ngIf="gameDetails.guestTeam.logoUrl">
+            <h2>{{ gameDetails.guestTeam.name }}</h2>
+          </div>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Game Info -->
+    <mat-card class="info-card">
+      <mat-card-header>
+        <mat-card-title>Spiel-Informationen</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <div class="info-grid">
+          <div class="info-item">
+            <mat-icon>event</mat-icon>
+            <div>
+              <strong>Datum & Uhrzeit:</strong>
+              <p>{{ gameDetails.startDate }}</p>
+            </div>
+          </div>
+
+          <div class="info-item">
+            <mat-icon>sports</mat-icon>
+            <div>
+              <strong>Liga:</strong>
+              <p>{{ gameDetails.league }}</p>
+            </div>
+          </div>
+
+          <div class="info-item" *ngIf="gameDetails.playKind">
+            <mat-icon>emoji_events</mat-icon>
+            <div>
+              <strong>Spielart:</strong>
+              <p>{{ gameDetails.playKind }}</p>
+            </div>
+          </div>
+
+          <div class="info-item">
+            <mat-icon>place</mat-icon>
+            <div>
+              <strong>Spielort:</strong>
+              <p>{{ gameDetails.venue.poolName }}</p>
+              <p class="secondary-text">{{ gameDetails.venue.poolCity }}</p>
+              <button mat-button color="primary"
+                      (click)="openGoogleMaps()"
+                      *ngIf="gameDetails.venue.googleMapsLink">
+                <mat-icon>map</mat-icon>
+                Auf Karte anzeigen
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Additional Actions -->
+        <div class="action-buttons" *ngIf="gameDetails.videoLink || gameDetails.protocolLink">
+          <button mat-raised-button color="primary"
+                  (click)="openVideoLink()"
+                  *ngIf="gameDetails.videoLink">
+            <mat-icon>play_circle</mat-icon>
+            Video ansehen
+          </button>
+          <button mat-raised-button
+                  (click)="downloadProtocol()"
+                  *ngIf="gameDetails.protocolLink">
+            <mat-icon>description</mat-icon>
+            Protokoll
+          </button>
+        </div>
+      </mat-card-content>
+    </mat-card>
+
+    <!-- Tabs for different sections -->
+    <mat-tab-group class="details-tabs">
+
+      <!-- Team Details Tab -->
+      <mat-tab label="Teams">
+        <div class="tab-content">
+          <div class="teams-grid">
+
+            <!-- Home Team Details -->
+            <mat-card>
+              <mat-card-header>
+                <mat-card-title>{{ gameDetails.homeTeam.name }}</mat-card-title>
+              </mat-card-header>
+              <mat-card-content>
+                <div class="team-details">
+                  <div class="detail-item" *ngIf="gameDetails.homeTeam.coach">
+                    <strong>Trainer:</strong> {{ gameDetails.homeTeam.coach }}
+                  </div>
+                  <div class="detail-item" *ngIf="gameDetails.homeTeam.captain">
+                    <strong>Kapitän:</strong> {{ gameDetails.homeTeam.captain }}
+                  </div>
+                  <div class="detail-item" *ngIf="gameDetails.homeTeam.teamLeader">
+                    <strong>Mannschaftsleiter:</strong> {{ gameDetails.homeTeam.teamLeader }}
+                  </div>
+                  <div class="detail-item" *ngIf="gameDetails.homeTeam.assistant">
+                    <strong>Betreuer:</strong> {{ gameDetails.homeTeam.assistant }}
+                  </div>
+                  <div class="detail-item highlight" *ngIf="gameDetails.homeTeam.bestPlayer">
+                    <strong>Bester Spieler:</strong> {{ gameDetails.homeTeam.bestPlayer }}
+                  </div>
+                </div>
+              </mat-card-content>
+            </mat-card>
+
+            <!-- Guest Team Details -->
+            <mat-card>
+              <mat-card-header>
+                <mat-card-title>{{ gameDetails.guestTeam.name }}</mat-card-title>
+              </mat-card-header>
+              <mat-card-content>
+                <div class="team-details">
+                  <div class="detail-item" *ngIf="gameDetails.guestTeam.coach">
+                    <strong>Trainer:</strong> {{ gameDetails.guestTeam.coach }}
+                  </div>
+                  <div class="detail-item" *ngIf="gameDetails.guestTeam.captain">
+                    <strong>Kapitän:</strong> {{ gameDetails.guestTeam.captain }}
+                  </div>
+                  <div class="detail-item" *ngIf="gameDetails.guestTeam.teamLeader">
+                    <strong>Mannschaftsleiter:</strong> {{ gameDetails.guestTeam.teamLeader }}
+                  </div>
+                  <div class="detail-item" *ngIf="gameDetails.guestTeam.assistant">
+                    <strong>Betreuer:</strong> {{ gameDetails.guestTeam.assistant }}
+                  </div>
+                  <div class="detail-item highlight" *ngIf="gameDetails.guestTeam.bestPlayer">
+                    <strong>Bester Spieler:</strong> {{ gameDetails.guestTeam.bestPlayer }}
+                  </div>
+                </div>
+              </mat-card-content>
+            </mat-card>
+          </div>
+        </div>
+      </mat-tab>
+
+      <!-- Game Events Tab -->
+      <mat-tab label="Spielverlauf">
+        <div class="tab-content">
+          <mat-card>
+            <mat-card-content>
+              <div class="events-list" *ngIf="gameDetails.events.length > 0; else noEvents">
+                <div class="event-item" *ngFor="let event of gameDetails.events">
+                  <div class="event-time">
+                    <span class="time">{{ event.time }}</span>
+                    <span class="quarter">Q{{ event.period }}</span>
+                  </div>
+                  <div class="event-details">
+                    <div class="event-score">{{ event.homeScore }}:{{ event.guestScore }}</div>
+                    <div class="event-info">
+                      <mat-icon class="event-icon">{{ getEventIcon(event.eventType) }}</mat-icon>
+                      <span class="event-type-text">{{ getEventTypeName(event.eventType) }}</span>
+                      <span class="event-player" *ngIf="event.player">- {{ event.player }}</span>
+                      <span class="event-goal" *ngIf="event.goalNumber"> (Tor #{{ event.goalNumber }})</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <ng-template #noEvents>
+                <p class="no-data">Keine Ereignisse verfügbar</p>
+              </ng-template>
+            </mat-card-content>
+          </mat-card>
+        </div>
+      </mat-tab>
+
+      <!-- Officials Tab -->
+      <mat-tab label="Offizielle" *ngIf="hasOfficials()">
+        <div class="tab-content">
+          <mat-card>
+            <mat-card-content>
+              <div class="officials-grid">
+                <div class="official-item" *ngIf="gameDetails.officials.referee1">
+                  <strong>1. Schiedsrichter:</strong> {{ gameDetails.officials.referee1 }}
+                </div>
+                <div class="official-item" *ngIf="gameDetails.officials.referee2">
+                  <strong>2. Schiedsrichter:</strong> {{ gameDetails.officials.referee2 }}
+                </div>
+                <div class="official-item" *ngIf="gameDetails.officials.timekeeper1">
+                  <strong>1. Zeitnehmer:</strong> {{ gameDetails.officials.timekeeper1 }}
+                </div>
+                <div class="official-item" *ngIf="gameDetails.officials.timekeeper2">
+                  <strong>2. Zeitnehmer:</strong> {{ gameDetails.officials.timekeeper2 }}
+                </div>
+                <div class="official-item" *ngIf="gameDetails.officials.secretary1">
+                  <strong>1. Sekretär:</strong> {{ gameDetails.officials.secretary1 }}
+                </div>
+                <div class="official-item" *ngIf="gameDetails.officials.secretary2">
+                  <strong>2. Sekretär:</strong> {{ gameDetails.officials.secretary2 }}
+                </div>
+                <div class="official-item" *ngIf="gameDetails.officials.goalJudge1">
+                  <strong>1. Torrichter:</strong> {{ gameDetails.officials.goalJudge1 }}
+                </div>
+                <div class="official-item" *ngIf="gameDetails.officials.goalJudge2">
+                  <strong>2. Torrichter:</strong> {{ gameDetails.officials.goalJudge2 }}
+                </div>
+                <div class="official-item" *ngIf="gameDetails.officials.observer1">
+                  <strong>1. Beobachter:</strong> {{ gameDetails.officials.observer1 }}
+                </div>
+                <div class="official-item" *ngIf="gameDetails.officials.observer2">
+                  <strong>2. Beobachter:</strong> {{ gameDetails.officials.observer2 }}
+                </div>
+              </div>
+            </mat-card-content>
+          </mat-card>
+        </div>
+      </mat-tab>
+
+      <!-- Statistics Tab -->
+      <mat-tab label="Statistiken" *ngIf="gameDetails.statistics">
+        <div class="tab-content">
+          <div class="stats-grid">
+            <!-- Home Team Stats -->
+            <mat-card>
+              <mat-card-header>
+                <mat-card-title>{{ gameDetails.statistics.home.label }}</mat-card-title>
+              </mat-card-header>
+              <mat-card-content>
+                <div class="stats-list">
+                  <div class="stat-item" *ngFor="let stat of gameDetails.statistics.home.data | keyvalue">
+                    <span class="stat-label">{{ stat.key }}:</span>
+                    <span class="stat-value">{{ stat.value }}</span>
+                  </div>
+                </div>
+              </mat-card-content>
+            </mat-card>
+
+            <!-- Guest Team Stats -->
+            <mat-card>
+              <mat-card-header>
+                <mat-card-title>{{ gameDetails.statistics.guest.label }}</mat-card-title>
+              </mat-card-header>
+              <mat-card-content>
+                <div class="stats-list">
+                  <div class="stat-item" *ngFor="let stat of gameDetails.statistics.guest.data | keyvalue">
+                    <span class="stat-label">{{ stat.key }}:</span>
+                    <span class="stat-value">{{ stat.value }}</span>
+                  </div>
+                </div>
+              </mat-card-content>
+            </mat-card>
+          </div>
+        </div>
+      </mat-tab>
+
+    </mat-tab-group>
+
+    <!-- Notes -->
+    <mat-card *ngIf="gameDetails.notes" class="notes-card">
+      <mat-card-header>
+        <mat-card-title>Anmerkungen</mat-card-title>
+      </mat-card-header>
+      <mat-card-content>
+        <p>{{ gameDetails.notes }}</p>
+      </mat-card-content>
+    </mat-card>
+
+  </div>
+</div>
+

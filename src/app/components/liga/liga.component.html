@@ -51,7 +51,9 @@
 
         <tr mat-header-row *matHeaderRowDef="displayedColumnsGames"></tr>
         <tr mat-row *matRowDef="let row; columns: displayedColumnsGames;"
-            [class.past-events]="checkEventInPast(row.start)"></tr>
+            [class.past-events]="checkEventInPast(row.start)"
+            [class.clickable-row]="row.gameLink"
+            (click)="navigateToGameDetails(row)"></tr>
       </table>
     </div>
   </mat-tab>

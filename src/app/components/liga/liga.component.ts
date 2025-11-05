@@ -1,5 +1,5 @@
 import {Component, OnInit} from '@angular/core';
-import {ActivatedRoute} from '@angular/router';
+import {ActivatedRoute, Router} from '@angular/router';
 import {
   MatCell,
   MatCellDef,
@@ -69,7 +69,7 @@ export class LigaComponent implements OnInit {
   expandedElement: Table | null = null;
   expandedGames: Games[] = [];
 
-  constructor(private route: ActivatedRoute, private ligaService: LigaService) {
+  constructor(private route: ActivatedRoute, private router: Router, private ligaService: LigaService) {
   }
 
   ngOnInit(): void {
@@ -166,5 +166,12 @@ export class LigaComponent implements OnInit {
     const guestGoals = parseInt(resultParts[1]);
 
     return homeGoals === guestGoals;
+  }
+
+  navigateToGameDetails(game: Games): void {
+    // Nur navigieren, wenn ein gameLink vorhanden ist
+    if (game.gameLink) {
+      this.router.navigate(['/game-details'], { queryParams: { param: game.gameLink } });
+    }
   }
 }

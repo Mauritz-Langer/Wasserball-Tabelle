@@ -71,6 +71,17 @@ ng e2e
 
 To get more help on the Angular CLI use `ng help` or go check out the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
 
+## Developer Documentation
+
+For detailed information about the project architecture, coding conventions, and best practices, please refer to the **[Copilot Instructions](.github/copilot-instructions.md)**. This comprehensive guide includes:
+
+- Complete project architecture overview
+- Data models and their usage
+- HTML scraping patterns
+- Styling conventions and responsive design
+- Common problems and solutions
+- Best practices for extending the project
+
 ## Project Structure
 
 The project structure is as follows:
@@ -106,8 +117,37 @@ waterpolotable/
 
 ## Features
 
-- Display league tables, games, and scorers.
-- Filter games and scorers.
+### Overview
+- Browse all available water polo leagues
+- Favorite leagues for quick access
+- Organized by categories (Bundesliga, Oberliga, etc.)
+
+### League View
+- **Games Schedule**: Complete list of all games with dates and results
+- **League Table**: Current standings with wins, losses, goals, and points
+- **Top Scorers**: Leading goal scorers in the league
+- Filter functionality for games and scorers
+- Expandable team details in league table
+
+### Game Details (NEW! 🎉)
+- **Comprehensive Game Information**:
+  - Team details (coaches, captains, best players)
+  - Quarter-by-quarter scores
+  - Complete event timeline (goals, penalties)
+  - Officials (referees, timekeepers, secretaries)
+  - Game statistics (when available)
+- **Interactive Features**:
+  - Google Maps integration for venue location
+  - Video links (when available)
+  - Protocol/PDF downloads
+  - Responsive design for all devices
+
+### Technical Features
+- Responsive design for mobile, tablet, and desktop
+- Real-time data from DSV (Deutscher Schwimm-Verband)
+- Material Design UI
+- Fast navigation between views
+- Error handling and loading states
 - Responsive design for different devices.
 - Expandable rows for detailed game information.
 - Navigation to external maps links.

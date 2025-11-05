@@ -48,6 +48,19 @@ tr.example-detail-row {
   cursor: pointer;
 }
 
+.clickable-row {
+  cursor: pointer;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background-color: rgba(0, 0, 0, 0.04);
+  }
+
+  &:active {
+    background-color: rgba(0, 0, 0, 0.08);
+  }
+}
+
 .spinner-container {
   display: flex;
   justify-content: center;
