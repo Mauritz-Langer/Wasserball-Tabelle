@@ -1,220 +1,347 @@
-<div class="liga-name mat-headline-1">{{ ligaName }}</div>
-<mat-tab-group>
-  <mat-tab label="Spiele">
-    <mat-form-field>
-      <mat-label>Suche</mat-label>
-      <input matInput (keyup)="applyGamesFilter($event)">
-    </mat-form-field>
-    <div class="table-container">
-      <table mat-table [dataSource]="dataSourceGames" class="mat-elevation-z8">
+<div class="liga-container">
+  <!-- Loading Spinner -->
+  <div *ngIf="isLoading" class="spinner-container">
+    <mat-spinner diameter="60"></mat-spinner>
+    <p class="loading-text">Lade Liga-Daten...</p>
+  </div>
 
-        <ng-container matColumnDef="start">
-          <th mat-header-cell *matHeaderCellDef> Start</th>
-          <td mat-cell *matCellDef="let element"> {{ element.start }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="homeImage">
-          <th mat-header-cell *matHeaderCellDef></th>
-          <td mat-cell *matCellDef="let element">
-            <img *ngIf="element.homeImageUrl" [src]="element.homeImageUrl" alt="{{ element.home }}" class="team-logo">
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="home">
-          <th mat-header-cell *matHeaderCellDef> Heim</th>
-          <td mat-cell *matCellDef="let element"> {{ element.home }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="guest">
-          <th mat-header-cell *matHeaderCellDef> Gast</th>
-          <td mat-cell *matCellDef="let element"> {{ element.guest }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="guestImage">
-          <th mat-header-cell *matHeaderCellDef></th>
-          <td mat-cell *matCellDef="let element">
-            <img *ngIf="element.guestImageUrl" [src]="element.guestImageUrl" alt="{{ element.guest }}" class="team-logo">
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="location">
-          <th mat-header-cell *matHeaderCellDef> Ort</th>
-          <td mat-cell class="location-link" (click)="navigateToMapsLink(element, $event)"
-              *matCellDef="let element">{{ element.location }}
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="result">
-          <th mat-header-cell *matHeaderCellDef> Ergebnis</th>
-          <td mat-cell *matCellDef="let element"> {{ element.result }}</td>
-        </ng-container>
-
-        <tr mat-header-row *matHeaderRowDef="displayedColumnsGames"></tr>
-        <tr mat-row *matRowDef="let row; columns: displayedColumnsGames;"
-            [class.past-events]="checkEventInPast(row.start)"
-            [class.clickable-row]="row.gameLink"
-            (click)="navigateToGameDetails(row)"></tr>
-      </table>
+  <!-- Liga Content -->
+  <div *ngIf="!isLoading" class="content">
+    <!-- Header with Back Button -->
+    <div class="header-actions">
+      <button mat-icon-button routerLink="/" class="back-button">
+        <mat-icon>arrow_back</mat-icon>
+      </button>
+      <h1 class="page-title">{{ ligaName }}</h1>
     </div>
-  </mat-tab>
-  <mat-tab *ngIf="dataSourceTable.data.length > 0" label="Tabelle">
-    <section class="mat-elevation-z8">
-      <table mat-table [dataSource]="dataSourceTable" multiTemplateDataRows>
 
-        <ng-container matColumnDef="place">
-          <th mat-header-cell *matHeaderCellDef> Platz</th>
-          <td mat-cell *matCellDef="let element"> {{ element.place }}</td>
-        </ng-container>
+    <!-- Tabs -->
+    <mat-tab-group class="liga-tabs">
+      <!-- Spiele Tab -->
+      <mat-tab>
+        <ng-template mat-tab-label>
+          <mat-icon class="tab-icon">sports_soccer</mat-icon>
+          Spiele
+        </ng-template>
+        <div class="tab-content">
+          <!-- Filter -->
+          <mat-card class="filter-card">
+            <mat-card-content>
+              <mat-form-field appearance="outline" class="search-field">
+                <mat-label>Spiele durchsuchen</mat-label>
+                <input matInput (keyup)="applyGamesFilter($event)" placeholder="Team, Ort...">
+                <mat-icon matPrefix>search</mat-icon>
+              </mat-form-field>
+            </mat-card-content>
+          </mat-card>
 
-        <ng-container matColumnDef="image">
-          <th mat-header-cell *matHeaderCellDef></th>
-          <td mat-cell *matCellDef="let element">
-            <img *ngIf="element.imageUrl" [src]="element.imageUrl" alt="{{ element.team }}" class="team-logo">
-          </td>
-        </ng-container>
-
-        <ng-container matColumnDef="team">
-          <th mat-header-cell *matHeaderCellDef> Team</th>
-          <td mat-cell *matCellDef="let element"> {{ element.team }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="games">
-          <th mat-header-cell *matHeaderCellDef> Spiele</th>
-          <td mat-cell *matCellDef="let element"> {{ element.games }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="wins">
-          <th mat-header-cell *matHeaderCellDef> S</th>
-          <td mat-cell *matCellDef="let element">{{ element.wins }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="draws">
-          <th mat-header-cell *matHeaderCellDef> U</th>
-          <td mat-cell *matCellDef="let element"> {{ element.draws }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="losses">
-          <th mat-header-cell *matHeaderCellDef> N</th>
-          <td mat-cell *matCellDef="let element"> {{ element.losses }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="goals">
-          <th mat-header-cell *matHeaderCellDef> T</th>
-          <td mat-cell *matCellDef="let element"> {{ element.goals }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="goalDifference">
-          <th mat-header-cell *matHeaderCellDef> TD</th>
-          <td mat-cell *matCellDef="let element"> {{ element.goalDifference }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="points">
-          <th mat-header-cell *matHeaderCellDef> P</th>
-          <td mat-cell *matCellDef="let element"> {{ element.points }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="expandedDetail">
-          <td mat-cell *matCellDef="let element" [attr.colspan]="displayedColumnsTable.length">
-            <div class="example-element-detail"
-                 [@detailExpand]="element == expandedElement ? 'expanded' : 'collapsed'">
-
-              <!-- Team Header mit Logo -->
-              <div class="team-header">
-                <img *ngIf="element.imageUrl" [src]="element.imageUrl" alt="{{ element.team }}" class="team-logo-large">
-                <div class="team-info">
-                  <h2>{{ element.team }}</h2>
-                  <p *ngIf="element.info" class="team-subtitle">{{ element.info }}</p>
+          <!-- Games by Matchday -->
+          <div class="matchdays-container">
+            @for (matchday of getMatchdays(); track matchday) {
+              <div class="matchday-section" [class.past-matchday]="isMatchdayInPast(matchday)">
+                <!-- Matchday Header -->
+                <div class="matchday-header">
+                  <mat-icon class="calendar-icon">calendar_today</mat-icon>
+                  <h3 class="matchday-title">{{ matchday }}</h3>
+                  <span class="matchday-badge">
+                    {{ getGamesForMatchday(matchday).length }}
+                    {{ getGamesForMatchday(matchday).length === 1 ? 'Spiel' : 'Spiele' }}
+                  </span>
                 </div>
-              </div>
 
-              <!-- Bisherige Spiele -->
-              <div *ngIf="expandedGames.length > 0" class="games-section">
-                <h3>Bisherige Spiele ({{ expandedGames.length }})</h3>
-                <div class="games-list">
-                  @for (expandedGame of expandedGames; track expandedGame.start) {
-                    <div class="game-card" [class.game-won]="isGameWon(expandedGame, element.team)"
-                         [class.game-lost]="isGameLost(expandedGame, element.team)"
-                         [class.game-draw]="isGameDraw(expandedGame)">
-                      <div class="game-teams">
-                        <div class="game-team">
-                          <img *ngIf="expandedGame.homeImageUrl" [src]="expandedGame.homeImageUrl"
-                               alt="{{ expandedGame.home }}" class="team-logo-small">
-                          <span [class.bold-team]="expandedGame.home === element.team">{{ expandedGame.home }}</span>
+                <!-- Games Grid for this Matchday -->
+                <div class="games-grid">
+                  @for (game of getGamesForMatchday(matchday); track game.start) {
+                    <mat-card
+                      class="game-card mat-elevation-z2"
+                      [class.past-game]="checkEventInPast(game.start)"
+                      [class.clickable]="game.gameLink"
+                      (click)="navigateToGameDetails(game)">
+                      <mat-card-content>
+                        <!-- Time -->
+                        <div class="game-header">
+                          <div class="game-time">
+                            <mat-icon>schedule</mat-icon>
+                            <span>{{ game.start.split(',')[1]?.trim() || game.start }}</span>
+                          </div>
+                          <div class="game-status" *ngIf="game.result !== ' - '">
+                            <span class="badge">Beendet</span>
+                          </div>
                         </div>
-                        <div class="game-result">{{ expandedGame.result }}</div>
-                        <div class="game-team">
-                          <span [class.bold-team]="expandedGame.guest === element.team">{{ expandedGame.guest }}</span>
-                          <img *ngIf="expandedGame.guestImageUrl" [src]="expandedGame.guestImageUrl"
-                               alt="{{ expandedGame.guest }}" class="team-logo-small">
+
+                        <!-- Teams -->
+                        <div class="game-teams">
+                          <div class="team home-team">
+                            <img *ngIf="game.homeImageUrl" [src]="game.homeImageUrl"
+                                 alt="{{ game.home }}" class="team-logo-game">
+                            <span class="team-name">{{ game.home }}</span>
+                          </div>
+
+                          <div class="game-score">
+                            <span class="score-display">{{ game.result }}</span>
+                          </div>
+
+                          <div class="team guest-team">
+                            <span class="team-name">{{ game.guest }}</span>
+                            <img *ngIf="game.guestImageUrl" [src]="game.guestImageUrl"
+                                 alt="{{ game.guest }}" class="team-logo-game">
+                          </div>
                         </div>
-                      </div>
-                      <div class="game-info">
-                        <span class="game-date">{{ expandedGame.start }}</span>
-                        <span class="game-location" *ngIf="expandedGame.location">📍 {{ expandedGame.location }}</span>
-                      </div>
-                    </div>
+
+                        <!-- Location -->
+                        <div class="game-footer" *ngIf="game.location">
+                          <mat-icon class="location-icon">place</mat-icon>
+                          <span class="location-text" (click)="navigateToMapsLink(game, $event)">
+                            {{ game.location }}
+                          </span>
+                        </div>
+                      </mat-card-content>
+                    </mat-card>
                   }
                 </div>
               </div>
-
-              <div *ngIf="expandedGames.length === 0" class="no-games">
-                <p>Noch keine Spiele gespielt</p>
+            }
+            @empty {
+              <div class="no-data-message">
+                <mat-icon>info</mat-icon>
+                <p>Keine Spiele gefunden</p>
               </div>
+            }
+          </div>
+        </div>
+      </mat-tab>
 
+      <!-- Tabelle Tab -->
+      <mat-tab *ngIf="dataSourceTable.data.length > 0">
+        <ng-template mat-tab-label>
+          <mat-icon class="tab-icon">leaderboard</mat-icon>
+          Tabelle
+        </ng-template>
+        <div class="tab-content">
+          <mat-card class="table-card">
+            <mat-card-content>
+              <div class="table-container">
+                <table mat-table [dataSource]="dataSourceTable" multiTemplateDataRows class="standings-table">
+
+                  <ng-container matColumnDef="place">
+                    <th mat-header-cell *matHeaderCellDef>#</th>
+                    <td mat-cell *matCellDef="let element">
+                      <div class="place-badge" [class.place-1]="element.place === 1"
+                           [class.place-2]="element.place === 2"
+                           [class.place-3]="element.place === 3">
+                        {{ element.place }}
+                      </div>
+                    </td>
+                  </ng-container>
+
+                  <ng-container matColumnDef="image">
+                    <th mat-header-cell *matHeaderCellDef></th>
+                    <td mat-cell *matCellDef="let element">
+                      <img *ngIf="element.imageUrl" [src]="element.imageUrl"
+                           alt="{{ element.team }}" class="team-logo">
+                    </td>
+                  </ng-container>
+
+                  <ng-container matColumnDef="team">
+                    <th mat-header-cell *matHeaderCellDef>Team</th>
+                    <td mat-cell *matCellDef="let element" class="team-cell">
+                      <div class="team-name-wrapper">
+                        <span class="team-name">{{ element.team }}</span>
+                        <span class="team-info" *ngIf="element.info">{{ element.info }}</span>
+                      </div>
+                    </td>
+                  </ng-container>
+
+                  <ng-container matColumnDef="games">
+                    <th mat-header-cell *matHeaderCellDef>Sp</th>
+                    <td mat-cell *matCellDef="let element">{{ element.games }}</td>
+                  </ng-container>
+
+                  <ng-container matColumnDef="wins">
+                    <th mat-header-cell *matHeaderCellDef>S</th>
+                    <td mat-cell *matCellDef="let element" class="stat-win">{{ element.wins }}</td>
+                  </ng-container>
+
+                  <ng-container matColumnDef="draws">
+                    <th mat-header-cell *matHeaderCellDef>U</th>
+                    <td mat-cell *matCellDef="let element" class="stat-draw">{{ element.draws }}</td>
+                  </ng-container>
+
+                  <ng-container matColumnDef="losses">
+                    <th mat-header-cell *matHeaderCellDef>N</th>
+                    <td mat-cell *matCellDef="let element" class="stat-loss">{{ element.losses }}</td>
+                  </ng-container>
+
+                  <ng-container matColumnDef="goals">
+                    <th mat-header-cell *matHeaderCellDef>Tore</th>
+                    <td mat-cell *matCellDef="let element">{{ element.goals }}</td>
+                  </ng-container>
+
+                  <ng-container matColumnDef="goalDifference">
+                    <th mat-header-cell *matHeaderCellDef>TD</th>
+                    <td mat-cell *matCellDef="let element"
+                        [class.positive-diff]="element.goalDifference > 0"
+                        [class.negative-diff]="element.goalDifference < 0">
+                      {{ element.goalDifference > 0 ? '+' : '' }}{{ element.goalDifference }}
+                    </td>
+                  </ng-container>
+
+                  <ng-container matColumnDef="points">
+                    <th mat-header-cell *matHeaderCellDef>Pkt</th>
+                    <td mat-cell *matCellDef="let element" class="points-cell">
+                      <strong>{{ element.points }}</strong>
+                    </td>
+                  </ng-container>
+
+                  <!-- Expanded Detail -->
+                  <ng-container matColumnDef="expandedDetail">
+                    <td mat-cell *matCellDef="let element" [attr.colspan]="displayedColumnsTable.length">
+                      <div class="team-detail-container"
+                           [@detailExpand]="element == expandedElement ? 'expanded' : 'collapsed'">
+
+                        <div class="team-detail-header">
+                          <img *ngIf="element.imageUrl" [src]="element.imageUrl"
+                               alt="{{ element.team }}" class="team-logo-large">
+                          <div>
+                            <h3>{{ element.team }}</h3>
+                            <p *ngIf="element.info">{{ element.info }}</p>
+                          </div>
+                        </div>
+
+                        <div *ngIf="expandedGames.length > 0" class="team-games">
+                          <h4>Bisherige Spiele ({{ expandedGames.length }})</h4>
+                          <div class="team-games-grid">
+                            @for (game of expandedGames; track game.start) {
+                              <div class="team-game-card"
+                                   [class.won]="isGameWon(game, element.team)"
+                                   [class.lost]="isGameLost(game, element.team)"
+                                   [class.draw]="isGameDraw(game)">
+                                <div class="team-game-teams">
+                                  <div class="team-game-team">
+                                    <img *ngIf="game.homeImageUrl" [src]="game.homeImageUrl"
+                                         alt="{{ game.home }}" class="team-logo-small">
+                                    <span [class.current-team]="game.home === element.team">
+                                      {{ game.home }}
+                                    </span>
+                                  </div>
+                                  <div class="team-game-result">{{ game.result }}</div>
+                                  <div class="team-game-team">
+                                    <span [class.current-team]="game.guest === element.team">
+                                      {{ game.guest }}
+                                    </span>
+                                    <img *ngIf="game.guestImageUrl" [src]="game.guestImageUrl"
+                                         alt="{{ game.guest }}" class="team-logo-small">
+                                  </div>
+                                </div>
+                                <div class="team-game-info">
+                                  <span>{{ game.start }}</span>
+                                  <span *ngIf="game.location">📍 {{ game.location }}</span>
+                                </div>
+                              </div>
+                            }
+                          </div>
+                        </div>
+
+                        <div *ngIf="expandedGames.length === 0" class="no-games-message">
+                          <p>Noch keine Spiele gespielt</p>
+                        </div>
+                      </div>
+                    </td>
+                  </ng-container>
+
+                  <tr mat-header-row *matHeaderRowDef="displayedColumnsTable; sticky: true"></tr>
+                  <tr mat-row *matRowDef="let row; columns: displayedColumnsTable;"
+                      class="table-row"
+                      [class.expanded-row]="expandedElement === row"
+                      [class.top-3]="row.place <= 3"
+                      (click)="expandedElement = expandedElement === row ? null : row; getGamesByRow(row)"></tr>
+                  <tr mat-row *matRowDef="let row; columns: ['expandedDetail']" class="detail-row"></tr>
+                </table>
+              </div>
+            </mat-card-content>
+          </mat-card>
+        </div>
+      </mat-tab>
+
+      <!-- Torschützen Tab -->
+      <mat-tab>
+        <ng-template mat-tab-label>
+          <mat-icon class="tab-icon">emoji_events</mat-icon>
+          Torschützen
+        </ng-template>
+        <div class="tab-content">
+          <!-- Filter -->
+          <div class="filter-section">
+            <mat-form-field appearance="outline" class="search-field">
+              <mat-label>Spieler durchsuchen</mat-label>
+              <input matInput (keyup)="applyScorerFilter($event)" placeholder="Name, Team...">
+              <mat-icon matPrefix>search</mat-icon>
+            </mat-form-field>
+          </div>
+
+          <!-- Top 3 Podium -->
+          <div class="podium" *ngIf="dataSourceScorer.filteredData.length >= 3">
+            <div class="podium-place place-2" *ngIf="dataSourceScorer.filteredData[1]">
+              <div class="podium-rank">2</div>
+              <div class="podium-player">{{ dataSourceScorer.filteredData[1].name }}</div>
+              <div class="podium-team">{{ dataSourceScorer.filteredData[1].team }}</div>
+              <div class="podium-goals">{{ dataSourceScorer.filteredData[1].goals }} Tore</div>
             </div>
-          </td>
-        </ng-container>
+            <div class="podium-place place-1" *ngIf="dataSourceScorer.filteredData[0]">
+              <mat-icon class="trophy-icon">emoji_events</mat-icon>
+              <div class="podium-rank">1</div>
+              <div class="podium-player">{{ dataSourceScorer.filteredData[0].name }}</div>
+              <div class="podium-team">{{ dataSourceScorer.filteredData[0].team }}</div>
+              <div class="podium-goals">{{ dataSourceScorer.filteredData[0].goals }} Tore</div>
+            </div>
+            <div class="podium-place place-3" *ngIf="dataSourceScorer.filteredData[2]">
+              <div class="podium-rank">3</div>
+              <div class="podium-player">{{ dataSourceScorer.filteredData[2].name }}</div>
+              <div class="podium-team">{{ dataSourceScorer.filteredData[2].team }}</div>
+              <div class="podium-goals">{{ dataSourceScorer.filteredData[2].goals }} Tore</div>
+            </div>
+          </div>
 
-        <tr mat-header-row *matHeaderRowDef="displayedColumnsTable"></tr>
-        <tr mat-row *matRowDef="let row; columns: displayedColumnsTable;"
-            class="example-element-row"
-            [class.example-expanded-row]="expandedElement === row"
-            (click)="expandedElement = expandedElement === row ? null : row; getGamesByRow(row)"></tr>
-        <tr mat-row *matRowDef="let row; columns: ['expandedDetail']" class="example-detail-row"></tr>
-      </table>
-    </section>
-  </mat-tab>
-  <mat-tab label="Torschützen">
-    <mat-form-field>
-      <mat-label>Suche</mat-label>
-      <input matInput (keyup)="applyScorerFilter($event)">
-    </mat-form-field>
-    <div class="table-container">
-      <table mat-table [dataSource]="dataSourceScorer" class="mat-elevation-z8">
-
-        <ng-container matColumnDef="place">
-          <th mat-header-cell *matHeaderCellDef> Platz</th>
-          <td mat-cell *matCellDef="let element"> {{ element.place }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="player">
-          <th mat-header-cell *matHeaderCellDef> Spieler</th>
-          <td mat-cell *matCellDef="let element"> {{ element.name }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="team">
-          <th mat-header-cell *matHeaderCellDef> Team</th>
-          <td mat-cell *matCellDef="let element"> {{ element.team }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="goals">
-          <th mat-header-cell *matHeaderCellDef> Tore</th>
-          <td mat-cell *matCellDef="let element">{{ element.goals }}</td>
-        </ng-container>
-
-        <ng-container matColumnDef="games">
-          <th mat-header-cell *matHeaderCellDef> Spiele</th>
-          <td mat-cell *matCellDef="let element"> {{ element.games }}</td>
-        </ng-container>
-
-        <tr mat-header-row *matHeaderRowDef="displayedColumnsScorer"></tr>
-        <tr mat-row *matRowDef="let row; columns: displayedColumnsScorer;"></tr>
-      </table>
-    </div>
-  </mat-tab>
-</mat-tab-group>
-
-<div *ngIf="isLoading" class="spinner-container">
-  <mat-spinner></mat-spinner>
+          <!-- Scorer List -->
+          <mat-card class="scorers-card">
+            <mat-card-content>
+              <div class="scorers-list">
+                @for (scorer of dataSourceScorer.filteredData; track scorer.name; let i = $index) {
+                  <div class="scorer-item"
+                       [class.top-scorer]="i === 0"
+                       [class.top-3]="i < 3">
+                    <div class="scorer-rank">
+                      <span class="rank-number">{{ scorer.place }}</span>
+                      <mat-icon *ngIf="i === 0" class="crown-icon">emoji_events</mat-icon>
+                    </div>
+                    <div class="scorer-info">
+                      <div class="scorer-name">{{ scorer.name }}</div>
+                      <div class="scorer-team">{{ scorer.team }}</div>
+                    </div>
+                    <div class="scorer-stats">
+                      <div class="scorer-goals">
+                        <span class="goals-number">{{ scorer.goals }}</span>
+                        <span class="goals-label">Tore</span>
+                      </div>
+                      <div class="scorer-games">
+                        <span class="games-number">{{ scorer.games }}</span>
+                        <span class="games-label">Spiele</span>
+                      </div>
+                    </div>
+                  </div>
+                }
+                @empty {
+                  <div class="no-data-message">
+                    <mat-icon>info</mat-icon>
+                    <p>Keine Torschützen gefunden</p>
+                  </div>
+                }
+              </div>
+            </mat-card-content>
+          </mat-card>
+        </div>
+      </mat-tab>
+    </mat-tab-group>
+  </div>
 </div>
 
