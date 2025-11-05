@@ -536,3 +536,181 @@
     transform: scale(1);
   }
 }
+
+// Dark Mode Styles
+:host-context(body.dark-theme) {
+  // Generische Elemente
+  h1, h2, h3, h4, h5, h6 {
+    color: var(--text-primary);
+  }
+
+  p {
+    color: var(--text-primary);
+  }
+
+  span {
+    color: inherit;
+  }
+
+  .spinner-container .loading-text {
+    color: var(--text-secondary);
+  }
+
+  .page-header {
+    .page-title {
+      background: linear-gradient(135deg, #64b5f6 0%, #90caf9 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .page-subtitle {
+      color: var(--text-secondary);
+    }
+  }
+
+  .search-section .search-field ::ng-deep {
+    .mat-mdc-text-field-wrapper {
+      background-color: var(--surface-elevated);
+      border: 1px solid var(--border-color);
+    }
+
+    .mat-mdc-form-field-focus-overlay {
+      background-color: rgba(66, 165, 245, 0.10);
+    }
+  }
+
+  .no-results {
+    color: var(--text-secondary);
+
+    .no-results-icon {
+      color: var(--text-secondary);
+    }
+
+    .no-results-text {
+      color: var(--text-primary);
+    }
+  }
+
+  .section-header {
+    border-bottom-color: var(--border-color);
+
+    .section-icon {
+      color: #64b5f6;
+    }
+
+    .section-title {
+      color: var(--text-primary);
+    }
+
+    .favorites-badge,
+    .leagues-count {
+      background: linear-gradient(135deg, #1565c0 0%, #1976d2 100%);
+    }
+  }
+
+  .favorite-card {
+    background-color: var(--surface-color);
+    border: 1px solid var(--border-color);
+    border-left-color: #64b5f6;
+    border-left-width: 3px;
+
+    &:hover {
+      background-color: var(--surface-elevated);
+      border-left-color: #90caf9;
+      border-color: #64b5f6;
+    }
+
+    .favorite-content {
+      .favorite-info {
+        .favorite-name {
+          color: var(--text-primary);
+        }
+
+        .favorite-gender {
+          color: var(--text-secondary);
+        }
+      }
+
+      .arrow-icon {
+        color: #64b5f6;
+      }
+    }
+  }
+
+  // Leagues Accordion
+  .league-panel {
+    background-color: var(--surface-color);
+    border-color: var(--border-color);
+
+    &:hover {
+      background-color: var(--surface-elevated);
+      border-color: #64b5f6;
+    }
+
+    &.mat-expanded {
+      border-color: #64b5f6;
+    }
+
+    ::ng-deep {
+      .mat-expansion-panel-header {
+        &:hover {
+          background: rgba(66, 165, 245, 0.08) !important;
+        }
+      }
+
+      .mat-expansion-indicator::after {
+        color: #64b5f6;
+      }
+    }
+
+    .panel-title {
+      color: var(--text-primary);
+    }
+
+    .panel-description {
+      color: var(--text-secondary);
+    }
+  }
+
+  // Subitems
+  .subitems-container {
+    background: var(--background-color);
+
+    .subitem-card {
+      background: var(--surface-color);
+      border: 1px solid var(--divider-color);
+
+      &:hover {
+        border-left-color: #64b5f6;
+        background: var(--surface-elevated);
+        border-color: var(--border-color);
+      }
+
+      .subitem-name {
+        color: var(--text-primary) !important;
+      }
+
+      .subitem-gender {
+        color: var(--text-secondary) !important;
+        background: rgba(66, 165, 245, 0.15);
+      }
+
+      .open-icon {
+        color: #64b5f6;
+      }
+
+      button mat-icon {
+        color: var(--text-secondary);
+
+        &:hover {
+          color: #e91e63;
+        }
+      }
+
+      button.favorite-active mat-icon {
+        color: #e91e63;
+      }
+    }
+  }
+}

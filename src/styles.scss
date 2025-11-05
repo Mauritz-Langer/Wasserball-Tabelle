@@ -1,4 +1,447 @@
 /* You can add global styles to this file, and also import other style files */
 
-html, body { height: 100%; }
-body { margin: 0; font-family: Roboto, "Helvetica Neue", sans-serif; }
+html, body {
+  height: 100%;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+body {
+  margin: 0;
+  font-family: Roboto, "Helvetica Neue", sans-serif;
+  background-color: var(--background-color, #fafafa);
+  color: var(--text-primary, rgba(0, 0, 0, 0.87));
+}
+
+// Light Theme Variables (Default)
+body.light-theme,
+body:not(.dark-theme) {
+  --background-color: #fafafa;
+  --surface-color: #ffffff;
+  --surface-elevated: #ffffff;
+  --text-primary: rgba(0, 0, 0, 0.87);
+  --text-secondary: rgba(0, 0, 0, 0.60);
+  --text-disabled: rgba(0, 0, 0, 0.38);
+  --divider-color: rgba(0, 0, 0, 0.12);
+  --border-color: rgba(0, 0, 0, 0.12);
+
+  // Game Result Colors (Light Mode)
+  --game-won-bg: #f1f8f4;
+  --game-won-text: #2e7d32;
+  --game-lost-bg: #fef5f5;
+  --game-lost-text: #c62828;
+  --game-draw-bg: #fff8f0;
+  --game-draw-text: #e65100;
+  --game-past-bg: #f5f5f5;
+}
+
+// Dark Theme Variables
+body.dark-theme {
+  --background-color: #0a0a0a;
+  --surface-color: #1a1a1a;
+  --surface-elevated: #2d2d2d;
+  --text-primary: rgba(255, 255, 255, 0.95);
+  --text-secondary: rgba(255, 255, 255, 0.70);
+  --text-disabled: rgba(255, 255, 255, 0.40);
+  --divider-color: rgba(255, 255, 255, 0.15);
+  --border-color: rgba(255, 255, 255, 0.20);
+
+  // Game Result Colors (Dark Mode)
+  --game-won-bg: rgba(76, 175, 80, 0.20);
+  --game-won-text: #81c784;
+  --game-lost-bg: rgba(244, 67, 54, 0.20);
+  --game-lost-text: #e57373;
+  --game-draw-bg: rgba(255, 152, 0, 0.20);
+  --game-draw-text: #ffb74d;
+  --game-past-bg: rgba(255, 255, 255, 0.08);
+
+  background-color: var(--background-color);
+  color: var(--text-primary);
+
+  // ====================================
+  // GENERISCHE HTML-ELEMENTE
+  // ====================================
+
+  // Alle Überschriften
+  h1, h2, h3, h4, h5, h6 {
+    color: var(--text-primary) !important;
+  }
+
+  // Alle Paragraphen
+  p {
+    color: var(--text-primary) !important;
+  }
+
+  // Alle Spans (außer in speziellen Kontexten)
+  span {
+    color: inherit;
+  }
+
+  // Alle Links
+  a {
+    color: #64b5f6 !important;
+
+    &:hover {
+      color: #90caf9 !important;
+    }
+  }
+
+  // Alle Labels
+  label {
+    color: var(--text-secondary) !important;
+  }
+
+  // Strong und Bold
+  strong, b {
+    color: var(--text-primary) !important;
+  }
+
+  // ====================================
+  // MATERIAL COMPONENTS (Erweitert)
+  // ====================================
+
+  // Card-Komponenten
+  .mat-mdc-card {
+    background-color: var(--surface-color) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-color);
+  }
+
+  .mat-mdc-card-header {
+    background-color: transparent !important;
+    color: var(--text-primary) !important;
+  }
+
+  .mat-mdc-card-title,
+  .mat-card-title,
+  .mdc-card__title {
+    color: var(--text-primary) !important;
+  }
+
+  .mat-mdc-card-subtitle,
+  .mat-card-subtitle {
+    color: var(--text-secondary) !important;
+  }
+
+  .mat-mdc-card-content {
+    color: var(--text-primary) !important;
+
+    // Alle direkten Kinder in Card-Content
+    & > * {
+      color: var(--text-primary);
+    }
+  }
+
+  // Tabellen (Umfassend)
+  .mat-mdc-table,
+  .mat-table {
+    background-color: var(--surface-color) !important;
+    color: var(--text-primary) !important;
+  }
+
+  .mat-mdc-header-row,
+  .mat-header-row {
+    background-color: var(--surface-elevated) !important;
+  }
+
+  .mat-mdc-header-cell,
+  .mat-header-cell,
+  th {
+    color: var(--text-primary) !important;
+    background-color: var(--surface-elevated) !important;
+    border-bottom: 2px solid var(--border-color) !important;
+    font-weight: 600 !important;
+  }
+
+  .mat-mdc-cell,
+  .mat-cell,
+  td {
+    color: var(--text-primary) !important;
+    border-bottom-color: var(--divider-color) !important;
+  }
+
+  .mat-mdc-row,
+  .mat-row,
+  tr {
+    color: var(--text-primary) !important;
+
+    &:hover {
+      background-color: var(--surface-elevated) !important;
+    }
+  }
+
+  // Tabellen-Text explizit
+  table {
+    color: var(--text-primary) !important;
+
+    th, td {
+      color: var(--text-primary) !important;
+    }
+  }
+
+  // Form Fields
+  .mat-mdc-form-field {
+    color: var(--text-primary) !important;
+
+    .mat-mdc-text-field-wrapper {
+      background-color: var(--surface-elevated) !important;
+    }
+
+    .mat-mdc-form-field-focus-overlay {
+      background-color: rgba(66, 165, 245, 0.10) !important;
+    }
+  }
+
+  .mat-mdc-input-element {
+    color: var(--text-primary) !important;
+    caret-color: #42a5f5 !important;
+
+    &::placeholder {
+      color: var(--text-secondary) !important;
+    }
+  }
+
+  .mat-mdc-form-field-label,
+  .mat-mdc-floating-label,
+  .mat-mdc-form-field-hint {
+    color: var(--text-secondary) !important;
+  }
+
+  // Tabs (Umfassend)
+  .mat-mdc-tab-group,
+  .mat-tab-group {
+    background-color: var(--surface-color) !important;
+    color: var(--text-primary) !important;
+  }
+
+  .mat-mdc-tab-labels,
+  .mat-tab-labels {
+    background-color: var(--surface-elevated) !important;
+    border-bottom: 2px solid var(--border-color) !important;
+  }
+
+  .mat-mdc-tab,
+  .mat-tab-label {
+    color: var(--text-secondary) !important;
+
+    &.mdc-tab--active,
+    &.mat-tab-label-active {
+      color: #64b5f6 !important;
+    }
+  }
+
+  .mat-mdc-tab-label,
+  .mat-mdc-tab-label-content,
+  .mat-tab-label-content {
+    color: inherit !important;
+  }
+
+  .mat-mdc-tab-label-active,
+  .mat-tab-label-active {
+    color: #64b5f6 !important;
+    opacity: 1 !important;
+  }
+
+  .mdc-tab-indicator__content--underline,
+  .mat-ink-bar {
+    border-color: #64b5f6 !important;
+    background-color: #64b5f6 !important;
+  }
+
+  .mat-mdc-tab-body-content,
+  .mat-tab-body-content {
+    color: var(--text-primary) !important;
+  }
+
+  // Tab-Icons
+  .mat-mdc-tab .mat-icon,
+  .mat-tab-label .mat-icon {
+    color: inherit !important;
+  }
+
+  // Tab-Text explizit
+  .mat-mdc-tab-label-content span,
+  .mat-tab-label-content span {
+    color: inherit !important;
+  }
+
+  // Expansion Panels (Accordions) - Umfassend
+  .mat-expansion-panel,
+  .mat-mdc-expansion-panel {
+    background-color: var(--surface-color) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-color) !important;
+  }
+
+  .mat-expansion-panel-header,
+  .mat-mdc-expansion-panel-header {
+    color: var(--text-primary) !important;
+    background-color: var(--surface-color) !important;
+
+    &:hover {
+      background-color: var(--surface-elevated) !important;
+    }
+  }
+
+  .mat-expansion-panel-header-title,
+  .mat-expansion-panel-header-description,
+  .mat-panel-title,
+  .mat-panel-description {
+    color: var(--text-primary) !important;
+  }
+
+  .mat-expansion-panel-content,
+  .mat-expansion-panel-body {
+    background-color: var(--surface-color) !important;
+    color: var(--text-primary) !important;
+  }
+
+  // Expansion Indicator (Pfeil)
+  .mat-expansion-indicator::after,
+  .mat-expansion-panel-header-indicator::after {
+    color: #64b5f6 !important;
+  }
+
+  // Buttons (Alle Varianten)
+  .mat-mdc-button,
+  .mat-mdc-icon-button,
+  .mat-mdc-outlined-button,
+  .mat-mdc-stroked-button,
+  .mat-mdc-unelevated-button {
+    color: var(--text-primary) !important;
+
+    &:hover {
+      background-color: var(--surface-elevated) !important;
+    }
+  }
+
+  .mat-mdc-raised-button,
+  .mat-mdc-fab,
+  .mat-mdc-mini-fab {
+    background-color: var(--surface-elevated) !important;
+    color: var(--text-primary) !important;
+
+    &:hover {
+      background-color: var(--surface-color) !important;
+    }
+  }
+
+  // Button mit primary/accent/warn sollten ihre Farbe behalten
+  .mat-mdc-button.mat-primary,
+  .mat-mdc-raised-button.mat-primary {
+    // Primärfarbe bleibt
+  }
+
+  // Toolbar
+  .mat-toolbar:not(.app-header) {
+    background-color: var(--surface-color) !important;
+    color: var(--text-primary) !important;
+  }
+
+  // Icons
+  .mat-icon {
+    color: inherit;
+  }
+
+  // Tooltips
+  .mat-mdc-tooltip,
+  .mdc-tooltip__surface {
+    background-color: var(--surface-elevated) !important;
+    color: var(--text-primary) !important;
+  }
+
+  // Progress Spinner
+  .mat-mdc-progress-spinner circle,
+  .mat-mdc-spinner circle {
+    stroke: #64b5f6 !important;
+  }
+
+  // Chips
+  .mat-mdc-chip {
+    background-color: var(--surface-elevated) !important;
+    color: var(--text-primary) !important;
+    border: 1px solid var(--border-color) !important;
+  }
+
+  // List Items
+  .mat-mdc-list-item {
+    color: var(--text-primary) !important;
+
+    &:hover {
+      background-color: var(--surface-elevated) !important;
+    }
+  }
+
+  .mat-mdc-list-item-title {
+    color: var(--text-primary) !important;
+  }
+
+  .mat-mdc-list-item-line {
+    color: var(--text-secondary) !important;
+  }
+
+  // Menu
+  .mat-mdc-menu-panel {
+    background-color: var(--surface-color) !important;
+    border: 1px solid var(--border-color) !important;
+  }
+
+  .mat-mdc-menu-item {
+    color: var(--text-primary) !important;
+
+    &:hover {
+      background-color: var(--surface-elevated) !important;
+    }
+  }
+
+  // Dialog
+  .mat-mdc-dialog-container {
+    background-color: var(--surface-color) !important;
+    color: var(--text-primary) !important;
+  }
+
+  .mat-mdc-dialog-title {
+    color: var(--text-primary) !important;
+  }
+
+  .mat-mdc-dialog-content {
+    color: var(--text-primary) !important;
+  }
+
+  // Snackbar
+  .mat-mdc-snack-bar-container {
+    background-color: var(--surface-elevated) !important;
+    color: var(--text-primary) !important;
+  }
+
+  // ====================================
+  // SPEZIFISCHE FIXES
+  // ====================================
+
+  // Mat-Label in verschiedenen Kontexten
+  .mat-label,
+  [mat-label] {
+    color: var(--text-secondary) !important;
+  }
+
+  // Placeholder Text
+  ::placeholder {
+    color: var(--text-secondary) !important;
+    opacity: 0.7;
+  }
+
+  :-ms-input-placeholder {
+    color: var(--text-secondary) !important;
+  }
+
+  ::-ms-input-placeholder {
+    color: var(--text-secondary) !important;
+  }
+}
+
+
+// Smooth transitions for theme changes
+* {
+  transition-property: background-color, color, border-color;
+  transition-duration: 0.3s;
+  transition-timing-function: ease;
+}

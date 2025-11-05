@@ -1145,3 +1145,501 @@
     transform: scale(1.15);
   }
 }
+
+// Dark Mode Styles
+:host-context(body.dark-theme) {
+  .spinner-container .loading-text {
+    color: var(--text-secondary);
+  }
+
+  .error-container {
+    .error-message {
+      color: #ef5350;
+    }
+
+    mat-card {
+      background-color: var(--surface-color);
+      border: 1px solid var(--border-color);
+    }
+  }
+
+  .header-actions .page-title {
+    background: linear-gradient(135deg, #64b5f6 0%, #90caf9 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .game-header-card {
+    background: linear-gradient(135deg, var(--surface-color) 0%, var(--surface-elevated) 100%);
+    border: 1px solid var(--border-color);
+
+    mat-card-content {
+      color: var(--text-primary);
+    }
+
+    .team-name {
+      color: var(--text-primary);
+    }
+
+    .team-label {
+      color: var(--text-secondary) !important;
+    }
+
+    .team-final-score {
+      &.home {
+        color: #64b5f6;
+      }
+
+      &.guest {
+        color: #e57373;
+      }
+    }
+
+    .versus-label {
+      color: var(--text-secondary) !important;
+    }
+
+    .game-status-badge {
+      &.finished {
+        background: #81c784;
+        color: white;
+      }
+
+      &.scheduled {
+        background: #64b5f6;
+        color: white;
+      }
+    }
+
+    .scoring-system-hint {
+      color: var(--text-secondary);
+    }
+
+    // Quarter-Scores-Enhanced - EXPLIZIT
+    .quarter-scores-enhanced {
+      .quarter-score-item {
+        background: var(--surface-elevated) !important;
+        border: 1px solid var(--border-color);
+
+        .quarter-label {
+          color: var(--text-secondary) !important;
+        }
+
+        .quarter-value {
+          color: #64b5f6;
+        }
+      }
+    }
+
+    .quick-actions {
+      border-top-color: var(--border-color);
+    }
+  }
+
+  // Info-Card-Compact - EXPLIZIT
+  .info-card-compact {
+    mat-card-content {
+      color: var(--text-primary);
+    }
+
+    .info-chips {
+      .info-chip {
+        background: var(--surface-elevated);
+        color: var(--text-primary);
+        border: 1px solid var(--border-color);
+
+        &:hover {
+          background: var(--surface-color);
+          border-color: #64b5f6;
+        }
+
+        mat-icon {
+          color: #64b5f6;
+        }
+
+        span {
+          color: var(--text-primary);
+        }
+      }
+    }
+  }
+
+  // Details-Tabs - EXPLIZIT
+  .details-tabs {
+    background-color: var(--surface-color);
+    border: 1px solid var(--border-color);
+
+    ::ng-deep {
+      .mat-mdc-tab-labels {
+        background: var(--surface-elevated);
+        border-bottom: 2px solid var(--border-color);
+      }
+
+      .mat-mdc-tab {
+        color: var(--text-secondary);
+
+        &.mdc-tab--active {
+          color: #64b5f6;
+        }
+      }
+
+      .mat-mdc-tab-label {
+        color: inherit;
+      }
+
+      .mat-mdc-tab-label-content {
+        color: inherit;
+      }
+
+      .mat-mdc-tab-label-active {
+        color: #64b5f6;
+      }
+
+      .mdc-tab-indicator__content--underline {
+        border-color: #64b5f6;
+      }
+
+      .mat-mdc-tab-body-content {
+        color: var(--text-primary);
+      }
+    }
+
+    .tab-content {
+      background: var(--surface-color);
+      color: var(--text-primary);
+    }
+  }
+
+  .teams-grid mat-card {
+    background-color: var(--surface-color);
+    border: 1px solid var(--border-color);
+
+    &:hover {
+      border-color: #64b5f6;
+    }
+
+    mat-card-header {
+      mat-card-title {
+        color: var(--text-primary);
+      }
+    }
+
+    .team-details {
+      .detail-item {
+        border-bottom-color: var(--divider-color);
+        color: var(--text-primary);
+
+        &:hover {
+          background: var(--surface-elevated);
+        }
+
+        strong {
+          color: var(--text-secondary);
+        }
+
+        &.highlight {
+          background: var(--game-won-bg);
+          border-color: #81c784;
+          color: var(--text-primary);
+
+          strong {
+            color: #81c784;
+          }
+        }
+      }
+    }
+  }
+
+  .events-accordion ::ng-deep {
+    .mat-expansion-panel {
+      background-color: var(--surface-color);
+      border-color: var(--border-color);
+    }
+
+    .mat-expansion-panel-header {
+      background: linear-gradient(135deg, #1565c0 0%, #1976d2 100%);
+    }
+
+    .quarter-panel-title {
+      .quarter-title {
+        color: white;
+      }
+
+      .quarter-score-badge {
+        color: white;
+      }
+    }
+  }
+
+  .events-list-quarter {
+    .event-item {
+      border-bottom-color: var(--divider-color);
+      color: var(--text-primary);
+
+      &:hover {
+        background-color: var(--surface-elevated);
+
+        &::before {
+          background: #64b5f6;
+        }
+      }
+
+      .event-time {
+        .time {
+          color: var(--text-primary);
+        }
+      }
+
+      .event-details {
+        .event-score {
+          background: linear-gradient(135deg, #64b5f6 0%, #90caf9 100%);
+          -webkit-background-clip: text;
+          -webkit-text-fill-color: transparent;
+          background-clip: text;
+        }
+
+        .event-info {
+          color: var(--text-primary);
+
+          .event-icon {
+            color: #64b5f6;
+          }
+
+          .event-type-text {
+            color: #64b5f6;
+          }
+
+          .event-player {
+            color: var(--text-primary);
+          }
+
+          .event-goal {
+            color: #81c784;
+            background: var(--game-won-bg);
+          }
+        }
+      }
+    }
+  }
+
+  .officials-grid .official-item {
+    background: var(--surface-elevated);
+    border-color: #64b5f6;
+    border: 1px solid var(--border-color);
+    border-left-color: #64b5f6;
+    color: var(--text-primary);
+
+    &:hover {
+      background: var(--surface-color);
+      border-left-width: 4px;
+    }
+
+    strong {
+      color: #64b5f6;
+    }
+
+    &:nth-child(even) {
+      border-left-color: #90caf9;
+
+      strong {
+        color: #90caf9;
+      }
+    }
+  }
+
+  .stats-grid {
+    mat-card {
+      background-color: var(--surface-color);
+      border: 1px solid var(--border-color);
+
+      &:hover {
+        border-color: #64b5f6;
+      }
+
+      mat-card-header {
+        mat-card-title {
+          color: var(--text-primary);
+        }
+      }
+    }
+
+    .stats-list {
+      .stat-item {
+        border-bottom-color: var(--divider-color);
+
+        &:hover {
+          background: var(--surface-elevated);
+        }
+
+        .stat-label {
+          color: var(--text-secondary);
+        }
+
+        .stat-value {
+          color: #64b5f6;
+        }
+      }
+    }
+  }
+
+  .notes-card {
+    background: linear-gradient(135deg, rgba(255, 193, 7, 0.15) 0%, var(--surface-color) 100%);
+    border-left-color: #ffb74d;
+    border: 1px solid var(--border-color);
+    border-left-width: 4px;
+    border-left-color: #ffb74d;
+
+    mat-card-header {
+      mat-card-title {
+        color: #ffb74d;
+      }
+    }
+
+    mat-card-content {
+      p {
+        color: var(--text-primary);
+        background: rgba(255, 193, 7, 0.08);
+      }
+    }
+  }
+
+  .players-grid {
+    .players-card {
+      background-color: var(--surface-color);
+      border: 1px solid var(--border-color);
+
+      mat-card-header {
+        .team-header-with-logo {
+          mat-card-title {
+            color: var(--text-primary);
+          }
+        }
+      }
+
+      .team-stats-summary {
+        background: var(--surface-elevated);
+        border: 1px solid var(--border-color);
+
+        .stat-badge {
+          background: var(--surface-color);
+          border: 1px solid var(--border-color);
+
+          .stat-value {
+            color: #64b5f6;
+          }
+
+          .stat-label {
+            color: var(--text-secondary);
+          }
+        }
+      }
+
+      .players-table-container {
+        border: 1px solid var(--border-color);
+      }
+
+      .players-table {
+        thead {
+          background: var(--surface-elevated);
+
+          th {
+            color: var(--text-primary);
+            border-bottom-color: var(--border-color);
+            background: var(--surface-elevated);
+          }
+
+          .quarters-header th {
+            color: #64b5f6;
+            background: var(--surface-color);
+            border-left-color: var(--divider-color);
+          }
+        }
+
+        tbody {
+          tr {
+            border-bottom-color: var(--divider-color);
+
+            &:hover {
+              background-color: var(--surface-elevated);
+            }
+
+            &.top-scorer {
+              background: linear-gradient(90deg, rgba(255, 193, 7, 0.15) 0%, transparent 100%);
+
+              &:hover {
+                background: linear-gradient(90deg, rgba(255, 193, 7, 0.20) 0%, rgba(255, 193, 7, 0.05) 100%);
+              }
+
+              .player-name {
+                color: #ffb74d;
+              }
+            }
+
+            &.has-goals {
+              .player-name {
+                color: var(--text-primary);
+              }
+            }
+          }
+
+          td {
+            color: var(--text-primary);
+
+            &.player-number {
+              background: rgba(66, 165, 245, 0.15);
+              color: #64b5f6;
+              border: 1px solid rgba(66, 165, 245, 0.20);
+            }
+
+            &.player-name {
+              color: var(--text-primary);
+
+              .trophy-icon {
+                color: #ffb74d;
+              }
+            }
+
+            &.birth-year {
+              color: var(--text-secondary);
+            }
+
+            .goals-badge {
+              background: linear-gradient(135deg, #81c784 0%, #66bb6a 100%);
+              color: white;
+            }
+
+            .foul-badge {
+              background: linear-gradient(135deg, #e57373 0%, #ef5350 100%);
+              color: white;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  .no-data,
+  .no-tabs-container {
+    color: var(--text-secondary);
+
+    mat-card {
+      background-color: var(--surface-color);
+      border: 1px solid var(--border-color);
+    }
+
+    .no-data-icon {
+      color: var(--text-secondary);
+    }
+
+    .no-data-message {
+      h2 {
+        color: var(--text-primary);
+      }
+
+      p {
+        color: var(--text-secondary);
+      }
+    }
+  }
+}

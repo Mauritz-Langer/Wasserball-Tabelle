@@ -2,11 +2,12 @@ import {Component, OnInit} from '@angular/core';
 import {Router, RouterOutlet, NavigationEnd} from '@angular/router';
 import {MatToolbar} from "@angular/material/toolbar";
 import {MatIcon} from "@angular/material/icon";
-import {MatIconButton, MatButton} from "@angular/material/button";
+import {MatIconButton} from "@angular/material/button";
 import {NgIf} from "@angular/common";
 import {MatTooltip} from "@angular/material/tooltip";
 import {filter} from "rxjs";
 import {FavoritesService} from "./services/favorites/favorites.service";
+import {ThemeService} from "./services/theme/theme.service";
 
 @Component({
   selector: 'app-root',
@@ -17,8 +18,7 @@ import {FavoritesService} from "./services/favorites/favorites.service";
     MatIcon,
     MatIconButton,
     NgIf,
-    MatTooltip,
-    MatButton
+    MatTooltip
   ],
   templateUrl: './app.component.html',
   styleUrl: './app.component.scss'
@@ -30,7 +30,8 @@ export class AppComponent implements OnInit {
 
   constructor(
     private router: Router,
-    private favoritesService: FavoritesService
+    private favoritesService: FavoritesService,
+    public themeService: ThemeService
   ) {}
 
   ngOnInit(): void {
@@ -53,5 +54,17 @@ export class AppComponent implements OnInit {
 
   openDsvWebsite(): void {
     window.open('https://dsvdaten.dsv.de/Modules/WB/Index.aspx', '_blank');
+  }
+
+  toggleTheme(): void {
+    this.themeService.toggleTheme();
+  }
+
+  getThemeIcon(): string {
+    return this.themeService.isDarkMode() ? 'light_mode' : 'dark_mode';
+  }
+
+  getThemeTooltip(): string {
+    return this.themeService.isDarkMode() ? 'Light Mode aktivieren' : 'Dark Mode aktivieren';
   }
 }

@@ -14,6 +14,14 @@
 
     <!-- Info Section -->
     <div class="info-section">
+      <!-- Theme Toggle -->
+      <button mat-icon-button
+              class="theme-toggle-button"
+              [matTooltip]="getThemeTooltip()"
+              (click)="toggleTheme()">
+        <mat-icon>{{ getThemeIcon() }}</mat-icon>
+      </button>
+
       <!-- Favorites Counter -->
       <div class="info-item" *ngIf="favoritesCount > 0" matTooltip="Favorisierte Ligen">
         <mat-icon class="info-icon">favorite</mat-icon>

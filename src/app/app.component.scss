@@ -9,6 +9,7 @@
   position: sticky;
   top: 0;
   z-index: 1000;
+  transition: background 0.3s ease, box-shadow 0.3s ease;
 
   @media (max-width: 768px) {
     padding: 0 16px;
@@ -27,6 +28,12 @@
       }
     }
   }
+}
+
+// Dark Mode Header
+:host-context(body.dark-theme) .app-header {
+  background: linear-gradient(135deg, #1565c0 0%, #1976d2 50%, #1e88e5 100%);
+  box-shadow: 0 4px 12px rgba(21, 101, 192, 0.4);
 }
 
 // Header Content
@@ -139,6 +146,33 @@
 
   @media (max-width: 768px) {
     gap: 8px;
+  }
+
+  // Theme Toggle Button
+  .theme-toggle-button {
+    mat-icon {
+      color: white;
+      font-size: 22px;
+      width: 22px;
+      height: 22px;
+      transition: transform 0.3s ease;
+    }
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.15);
+
+      mat-icon {
+        transform: rotate(180deg);
+      }
+    }
+
+    @media (max-width: 768px) {
+      mat-icon {
+        font-size: 20px;
+        width: 20px;
+        height: 20px;
+      }
+    }
   }
 
   .info-item {

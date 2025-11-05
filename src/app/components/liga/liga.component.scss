@@ -102,6 +102,91 @@
   }
 }
 
+.liga-tabs ::ng-deep {
+    // Alle möglichen Tab-Elemente mit höchster Spezifität
+    .mat-mdc-tab,
+    .mat-mdc-tab-label,
+    .mat-mdc-tab-label-content,
+    .mat-mdc-tab-label-active,
+    .mdc-tab,
+    .mdc-tab__content,
+    .mdc-tab__text-label {
+      color: var(--text-primary) !important;
+
+      // Alle Kinder-Elemente
+      * {
+        color: inherit !important;
+      }
+
+      // Spezifische Elemente
+      mat-icon,
+      .mat-icon,
+      .tab-icon {
+        color: inherit !important;
+      }
+
+      // Direkter Text-Content
+      &::before,
+      &::after {
+        color: inherit !important;
+      }
+    }
+
+    // Aktive Tabs
+    .mat-mdc-tab.mdc-tab--active,
+    .mat-mdc-tab-label-active,
+    .mdc-tab--active {
+      color: var(--text-primary) !important;
+
+      * {
+        color: inherit !important;
+      }
+
+      mat-icon,
+      .mat-icon,
+      .tab-icon {
+        color: inherit !important;
+      }
+    }
+
+    // Tab-Labels
+    .mat-mdc-tab-labels {
+      background: var(--surface-elevated);
+      border-bottom: 2px solid var(--border-color);
+    }
+
+    // Tab-Body
+    .mat-mdc-tab-body-content {
+      color: var(--text-primary) !important;
+    }
+
+    // Indicator
+    .mdc-tab-indicator__content--underline {
+      border-color: #64b5f6 !important;
+    }
+
+    // Extrem aggressive Fallbacks für alle Text-Elemente
+    .mat-mdc-tab * {
+      color: inherit !important;
+    }
+
+    .mat-mdc-tab-label * {
+      color: inherit !important;
+    }
+
+    .mat-mdc-tab-label-content * {
+      color: inherit !important;
+    }
+
+    .mdc-tab * {
+      color: inherit !important;
+    }
+
+    .mdc-tab__content * {
+      color: inherit !important;
+    }
+  }
+
 .tab-content {
   padding: 24px 0;
 
@@ -1059,6 +1144,372 @@
           margin-right: 8px;
         }
       }
+    }
+  }
+}
+
+// Dark Mode Styles
+:host-context(body.dark-theme) {
+  // Generische Elemente explizit stylen
+  h1, h2, h3, h4, h5, h6 {
+    color: var(--text-primary);
+  }
+
+  p {
+    color: var(--text-primary);
+  }
+
+  span {
+    color: inherit;
+  }
+
+  .spinner-container .loading-text {
+    color: var(--text-secondary);
+  }
+
+  .header-actions .page-title {
+    background: linear-gradient(135deg, #64b5f6 0%, #90caf9 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+
+  .liga-tabs ::ng-deep {
+    .mat-mdc-tab_label {
+      background: var(--surface-elevated);
+      border-bottom: 2px solid var(--border-color);
+    }
+
+    .mat-mdc-tab {
+      color: var(--text-primary) !important;
+
+      &.mdc-tab--active {
+        color: #64b5f6 !important;
+      }
+
+      // Alle Text-Elemente in Tabs
+      * {
+        color: inherit !important;
+      }
+
+      // Spezifisch für Tab-Content
+      mat-icon {
+        color: inherit !important;
+      }
+    }
+
+    .mat-mdc-tab_label {
+      color: inherit !important;
+
+      * {
+        color: inherit !important;
+      }
+    }
+
+    .mat-mdc-tab_label_content {
+      color: inherit !important;
+
+      * {
+        color: inherit !important;
+      }
+    }
+
+    .mat-mdc-tab_label-active {
+      color: #64b5f6 !important;
+
+      * {
+        color: inherit !important;
+      }
+    }
+
+    .mdc-tab-indicator__content--underline {
+      border-color: #64b5f6 !important;
+    }
+
+    .mat-mdc-tab-body-content {
+      color: var(--text-primary) !important;
+    }
+
+    // Zusätzliche Sicherheit für alle Text-Elemente
+    .mat-mdc-tab-label-content,
+    .mat-mdc-tab-label-content *,
+    .mat-mdc-tab-label *,
+    .mat-mdc-tab * {
+      color: inherit !important;
+    }
+  }
+
+  .game-card {
+    background-color: var(--surface-color);
+    border: 1px solid var(--border-color);
+
+    &.past-game {
+      background: var(--game-past-bg);
+      border-color: rgba(255, 255, 255, 0.10);
+    }
+
+    &:hover {
+      background-color: var(--surface-elevated);
+      border-color: #42a5f5;
+    }
+
+    .game-header {
+      .game-time {
+        color: var(--text-primary);
+
+        mat-icon {
+          color: #64b5f6;
+        }
+      }
+
+      .game-date {
+        color: var(--text-secondary);
+
+        mat-icon {
+          color: var(--text-secondary);
+        }
+      }
+    }
+
+    .game-teams {
+      .team .team-name {
+        color: var(--text-primary);
+      }
+
+      .game-score .score-display {
+        color: #64b5f6;
+      }
+    }
+
+    .game-footer {
+      border-top-color: var(--divider-color);
+
+      .location-icon {
+        color: #64b5f6;
+      }
+
+      .location-text {
+        color: #64b5f6;
+
+        &:hover {
+          color: #90caf9;
+        }
+      }
+    }
+  }
+
+  .matchday-section {
+    &.past-matchday {
+      .matchday-header {
+        background: linear-gradient(135deg, #424242 0%, #303030 100%);
+      }
+    }
+
+    .matchday-header {
+      background: linear-gradient(135deg, #1565c0 0%, #1976d2 100%);
+      box-shadow: 0 2px 8px rgba(21, 101, 192, 0.5);
+    }
+  }
+
+  // Table Dark Mode with better contrast
+  .standings-table {
+    th {
+      background: var(--surface-elevated);
+      color: var(--text-primary);
+      border-bottom: 2px solid var(--border-color);
+    }
+
+    .team-info {
+      color: var(--text-secondary);
+    }
+
+    .team-name {
+      color: var(--text-primary);
+    }
+
+    .table-row {
+      &:hover {
+        background: var(--surface-elevated);
+      }
+
+      &.top-3 {
+        background: linear-gradient(90deg, rgba(66, 165, 245, 0.10) 0%, transparent 100%);
+      }
+
+      &.expanded-row {
+        background: rgba(66, 165, 245, 0.15);
+      }
+
+      td {
+        border-bottom-color: var(--divider-color);
+      }
+    }
+
+    .stat-win {
+      color: #81c784;
+    }
+
+    .stat-draw {
+      color: #ffb74d;
+    }
+
+    .stat-loss {
+      color: #e57373;
+    }
+
+    .positive-diff {
+      color: #81c784;
+    }
+
+    .negative-diff {
+      color: #e57373;
+    }
+
+    .points-cell strong {
+      color: #64b5f6;
+    }
+  }
+
+  .detail-row {
+    background-color: var(--surface-elevated);
+  }
+
+  // Team Detail
+  .team-detail-container {
+    background: var(--surface-elevated);
+
+    h3 {
+      color: #64b5f6;
+    }
+
+    p {
+      color: var(--text-secondary);
+    }
+
+    h4 {
+      color: var(--text-primary);
+    }
+
+    .team-game-card {
+      background: var(--surface-color);
+      border-left-color: var(--border-color);
+
+      &:hover {
+        background: var(--surface-elevated);
+      }
+
+      &.won {
+        border-left-color: #81c784;
+        background: var(--game-won-bg);
+      }
+
+      &.lost {
+        border-left-color: #e57373;
+        background: var(--game-lost-bg);
+      }
+
+      &.draw {
+        border-left-color: #ffb74d;
+        background: var(--game-draw-bg);
+      }
+
+      .current-team {
+        color: #64b5f6;
+      }
+
+      .team-game-result {
+        color: #64b5f6;
+      }
+
+      .team-game-info {
+        color: var(--text-secondary);
+      }
+    }
+  }
+
+  // Podium
+  .podium {
+    .podium-place {
+      background: var(--surface-color);
+      border: 1px solid var(--border-color);
+
+      &:hover {
+        background: var(--surface-elevated);
+      }
+
+      .podium-player {
+        color: var(--text-primary);
+      }
+
+      .podium-team {
+        color: var(--text-secondary);
+      }
+
+      .podium-goals {
+        color: #64b5f6;
+      }
+
+      &.place-1,
+      &.place-2,
+      &.place-3 {
+        // Behalte Gradient für Podium
+      }
+    }
+  }
+
+  // Scorers
+  .scorer-item {
+    border-bottom-color: var(--divider-color);
+
+    &:hover {
+      background: var(--surface-elevated);
+    }
+
+    &.top-3 {
+      background: linear-gradient(90deg, rgba(66, 165, 245, 0.10) 0%, transparent 100%);
+    }
+
+    &.top-scorer {
+      background: linear-gradient(90deg, rgba(255, 215, 0, 0.15) 0%, transparent 100%);
+    }
+
+    .rank-number {
+      color: var(--text-secondary);
+    }
+
+    .scorer-name {
+      color: var(--text-primary);
+    }
+
+    .scorer-team {
+      color: var(--text-secondary);
+    }
+
+    .goals-number,
+    .games-number {
+      color: #64b5f6;
+    }
+
+    .goals-label,
+    .games-label {
+      color: var(--text-secondary);
+    }
+  }
+
+  // Filter Card
+  .filter-card,
+  .filter-section {
+    background-color: var(--surface-color);
+    border: 1px solid var(--border-color);
+  }
+
+  // No Data
+  .no-data-message,
+  .no-games-message {
+    color: var(--text-secondary);
+
+    mat-icon {
+      color: var(--text-secondary);
     }
   }
 }
