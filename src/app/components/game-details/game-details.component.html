@@ -1,7 +1,8 @@
 <div class="game-details-container">
-  <!-- Loading Spinner -->
+  <!-- Loading Spinner with Message -->
   <div *ngIf="isLoading" class="spinner-container">
-    <mat-spinner></mat-spinner>
+    <mat-spinner diameter="60"></mat-spinner>
+    <p class="loading-text">Lade Spieldetails...</p>
   </div>
 
   <!-- Error Message -->
@@ -29,101 +30,85 @@
     </div>
 
     <!-- Game Header -->
-    <mat-card class="game-header-card">
+    <mat-card class="game-header-card mat-elevation-z4">
       <mat-card-content>
         <div class="game-header">
           <!-- Home Team -->
-          <div class="team-section">
+          <div class="team-section home-team">
             <img [src]="gameDetails.homeTeam.logoUrl"
                  [alt]="gameDetails.homeTeam.name"
                  class="team-logo"
                  *ngIf="gameDetails.homeTeam.logoUrl">
-            <h2>{{ gameDetails.homeTeam.name }}</h2>
+            <h2 class="team-name">{{ gameDetails.homeTeam.name }}</h2>
+            <span class="team-label">Heim</span>
+            <div class="team-final-score home">{{ getFinalHomeScore() }}</div>
           </div>
 
           <!-- Score -->
           <div class="score-section">
-            <div class="final-score">{{ gameDetails.finalScore }}</div>
-            <div class="quarter-scores" *ngIf="gameDetails.quarterScores.length > 0">
-              <span *ngFor="let quarter of gameDetails.quarterScores; let last = last">
-                ({{ quarter.home }}:{{ quarter.guest }})<span *ngIf="!last">, </span>
-              </span>
+            <div class="final-score-wrapper">
+              <div class="versus-label">VS</div>
+              <div class="game-status-badge">Beendet</div>
+              <div class="scoring-system-hint" *ngIf="gameDetails.scoringSystem">
+                {{ gameDetails.scoringSystem }}
+              </div>
+            </div>
+
+            <!-- Improved Quarter Scores Display -->
+            <div class="quarter-scores-enhanced" *ngIf="gameDetails.quarterScores.length > 0">
+              <div class="quarter-score-item" *ngFor="let quarter of gameDetails.quarterScores">
+                <span class="quarter-label">Q{{ quarter.quarter }}</span>
+                <span class="quarter-value">{{ quarter.home }}:{{ quarter.guest }}</span>
+              </div>
             </div>
           </div>
 
           <!-- Guest Team -->
-          <div class="team-section">
+          <div class="team-section guest-team">
             <img [src]="gameDetails.guestTeam.logoUrl"
                  [alt]="gameDetails.guestTeam.name"
                  class="team-logo"
                  *ngIf="gameDetails.guestTeam.logoUrl">
-            <h2>{{ gameDetails.guestTeam.name }}</h2>
+            <h2 class="team-name">{{ gameDetails.guestTeam.name }}</h2>
+            <span class="team-label">Gast</span>
+            <div class="team-final-score guest">{{ getFinalGuestScore() }}</div>
           </div>
+        </div>
+
+        <!-- Quick Actions Bar -->
+        <div class="quick-actions" *ngIf="gameDetails.venue.googleMapsLink || gameDetails.videoLink">
+          <button mat-stroked-button (click)="openGoogleMaps()" *ngIf="gameDetails.venue.googleMapsLink">
+            <mat-icon>map</mat-icon>
+            Spielort
+          </button>
+          <button mat-stroked-button color="primary" (click)="openVideoLink()" *ngIf="gameDetails.videoLink">
+            <mat-icon>play_circle</mat-icon>
+            Video
+          </button>
         </div>
       </mat-card-content>
     </mat-card>
 
-    <!-- Game Info -->
-    <mat-card class="info-card">
-      <mat-card-header>
-        <mat-card-title>Spiel-Informationen</mat-card-title>
-      </mat-card-header>
+    <!-- Game Info - Kompaktere Version -->
+    <mat-card class="info-card-compact">
       <mat-card-content>
-        <div class="info-grid">
-          <div class="info-item">
+        <div class="info-chips">
+          <div class="info-chip">
             <mat-icon>event</mat-icon>
-            <div>
-              <strong>Datum & Uhrzeit:</strong>
-              <p>{{ gameDetails.startDate }}</p>
-            </div>
+            <span>{{ gameDetails.startDate }}</span>
           </div>
-
-          <div class="info-item">
+          <div class="info-chip">
             <mat-icon>sports</mat-icon>
-            <div>
-              <strong>Liga:</strong>
-              <p>{{ gameDetails.league }}</p>
-            </div>
+            <span>{{ gameDetails.league }}</span>
           </div>
-
-          <div class="info-item" *ngIf="gameDetails.playKind">
+          <div class="info-chip" *ngIf="gameDetails.playKind">
             <mat-icon>emoji_events</mat-icon>
-            <div>
-              <strong>Spielart:</strong>
-              <p>{{ gameDetails.playKind }}</p>
-            </div>
+            <span>{{ gameDetails.playKind }}</span>
           </div>
-
-          <div class="info-item">
+          <div class="info-chip">
             <mat-icon>place</mat-icon>
-            <div>
-              <strong>Spielort:</strong>
-              <p>{{ gameDetails.venue.poolName }}</p>
-              <p class="secondary-text">{{ gameDetails.venue.poolCity }}</p>
-              <button mat-button color="primary"
-                      (click)="openGoogleMaps()"
-                      *ngIf="gameDetails.venue.googleMapsLink">
-                <mat-icon>map</mat-icon>
-                Auf Karte anzeigen
-              </button>
-            </div>
+            <span>{{ gameDetails.venue.poolName }}, {{ gameDetails.venue.poolCity }}</span>
           </div>
-        </div>
-
-        <!-- Additional Actions -->
-        <div class="action-buttons" *ngIf="gameDetails.videoLink || gameDetails.protocolLink">
-          <button mat-raised-button color="primary"
-                  (click)="openVideoLink()"
-                  *ngIf="gameDetails.videoLink">
-            <mat-icon>play_circle</mat-icon>
-            Video ansehen
-          </button>
-          <button mat-raised-button
-                  (click)="downloadProtocol()"
-                  *ngIf="gameDetails.protocolLink">
-            <mat-icon>description</mat-icon>
-            Protokoll
-          </button>
         </div>
       </mat-card-content>
     </mat-card>
@@ -197,11 +182,33 @@
           <div class="players-grid">
 
             <!-- Home Team Players -->
-            <mat-card *ngIf="gameDetails.homeTeam.players && gameDetails.homeTeam.players.length > 0">
+            <mat-card *ngIf="gameDetails.homeTeam.players && gameDetails.homeTeam.players.length > 0" class="players-card">
               <mat-card-header>
-                <mat-card-title>{{ gameDetails.homeTeam.name }}</mat-card-title>
+                <div class="team-header-with-logo">
+                  <img [src]="gameDetails.homeTeam.logoUrl"
+                       [alt]="gameDetails.homeTeam.name"
+                       class="team-logo-small"
+                       *ngIf="gameDetails.homeTeam.logoUrl">
+                  <mat-card-title>{{ gameDetails.homeTeam.name }}</mat-card-title>
+                </div>
               </mat-card-header>
               <mat-card-content>
+                <!-- Team Stats Summary -->
+                <div class="team-stats-summary">
+                  <div class="stat-badge">
+                    <span class="stat-value">{{ getTotalGoals(gameDetails.homeTeam.players) }}</span>
+                    <span class="stat-label">Tore</span>
+                  </div>
+                  <div class="stat-badge">
+                    <span class="stat-value">{{ getTopScorer(gameDetails.homeTeam.players)?.goals || 0 }}</span>
+                    <span class="stat-label">Top-Scorer</span>
+                  </div>
+                  <div class="stat-badge">
+                    <span class="stat-value">{{ getTotalFouls(gameDetails.homeTeam.players) }}</span>
+                    <span class="stat-label">Fouls</span>
+                  </div>
+                </div>
+
                 <div class="players-table-container">
                   <table class="players-table">
                     <thead>
@@ -210,24 +217,33 @@
                         <th>Name / Vorname</th>
                         <th>Jg.</th>
                         <th>Tore</th>
-                        <th colspan="4">persönl. Fehler</th>
+                        <th colspan="4" class="fouls-header">persönl. Fehler</th>
                       </tr>
                       <tr class="quarters-header">
                         <th colspan="4"></th>
-                        <th>1</th>
-                        <th>2</th>
-                        <th>3</th>
-                        <th>4</th>
+                        <th>Q1</th>
+                        <th>Q2</th>
+                        <th>Q3</th>
+                        <th>Q4</th>
                       </tr>
                     </thead>
                     <tbody>
-                      <tr *ngFor="let player of gameDetails.homeTeam.players">
-                        <td>{{ player.number }}</td>
-                        <td class="player-name">{{ player.name }}</td>
-                        <td>{{ player.birthYear }}</td>
-                        <td class="goals-cell">{{ player.goals > 0 ? player.goals : '' }}</td>
-                        <td *ngFor="let quarter of [1, 2, 3, 4]">
-                          {{ getFoulForQuarter(player.fouls, quarter) }}
+                      <tr *ngFor="let player of gameDetails.homeTeam.players"
+                          [class.top-scorer]="isTopScorer(player, gameDetails.homeTeam.players)"
+                          [class.has-goals]="player.goals > 0">
+                        <td class="player-number">{{ player.number }}</td>
+                        <td class="player-name">
+                          {{ player.name }}
+                          <mat-icon *ngIf="isTopScorer(player, gameDetails.homeTeam.players)" class="trophy-icon">emoji_events</mat-icon>
+                        </td>
+                        <td class="birth-year">{{ player.birthYear }}</td>
+                        <td class="goals-cell">
+                          <span *ngIf="player.goals > 0" class="goals-badge">{{ player.goals }}</span>
+                        </td>
+                        <td *ngFor="let quarter of [1, 2, 3, 4]" class="foul-cell">
+                          <span *ngIf="getFoulForQuarter(player.fouls, quarter)" class="foul-badge">
+                            {{ getFoulForQuarter(player.fouls, quarter) }}
+                          </span>
                         </td>
                       </tr>
                     </tbody>
@@ -237,11 +253,33 @@
             </mat-card>
 
             <!-- Guest Team Players -->
-            <mat-card *ngIf="gameDetails.guestTeam.players && gameDetails.guestTeam.players.length > 0">
+            <mat-card *ngIf="gameDetails.guestTeam.players && gameDetails.guestTeam.players.length > 0" class="players-card">
               <mat-card-header>
-                <mat-card-title>{{ gameDetails.guestTeam.name }}</mat-card-title>
+                <div class="team-header-with-logo">
+                  <img [src]="gameDetails.guestTeam.logoUrl"
+                       [alt]="gameDetails.guestTeam.name"
+                       class="team-logo-small"
+                       *ngIf="gameDetails.guestTeam.logoUrl">
+                  <mat-card-title>{{ gameDetails.guestTeam.name }}</mat-card-title>
+                </div>
               </mat-card-header>
               <mat-card-content>
+                <!-- Team Stats Summary -->
+                <div class="team-stats-summary">
+                  <div class="stat-badge">
+                    <span class="stat-value">{{ getTotalGoals(gameDetails.guestTeam.players) }}</span>
+                    <span class="stat-label">Tore</span>
+                  </div>
+                  <div class="stat-badge">
+                    <span class="stat-value">{{ getTopScorer(gameDetails.guestTeam.players)?.goals || 0 }}</span>
+                    <span class="stat-label">Top-Scorer</span>
+                  </div>
+                  <div class="stat-badge">
+                    <span class="stat-value">{{ getTotalFouls(gameDetails.guestTeam.players) }}</span>
+                    <span class="stat-label">Fouls</span>
+                  </div>
+                </div>
+
                 <div class="players-table-container">
                   <table class="players-table">
                     <thead>
@@ -250,24 +288,33 @@
                         <th>Name / Vorname</th>
                         <th>Jg.</th>
                         <th>Tore</th>
-                        <th colspan="4">persönl. Fehler</th>
+                        <th colspan="4" class="fouls-header">persönl. Fehler</th>
                       </tr>
                       <tr class="quarters-header">
                         <th colspan="4"></th>
-                        <th>1</th>
-                        <th>2</th>
-                        <th>3</th>
-                        <th>4</th>
+                        <th>Q1</th>
+                        <th>Q2</th>
+                        <th>Q3</th>
+                        <th>Q4</th>
                       </tr>
                     </thead>
                     <tbody>
-                      <tr *ngFor="let player of gameDetails.guestTeam.players">
-                        <td>{{ player.number }}</td>
-                        <td class="player-name">{{ player.name }}</td>
-                        <td>{{ player.birthYear }}</td>
-                        <td class="goals-cell">{{ player.goals > 0 ? player.goals : '' }}</td>
-                        <td *ngFor="let quarter of [1, 2, 3, 4]">
-                          {{ getFoulForQuarter(player.fouls, quarter) }}
+                      <tr *ngFor="let player of gameDetails.guestTeam.players"
+                          [class.top-scorer]="isTopScorer(player, gameDetails.guestTeam.players)"
+                          [class.has-goals]="player.goals > 0">
+                        <td class="player-number">{{ player.number }}</td>
+                        <td class="player-name">
+                          {{ player.name }}
+                          <mat-icon *ngIf="isTopScorer(player, gameDetails.guestTeam.players)" class="trophy-icon">emoji_events</mat-icon>
+                        </td>
+                        <td class="birth-year">{{ player.birthYear }}</td>
+                        <td class="goals-cell">
+                          <span *ngIf="player.goals > 0" class="goals-badge">{{ player.goals }}</span>
+                        </td>
+                        <td *ngFor="let quarter of [1, 2, 3, 4]" class="foul-cell">
+                          <span *ngIf="getFoulForQuarter(player.fouls, quarter)" class="foul-badge">
+                            {{ getFoulForQuarter(player.fouls, quarter) }}
+                          </span>
                         </td>
                       </tr>
                     </tbody>
@@ -292,22 +339,43 @@
         <div class="tab-content">
           <mat-card>
             <mat-card-content>
-              <div class="events-list" *ngIf="gameDetails.events.length > 0; else noEvents">
-                <div class="event-item" *ngFor="let event of gameDetails.events">
-                  <div class="event-time">
-                    <span class="time">{{ event.time }}</span>
-                    <span class="quarter">Q{{ event.period }}</span>
-                  </div>
-                  <div class="event-details">
-                    <div class="event-score">{{ event.homeScore }}:{{ event.guestScore }}</div>
-                    <div class="event-info">
-                      <mat-icon class="event-icon">{{ getEventIcon(event.eventType) }}</mat-icon>
-                      <span class="event-type-text">{{ getEventTypeName(event.eventType) }}</span>
-                      <span class="event-player" *ngIf="event.player">- {{ event.player }}</span>
-                      <span class="event-goal" *ngIf="event.goalNumber"> (Tor #{{ event.goalNumber }})</span>
-                    </div>
-                  </div>
-                </div>
+              <div class="events-accordion" *ngIf="gameDetails.events.length > 0; else noEvents">
+                <!-- Gruppiere Events nach Viertel mit Expansion Panels -->
+                <mat-accordion multi>
+                  <ng-container *ngFor="let quarter of [1, 2, 3, 4]">
+                    <mat-expansion-panel
+                      *ngIf="getEventsByQuarter(gameDetails.events, quarter).length > 0"
+                      [expanded]="true">
+                      <mat-expansion-panel-header class="quarter-panel-header">
+                        <mat-panel-title class="quarter-panel-title">
+                          <mat-icon>sports</mat-icon>
+                          <span class="quarter-title">{{ quarter }}. Viertel</span>
+                          <span class="quarter-score-badge">
+                            {{ getQuarterScoreByNumber(quarter)?.home || 0 }}:{{ getQuarterScoreByNumber(quarter)?.guest || 0 }}
+                          </span>
+                        </mat-panel-title>
+                      </mat-expansion-panel-header>
+
+                      <!-- Events für dieses Viertel -->
+                      <div class="events-list-quarter">
+                        <div class="event-item" *ngFor="let event of getEventsByQuarter(gameDetails.events, quarter)">
+                          <div class="event-time">
+                            <span class="time">{{ event.time }}</span>
+                          </div>
+                          <div class="event-details">
+                            <div class="event-score">{{ event.homeScore }}:{{ event.guestScore }}</div>
+                            <div class="event-info">
+                              <mat-icon class="event-icon">{{ getEventIcon(event.eventType) }}</mat-icon>
+                              <span class="event-type-text">{{ getEventTypeName(event.eventType) }}</span>
+                              <span class="event-player" *ngIf="event.player">- {{ event.player }}</span>
+                              <span class="event-goal" *ngIf="event.goalNumber"> (Tor #{{ event.goalNumber }})</span>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    </mat-expansion-panel>
+                  </ng-container>
+                </mat-accordion>
               </div>
               <ng-template #noEvents>
                 <p class="no-data">Keine Ereignisse verfügbar</p>

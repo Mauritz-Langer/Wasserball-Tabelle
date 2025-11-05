@@ -6,6 +6,7 @@ import { MatProgressSpinner } from '@angular/material/progress-spinner';
 import { MatIcon } from '@angular/material/icon';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatTab, MatTabGroup } from '@angular/material/tabs';
+import { MatExpansionModule } from '@angular/material/expansion';
 import { GameDetailsService } from '../../services/game-details/game-details.service';
 import { GameDetails } from '../../models/game-details';
 
@@ -23,7 +24,8 @@ import { GameDetails } from '../../models/game-details';
     MatButton,
     MatIconButton,
     MatTabGroup,
-    MatTab
+    MatTab,
+    MatExpansionModule
   ],
   templateUrl: './game-details.component.html',
   styleUrl: './game-details.component.scss'
@@ -79,12 +81,21 @@ export class GameDetailsComponent implements OnInit {
   }
 
   /**
-   * Navigiert zurück zur vorherigen Seite
+   * Navigiert zurück zur vorherigen Seite (Liga)
    */
   goBack(): void {
-    this.router.navigate(['/liga'], {
-      queryParams: this.route.snapshot.queryParams
-    });
+    // Hole den ligaParam aus den Query-Parametern
+    const ligaParam = this.route.snapshot.queryParams['ligaParam'];
+
+    if (ligaParam) {
+      // Navigiere zurück zur Liga mit dem ursprünglichen Parameter
+      this.router.navigate(['/liga'], {
+        queryParams: { param: ligaParam }
+      });
+    } else {
+      // Fallback: Navigiere zur Übersicht, falls kein ligaParam vorhanden
+      this.router.navigate(['/']);
+    }
   }
 
   /**
@@ -131,10 +142,13 @@ export class GameDetailsComponent implements OnInit {
     const typeMap: { [key: string]: string } = {
       'T': 'Tor',
       'A': 'Ausschluss',
+      'AU': 'Auszeit',
+      'AmE': 'Ausschluss mit Ersatz',
       'P': 'Penalty',
       'S': 'Strafe',
       'TO': 'Timeout',
       'E': 'Einwechslung',
+      'X': 'Pause',
       '5m': '5m-Wurf',
       'Penalty': 'Penalty',
       'Goal': 'Tor',
@@ -152,10 +166,13 @@ export class GameDetailsComponent implements OnInit {
     const iconMap: { [key: string]: string } = {
       'T': 'sports_soccer',
       'A': 'person_off',
+      'AU': 'pause',
+      'AmE': 'person_off',
       'P': 'flag',
       'S': 'warning',
       'TO': 'timer',
       'E': 'swap_horiz',
+      'X': 'pause',
       '5m': 'sports_handball',
       'Goal': 'sports_soccer',
       'Penalty': 'flag',
@@ -172,6 +189,69 @@ export class GameDetailsComponent implements OnInit {
   getFoulForQuarter(fouls: any[], quarter: number): string {
     const foul = fouls.find(f => f.quarter === quarter);
     return foul ? foul.foulType : '';
+  }
+
+  /**
+   * Hilfsfunktion: Berechnet die Gesamtanzahl der Tore eines Teams
+   */
+  getTotalGoals(players: any[]): number {
+    return players.reduce((sum, player) => sum + (player.goals || 0), 0);
+  }
+
+  /**
+   * Hilfsfunktion: Findet den Top-Scorer eines Teams
+   */
+  getTopScorer(players: any[]): any {
+    return players.reduce((max, player) =>
+      (player.goals > (max?.goals || 0)) ? player : max, null
+    );
+  }
+
+  /**
+   * Hilfsfunktion: Berechnet die Gesamtanzahl der Fouls eines Teams
+   */
+  getTotalFouls(players: any[]): number {
+    return players.reduce((sum, player) => sum + (player.fouls?.length || 0), 0);
+  }
+
+  /**
+   * Hilfsfunktion: Prüft ob ein Spieler der Top-Scorer ist
+   */
+  isTopScorer(player: any, players: any[]): boolean {
+    const topScorer = this.getTopScorer(players);
+    return topScorer && player.goals > 0 && player.goals === topScorer.goals;
+  }
+
+  /**
+   * Hilfsfunktion: Filtert Events nach Viertel
+   */
+  getEventsByQuarter(events: any[], quarter: number): any[] {
+    return events.filter(event => event.period === quarter);
+  }
+
+  /**
+   * Hilfsfunktion: Gibt Quarter-Score für spezifisches Viertel zurück
+   */
+  getQuarterScoreByNumber(quarter: number): any {
+    return this.gameDetails?.quarterScores.find(q => q.quarter === quarter);
+  }
+
+  /**
+   * Hilfsfunktion: Extrahiert Heim-Team Endergebnis
+   */
+  getFinalHomeScore(): string {
+    if (!this.gameDetails?.finalScore) return '0';
+    const scores = this.gameDetails.finalScore.split(':');
+    return scores[0]?.trim() || '0';
+  }
+
+  /**
+   * Hilfsfunktion: Extrahiert Gast-Team Endergebnis
+   */
+  getFinalGuestScore(): string {
+    if (!this.gameDetails?.finalScore) return '0';
+    const scores = this.gameDetails.finalScore.split(':');
+    return scores[1]?.trim() || '0';
   }
 }
 

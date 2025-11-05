@@ -1,3 +1,4 @@
+// Game Details Model - Updated: 2025-11-05
 export interface GameDetails {
   // Grundinformationen
   gameId: string;
@@ -11,6 +12,7 @@ export interface GameDetails {
 
   // Spielstand
   finalScore: string;
+  scoringSystem?: string; // z.B. "3 Punktsystem"
   quarterScores: QuarterScore[];
 
   // Spielort

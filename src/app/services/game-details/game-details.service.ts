@@ -60,7 +60,8 @@ export class GameDetailsService {
     const homeTeam = this.parseTeamDetails(doc, 'white', homeLogoUrl);
     const guestTeam = this.parseTeamDetails(doc, 'blue', guestLogoUrl);
 
-    const finalScore = this.getTextContent(doc, 'ContentSection__scoringLabel');
+    // Extrahiere Final Score und Scoring System separat
+    const { finalScore, scoringSystem } = this.parseFinalScoreAndSystem(doc);
     const quarterScores = this.parseQuarterScores(doc);
 
     const venue = this.parseVenue(doc);
@@ -82,6 +83,7 @@ export class GameDetailsService {
       homeTeam,
       guestTeam,
       finalScore,
+      scoringSystem,
       quarterScores,
       venue,
       officials,
@@ -150,6 +152,53 @@ export class GameDetailsService {
     }
 
     return { homeLogoUrl, guestLogoUrl };
+  }
+
+  /**
+   * Parst Final Score und Scoring System separat
+   * Final Score kommt aus der Scoreboard-Tabelle, nicht aus scoring-Label
+   */
+  private parseFinalScoreAndSystem(doc: any): { finalScore: string, scoringSystem: string } {
+    let finalScore = '';
+    let scoringSystem = '';
+
+    // Prüfe erstmal das scoring-Label für "3 Punktsystem" etc.
+    const scoringLabel = this.getTextContent(doc, 'ContentSection__scoringLabel');
+    if (scoringLabel && (scoringLabel.includes('Punkt') || scoringLabel.includes('System'))) {
+      scoringSystem = scoringLabel;
+    }
+
+    // Extrahiere das echte Endergebnis aus der Scoreboard-Tabelle
+    const scoreboard = doc.getElementById('ContentSection_scoreboard_data');
+    if (scoreboard) {
+      const table = scoreboard.querySelector('table');
+      if (table) {
+        const rows = table.querySelectorAll('tr');
+
+        // Suche nach "Tore Total" Zeile
+        for (let i = 0; i < rows.length; i++) {
+          const row = rows[i];
+          const th = row.querySelector('th');
+
+          if (th && th.textContent?.includes('Tore Total')) {
+            const cells = row.querySelectorAll('td');
+            if (cells.length >= 2) {
+              const homeScore = cells[0].textContent?.trim().replace(/<\/?b>/g, '') || '0';
+              const guestScore = cells[1].textContent?.trim().replace(/<\/?b>/g, '') || '0';
+              finalScore = `${homeScore}:${guestScore}`;
+              break;
+            }
+          }
+        }
+      }
+    }
+
+    // Fallback: Wenn kein Scoreboard, verwende scoring-Label
+    if (!finalScore && scoringLabel && !scoringSystem) {
+      finalScore = scoringLabel;
+    }
+
+    return { finalScore, scoringSystem };
   }
 
   /**
@@ -265,53 +314,69 @@ export class GameDetailsService {
    */
   private parseQuarterScores(doc: any): QuarterScore[] {
     const quarterScores: QuarterScore[] = [];
-    const scoreboard = doc.getElementById('ContentSection_scoreboard');
 
-    if (scoreboard) {
-      const rows = scoreboard.querySelectorAll('tr');
-      if (rows.length >= 3) {
-        // Zeile 0: Header
-        // Zeile 1: Heim-Team
-        // Zeile 2: Gast-Team
-        const homeCells = rows[1].querySelectorAll('td');
-        const guestCells = rows[2].querySelectorAll('td');
+    // Versuche zuerst aus der Scoreboard-Tabelle zu parsen
+    const scoreboardData = doc.getElementById('ContentSection_scoreboard_data');
+    if (scoreboardData) {
+      const table = scoreboardData.querySelector('table');
+      if (table) {
+        const rows = table.querySelectorAll('tr');
 
-        // Die Zellen enthalten: Team-Name, Q1, Q2, Q3, Q4, (evtl. Verl.), Gesamt
-        // Wir nehmen Zellen 1-4 für die Viertel
-        for (let i = 1; i <= 4 && i < homeCells.length - 1; i++) {
-          const homeText = homeCells[i]?.textContent?.trim() || '0';
-          const guestText = guestCells[i]?.textContent?.trim() || '0';
+        // Suche nach "Tore Abschn. 1-2-3-4" Zeile
+        for (let i = 0; i < rows.length; i++) {
+          const row = rows[i];
+          const th = row.querySelector('th');
 
-          // Parse nur wenn es Zahlen sind
-          const homeScore = parseInt(homeText);
-          const guestScore = parseInt(guestText);
+          if (th && th.textContent?.includes('Abschn')) {
+            const cells = row.querySelectorAll('td');
+            if (cells.length >= 2) {
+              const homeScoresText = cells[0].textContent?.trim() || '';
+              const guestScoresText = cells[1].textContent?.trim() || '';
 
-          // Füge nur hinzu wenn beides valide Zahlen sind
-          if (!isNaN(homeScore) && !isNaN(guestScore)) {
-            quarterScores.push({
-              quarter: i,
-              home: homeScore,
-              guest: guestScore
-            });
+              // Parse "8-8-4-7" Format
+              const homeScores = homeScoresText.split('-').map((s: string) => parseInt(s.trim()));
+              const guestScores = guestScoresText.split('-').map((s: string) => parseInt(s.trim()));
+
+              for (let q = 0; q < Math.min(homeScores.length, guestScores.length); q++) {
+                if (!isNaN(homeScores[q]) && !isNaN(guestScores[q])) {
+                  quarterScores.push({
+                    quarter: q + 1,
+                    home: homeScores[q],
+                    guest: guestScores[q]
+                  });
+                }
+              }
+              break;
+            }
           }
         }
       }
     }
 
-    // Fallback: Wenn Scoreboard nicht gefunden, versuche aus Spiel-Ergebnis zu extrahieren
+    // Fallback: Alte Methode mit dem normalen Scoreboard
     if (quarterScores.length === 0) {
-      // Suche nach Pattern wie "(8:1, 8:0, 4:0, 7:4)"
-      const resultText = this.getTextContent(doc, 'ContentSection__scoringLabel');
-      const quarterPattern = /\((\d+):(\d+),\s*(\d+):(\d+),\s*(\d+):(\d+),\s*(\d+):(\d+)\)/;
-      const match = resultText.match(quarterPattern);
+      const scoreboard = doc.getElementById('ContentSection_scoreboard');
+      if (scoreboard) {
+        const rows = scoreboard.querySelectorAll('tr');
+        if (rows.length >= 3) {
+          const homeCells = rows[1].querySelectorAll('td');
+          const guestCells = rows[2].querySelectorAll('td');
 
-      if (match) {
-        for (let i = 0; i < 4; i++) {
-          quarterScores.push({
-            quarter: i + 1,
-            home: parseInt(match[i * 2 + 1]),
-            guest: parseInt(match[i * 2 + 2])
-          });
+          for (let i = 1; i <= 4 && i < homeCells.length - 1; i++) {
+            const homeText = homeCells[i]?.textContent?.trim() || '0';
+            const guestText = guestCells[i]?.textContent?.trim() || '0';
+
+            const homeScore = parseInt(homeText);
+            const guestScore = parseInt(guestText);
+
+            if (!isNaN(homeScore) && !isNaN(guestScore)) {
+              quarterScores.push({
+                quarter: i,
+                home: homeScore,
+                guest: guestScore
+              });
+            }
+          }
         }
       }
     }

@@ -18,7 +18,6 @@ import {Scorer} from "../../models/scorer";
 import {animate, state, style, transition, trigger} from "@angular/animations";
 import {MatFormField, MatLabel} from "@angular/material/form-field";
 import {MatInput} from "@angular/material/input";
-import {MatButton} from "@angular/material/button";
 import {MatProgressSpinner} from "@angular/material/progress-spinner";
 
 @Component({
@@ -41,7 +40,6 @@ import {MatProgressSpinner} from "@angular/material/progress-spinner";
     MatFormField,
     MatInput,
     MatLabel,
-    MatButton,
     MatProgressSpinner
   ],
   animations: [
@@ -171,7 +169,16 @@ export class LigaComponent implements OnInit {
   navigateToGameDetails(game: Games): void {
     // Nur navigieren, wenn ein gameLink vorhanden ist
     if (game.gameLink) {
-      this.router.navigate(['/game-details'], { queryParams: { param: game.gameLink } });
+      // Hole die aktuellen Liga-Parameter
+      const currentParams = this.route.snapshot.queryParams;
+
+      // Navigiere mit gameLink UND behalte die Liga-Parameter
+      this.router.navigate(['/game-details'], {
+        queryParams: {
+          param: game.gameLink,
+          ligaParam: currentParams['param'] // Speichere Liga-Parameter für Zurück-Navigation
+        }
+      });
     }
   }
 }
