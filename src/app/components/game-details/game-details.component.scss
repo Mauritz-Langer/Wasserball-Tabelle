@@ -609,6 +609,7 @@
       min-width: 120px;
       font-weight: 600;
       height: 56px;
+      color: var(--text-secondary) !important;
 
       @media (max-width: 768px) {
         min-width: 100px;
@@ -686,6 +687,15 @@
     transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
+    margin: 0 24px;
+
+    @media (max-width: 768px) {
+      margin: 0 16px;
+    }
+
+    @media (max-width: 480px) {
+      margin: 0 12px;
+    }
 
     @media (max-width: 768px) {
       // Ripple-Effekt
@@ -844,6 +854,16 @@
   }
 
   .players-card {
+    margin: 0 24px;
+
+    @media (max-width: 768px) {
+      margin: 0 16px;
+    }
+
+    @media (max-width: 480px) {
+      margin: 0 12px;
+    }
+
     mat-card-header {
       padding: 20px;
 
@@ -954,7 +974,7 @@
         .stat-label {
           font-size: 11px;
           font-weight: 600;
-          color: rgba(0, 0, 0, 0.6);
+          color: var(--text-primary);
           text-transform: uppercase;
           letter-spacing: 0.5px;
           text-align: center;
@@ -1052,7 +1072,7 @@
             text-align: center;
             border-left: 1px solid rgba(0, 0, 0, 0.08);
             color: #1976d2;
-            background: #f8f9fa;
+            background: var(--background-color);
 
             @media (max-width: 768px) {
               font-size: 10px;
@@ -2089,6 +2109,10 @@
     }
   }
 
+  .mat-mdc-tab-labels {
+    color: var(--text-secondary) !important;
+  }
+
   .teams-grid mat-card {
     background-color: var(--surface-color);
     border: 1px solid var(--border-color);
@@ -2119,6 +2143,15 @@
   .players-card {
     background-color: var(--surface-color);
     border: 1px solid var(--border-color);
+    margin: 0 24px;
+
+    @media (max-width: 768px) {
+      margin: 0 16px;
+    }
+
+    @media (max-width: 480px) {
+      margin: 0 12px;
+    }
 
     .team-stats-summary {
       background: var(--surface-elevated);
@@ -2134,6 +2167,7 @@
     }
 
     .players-table {
+      background: var(--surface-elevated);
       thead {
         background: var(--surface-elevated);
 
@@ -2257,7 +2291,7 @@
       }
 
       .stat-label {
-        color: var(--text-secondary);
+        color: var(--text-secondary) !important;
       }
 
       .stat-value {
