@@ -97,6 +97,22 @@
     margin: 0 auto;
     display: block;
 
+    @media (max-width: 768px) {
+      max-width: 100%;
+
+      // Größere Inputs für bessere Touch-Bedienung
+      ::ng-deep {
+        .mat-mdc-form-field-infix {
+          min-height: 48px; // iOS-konforme Touch-Target-Größe
+        }
+
+        .mat-mdc-input-element {
+          padding: 12px 0; // Mehr vertikaler Raum
+          font-size: 16px !important; // Verhindert Auto-Zoom auf iOS
+        }
+      }
+    }
+
     ::ng-deep {
       .mat-mdc-text-field-wrapper {
         background-color: white;
@@ -239,11 +255,27 @@
     cursor: pointer;
     transition: all 0.3s ease;
     border-left: 4px solid #1976d2;
+    position: relative;
+    overflow: hidden;
 
     @media (max-width: 768px) {
       // Verbessertes Touch-Feedback
       -webkit-tap-highlight-color: rgba(25, 118, 210, 0.1);
       border-left-width: 3px;
+
+      // Ripple-Effect Vorbereitung
+      &::before {
+        content: '';
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        width: 0;
+        height: 0;
+        border-radius: 50%;
+        background: rgba(25, 118, 210, 0.2);
+        transform: translate(-50%, -50%);
+        transition: width 0.4s ease, height 0.4s ease;
+      }
     }
 
     &:hover {
@@ -260,6 +292,12 @@
       @media (max-width: 768px) {
         background: rgba(25, 118, 210, 0.05);
         transform: scale(0.98);
+        transition: transform 0.1s ease, background 0.1s ease;
+
+        &::before {
+          width: 300px;
+          height: 300px;
+        }
       }
     }
 
@@ -383,11 +421,22 @@
 
         @media (max-width: 768px) {
           padding: 10px 14px;
-          min-height: 50px;
+          min-height: 60px; // Größere Touch-Target
+
+          // Touch-Feedback
+          -webkit-tap-highlight-color: rgba(25, 118, 210, 0.1);
+
+          &:active {
+            background: rgba(25, 118, 210, 0.08) !important;
+          }
         }
 
         &:hover {
           background: rgba(25, 118, 210, 0.04) !important;
+
+          @media (max-width: 768px) {
+            background: transparent !important; // Kein Hover auf Mobile
+          }
         }
       }
 
@@ -398,6 +447,11 @@
       .mat-expansion-indicator {
         &::after {
           color: #1976d2;
+        }
+
+        @media (max-width: 768px) {
+          // Größerer Pfeil für bessere Sichtbarkeit
+          transform: scale(1.2);
         }
       }
     }

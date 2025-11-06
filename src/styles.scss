@@ -22,7 +22,20 @@ body {
 
     // Optimiere Touch-Scrolling
     -webkit-overflow-scrolling: touch;
+
+    // Safe Area Support für Notch/Dynamic Island
+    padding-top: env(safe-area-inset-top);
+    padding-bottom: env(safe-area-inset-bottom);
+    padding-left: env(safe-area-inset-left);
+    padding-right: env(safe-area-inset-right);
   }
+}
+
+// Optimiere globale Scroll-Performance
+* {
+  // Verwende GPU-Beschleunigung für bessere Performance
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
 // Light Theme Variables (Default)
