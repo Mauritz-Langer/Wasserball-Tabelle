@@ -578,7 +578,7 @@
 
   .table-container {
     overflow-x: auto;
-    overflow-y: hidden;
+    overflow-y: visible;
     -webkit-overflow-scrolling: touch;
     position: relative;
 
@@ -624,16 +624,15 @@
       background-size: 60px 100%, 60px 100%, 25px 100%, 25px 100%;
       background-attachment: local, local, scroll, scroll;
 
-      // Scroll-Snap für bessere Navigation
+      // Scroll-Snap für bessere Navigation (nur horizontal)
       scroll-snap-type: x mandatory;
 
       // Momentum scrolling optimieren
       -webkit-overflow-scrolling: touch;
       overscroll-behavior-x: contain;
-      overscroll-behavior: none;
 
-      // Verbesserte Touch-Interaktion
-      touch-action: pan-x;
+      // Erlaube vertikales Scrollen der Seite, aber nur horizontales Scrollen in der Tabelle
+      touch-action: pan-y pan-x pinch-zoom;
 
       // Scrollbar auf Mobile ausblenden
       scrollbar-width: none;
