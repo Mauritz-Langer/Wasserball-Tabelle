@@ -157,19 +157,19 @@
   overflow: visible;
 
   @media (max-width: 768px) {
-    margin-bottom: 16px;
-    border-radius: 12px !important;
+    margin-bottom: 12px; // Reduziert von 16px
+    border-radius: 8px !important; // Weniger Radius
   }
 
   mat-card-content {
     padding: 32px !important;
 
     @media (max-width: 768px) {
-      padding: 20px !important;
+      padding: 12px !important; // Stark reduziert von 20px
     }
 
     @media (max-width: 480px) {
-      padding: 16px !important;
+      padding: 10px !important; // Reduziert von 16px
     }
   }
 
@@ -182,9 +182,10 @@
     margin-bottom: 24px;
 
     @media (max-width: 768px) {
-      flex-direction: column;
-      gap: 24px;
-      margin-bottom: 20px;
+      flex-direction: row; // Bleibe horizontal auf Mobile!
+      gap: 8px; // Stark reduziert
+      margin-bottom: 12px;
+      align-items: flex-start; // Oben ausrichten
     }
 
     // Team Section
@@ -197,7 +198,9 @@
       min-width: 0;
 
       @media (max-width: 768px) {
-        width: 100%;
+        flex: 1; // Gleiche Breite für beide Teams
+        gap: 4px; // Sehr kompakt
+        min-width: 0; // Wichtig für Text-Truncation
       }
 
       .team-logo {
@@ -207,13 +210,13 @@
         filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.1));
 
         @media (max-width: 768px) {
-          width: 64px;
-          height: 64px;
+          width: 48px; // Stark reduziert von 64px
+          height: 48px;
         }
 
         @media (max-width: 480px) {
-          width: 56px;
-          height: 56px;
+          width: 40px; // Reduziert von 56px
+          height: 40px;
         }
       }
 
@@ -226,11 +229,12 @@
         word-break: break-word;
 
         @media (max-width: 768px) {
-          font-size: 20px;
+          font-size: 16px; // Reduziert von 20px
+          line-height: 1.3; // Kompaktere Zeilenhöhe
         }
 
         @media (max-width: 480px) {
-          font-size: 18px;
+          font-size: 15px; // Reduziert von 18px
         }
       }
 
@@ -245,8 +249,9 @@
         border-radius: 12px;
 
         @media (max-width: 768px) {
-          font-size: 11px;
-          padding: 3px 10px;
+          font-size: 9px; // Reduziert von 11px
+          padding: 2px 8px; // Reduziert
+          letter-spacing: 0.5px;
         }
       }
 
@@ -257,11 +262,13 @@
         margin-top: 8px;
 
         @media (max-width: 768px) {
-          font-size: 40px;
+          font-size: 32px; // Reduziert von 40px
+          margin-top: 4px; // Reduziert
         }
 
         @media (max-width: 480px) {
-          font-size: 36px;
+          font-size: 28px; // Reduziert von 36px
+          margin-top: 2px;
         }
 
         &.home {
@@ -283,8 +290,9 @@
       gap: 16px;
 
       @media (max-width: 768px) {
-        width: 100%;
-        gap: 12px;
+        flex: 0 0 auto; // Nicht volle Breite, sondern kompakt
+        gap: 6px; // Reduziert
+        min-width: 70px; // Mindestbreite für VS und Badge
       }
 
       .final-score-wrapper {
@@ -293,6 +301,10 @@
         align-items: center;
         gap: 12px;
 
+        @media (max-width: 768px) {
+          gap: 6px; // Reduziert für Kompaktheit
+        }
+
         .versus-label {
           font-size: 24px;
           font-weight: 800;
@@ -300,7 +312,8 @@
           letter-spacing: 2px;
 
           @media (max-width: 768px) {
-            font-size: 20px;
+            font-size: 16px; // Reduziert von 20px
+            letter-spacing: 1px;
           }
         }
 
@@ -314,8 +327,10 @@
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 
           @media (max-width: 768px) {
-            padding: 6px 16px;
-            font-size: 11px;
+            padding: 4px 12px; // Reduziert von 6px 16px
+            font-size: 10px; // Reduziert von 11px
+            border-radius: 12px;
+            letter-spacing: 0.5px;
           }
 
           &.finished {
@@ -335,65 +350,72 @@
           text-align: center;
 
           @media (max-width: 768px) {
-            font-size: 10px;
+            font-size: 9px; // Reduziert von 10px
           }
         }
       }
+    }
+  }
 
-      .quarter-scores-enhanced {
-        display: flex;
-        gap: 8px;
-        flex-wrap: wrap;
-        justify-content: center;
+  // Quarter Scores - Outside game-header for better mobile layout
+  .quarter-scores-enhanced {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 16px; // Abstand zur Quick Actions
+
+    @media (max-width: 768px) {
+      gap: 4px;
+      margin-bottom: 12px;
+      margin-top: 8px; // Abstand zur game-header
+    }
+
+    .quarter-score-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      padding: 8px 12px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
+      min-width: 60px;
+
+      @media (max-width: 768px) {
+        padding: 4px 8px; // Reduziert
+        min-width: unset;
+        gap: 2px;
+        border-radius: 6px;
+      }
+
+      @media (max-width: 480px) {
+        flex: 1;
+        min-width: unset;
+        padding: 4px 6px;
+      }
+
+      .quarter-label {
+        font-size: 10px;
+        font-weight: 600;
+        color: rgba(0, 0, 0, 0.5);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
 
         @media (max-width: 768px) {
-          gap: 6px;
-          width: 100%;
+          font-size: 8px;
+          letter-spacing: 0.3px;
         }
+      }
 
-        .quarter-score-item {
-          display: flex;
-          flex-direction: column;
-          align-items: center;
-          gap: 4px;
-          padding: 8px 12px;
-          background: white;
-          border-radius: 8px;
-          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.08);
-          min-width: 60px;
+      .quarter-value {
+        font-size: 16px;
+        font-weight: 700;
+        font-family: 'Roboto Mono', monospace;
+        color: #1976d2;
 
-          @media (max-width: 768px) {
-            padding: 6px 10px;
-            min-width: 56px;
-          }
-
-          @media (max-width: 480px) {
-            flex: 1;
-            min-width: 48px;
-          }
-
-          .quarter-label {
-            font-size: 10px;
-            font-weight: 600;
-            color: rgba(0, 0, 0, 0.5);
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-
-            @media (max-width: 768px) {
-              font-size: 9px;
-            }
-          }
-
-          .quarter-value {
-            font-size: 16px;
-            font-weight: 700;
-            font-family: 'Roboto Mono', monospace;
-            color: #1976d2;
-
-            @media (max-width: 768px) {
-              font-size: 14px;
-            }
-          }
+        @media (max-width: 768px) {
+          font-size: 13px;
         }
       }
     }
@@ -409,8 +431,8 @@
     flex-wrap: wrap;
 
     @media (max-width: 768px) {
-      gap: 8px;
-      padding-top: 16px;
+      gap: 6px; // Reduziert von 8px
+      padding-top: 10px; // Reduziert von 16px
     }
 
     button {
@@ -419,7 +441,9 @@
 
       @media (max-width: 768px) {
         flex: 1;
-        min-width: 120px;
+        min-width: 100px; // Reduziert von 120px
+        height: 36px; // Kompakter
+        font-size: 13px; // Kleinere Schrift
 
         // Touch-Feedback
         -webkit-tap-highlight-color: rgba(25, 118, 210, 0.1);
@@ -437,9 +461,9 @@
 
       mat-icon {
         @media (max-width: 768px) {
-          font-size: 20px;
-          width: 20px;
-          height: 20px;
+          font-size: 18px; // Reduziert von 20px
+          width: 18px;
+          height: 18px;
         }
       }
     }

@@ -55,14 +55,6 @@
                 {{ gameDetails.scoringSystem }}
               </div>
             </div>
-
-            <!-- Improved Quarter Scores Display -->
-            <div class="quarter-scores-enhanced" *ngIf="gameDetails.quarterScores && gameDetails.quarterScores.length > 0">
-              <div class="quarter-score-item" *ngFor="let quarter of gameDetails.quarterScores">
-                <span class="quarter-label">Q{{ quarter.quarter }}</span>
-                <span class="quarter-value">{{ quarter.home }}:{{ quarter.guest }}</span>
-              </div>
-            </div>
           </div>
 
           <!-- Guest Team -->
@@ -74,6 +66,14 @@
             <h2 class="team-name">{{ gameDetails.guestTeam.name }}</h2>
             <span class="team-label">Gast</span>
             <div class="team-final-score guest">{{ getFinalGuestScore() }}</div>
+          </div>
+        </div>
+
+        <!-- Quarter Scores - Outside game-header for better mobile layout -->
+        <div class="quarter-scores-enhanced" *ngIf="gameDetails.quarterScores && gameDetails.quarterScores.length > 0">
+          <div class="quarter-score-item" *ngFor="let quarter of gameDetails.quarterScores">
+            <span class="quarter-label">Q{{ quarter.quarter }}</span>
+            <span class="quarter-value">{{ quarter.home }}:{{ quarter.guest }}</span>
           </div>
         </div>
 

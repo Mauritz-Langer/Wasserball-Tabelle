@@ -101,7 +101,14 @@ export class GameDetailsService {
    * Hilfsfunktion: Extrahiert Textinhalt eines Elements
    */
   private getTextContent(doc: any, id: string): string {
-    return doc.getElementById(id)?.textContent?.trim() || '';
+    const element = doc.getElementById(id);
+    if (!element) return '';
+
+    const text = element.textContent?.trim() || '';
+    if (text.includes(':') && !text.includes('Uhr')) {
+      return text.split(':')[1]?.trim() || '';
+    }
+    return text;
   }
 
   /**
@@ -522,4 +529,3 @@ export class GameDetailsService {
     };
   }
 }
-
