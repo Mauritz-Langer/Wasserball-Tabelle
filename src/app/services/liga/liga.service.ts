@@ -139,13 +139,30 @@ export class LigaService {
       for (let i = 1; i < rows.length; i++) {
         const cells = rows[i].getElementsByTagName('td');
 
-        // Überspringe Spieltag-Header (colspan=7) und Zeilen mit zu wenigen Zellen
-        if (cells.length < 7) {
+        // Überspringe Zeilen mit zu wenigen Zellen (mindestens 6 für alte Struktur)
+        if (cells.length < 6) {
           continue;
         }
 
-        // Neue Struktur: Spalten sind: Spiel, Beginn, leer, Heim, leer, Gast, Ort, Info/Erg., (Viertelergebnisse)
-        const resultCell = cells[7];
+        // Unterscheide zwischen alter Struktur (6 Spalten) und neuer Struktur (8+ Spalten)
+        let startCell, homeCell, guestCell, locationCell, resultCell;
+
+        if (cells.length >= 8) {
+          // Neue Struktur: Spalten sind: Spiel, Beginn, leer, Heim, leer, Gast, Ort, Info/Erg., (Viertelergebnisse)
+          startCell = cells[1];
+          homeCell = cells[3];
+          guestCell = cells[5];
+          locationCell = cells[6];
+          resultCell = cells[7];
+        } else {
+          // Alte Struktur: Spalten sind: idx, Beginn, Heim, Gast, Ort, Info/Erg.
+          startCell = cells[1];
+          homeCell = cells[2];
+          guestCell = cells[3];
+          locationCell = cells[4];
+          resultCell = cells[5];
+        }
+
         let result = resultCell.textContent.trim();
         if (result === 'mehr...') {
           result = ' - ';
@@ -161,16 +178,16 @@ export class LigaService {
           }
         }
 
-        const homeTeam = cells[3].textContent.trim();
-        const guestTeam = cells[5].textContent.trim();
+        const homeTeam = homeCell.textContent.trim();
+        const guestTeam = guestCell.textContent.trim();
 
         const game: Games = {
-          start: cells[1].textContent.trim(),
+          start: startCell.textContent.trim(),
           home: homeTeam,
           homeImageUrl: teamImages.get(homeTeam) || '',
           guest: guestTeam,
           guestImageUrl: teamImages.get(guestTeam) || '',
-          location: cells[6].textContent.trim(),
+          location: locationCell.textContent.trim(),
           gameLink: link,
           result: result
         };

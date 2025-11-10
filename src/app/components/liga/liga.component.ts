@@ -128,15 +128,14 @@ export class LigaComponent implements OnInit, AfterViewInit {
     }, 200);
   }
 
-  navigateToMapsLink(element: Games, event: Event) {
+  async navigateToMapsLink(element: Games, event: Event): Promise<void> {
     event.preventDefault();
     event.stopPropagation();
 
-    this.ligaService.getLocationLink(element.gameLink).then(
-      (locationLink: string) => {
-        window.location.href = locationLink;
-      }
-    );
+    const locationLink = await this.ligaService.getLocationLink(element.gameLink);
+    if (locationLink) {
+      window.open(locationLink, '_blank');
+    }
   }
 
   getGamesByRow(row: Table) {

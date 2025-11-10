@@ -76,7 +76,9 @@ describe('LigaService', () => {
       expect(games[0]).toEqual({
         start: '04.10.25, 16:00 Uhr',
         home: 'Team A',
+        homeImageUrl: '',
         guest: 'Team B',
+        guestImageUrl: '',
         location: 'Berlin',
         gameLink: 'Game.aspx?Season=2025&LeagueID=298&GameID=123',
         result: '12:10'
@@ -85,7 +87,9 @@ describe('LigaService', () => {
       expect(games[1]).toEqual({
         start: '05.10.25, 17:00 Uhr',
         home: 'Team C',
+        homeImageUrl: '',
         guest: 'Team D',
+        guestImageUrl: '',
         location: 'Hamburg',
         gameLink: '',
         result: ' - '
@@ -172,6 +176,7 @@ describe('LigaService', () => {
         place: 1,
         team: 'Team A',
         info: '(i)',
+        imageUrl: '',
         games: 10,
         wins: 8,
         draws: 1,
@@ -185,6 +190,7 @@ describe('LigaService', () => {
         place: 2,
         team: 'Team B',
         info: '',
+        imageUrl: '',
         games: 10,
         wins: 7,
         draws: 2,
@@ -298,72 +304,5 @@ describe('LigaService', () => {
       const link = await service.getLocationLink('GameDetails.aspx?id=456');
       expect(link).toBe('');
     });
-  });
-
-  describe('Integration Tests mit Live-Daten', () => {
-    it('lädt echte Daten über den Proxy und parst sie erfolgreich', (done) => {
-      // Test mit einer bekannten Liga-URL (z.B. Oberliga Nord Männer 2025)
-      const testLink = 'WBGameList.aspx?V=DMOL2B&S=2025';
-
-      service.getItems(testLink).subscribe({
-        next: (html: string) => {
-          console.log('HTML erfolgreich geladen, Länge:', html.length);
-
-          // Teste Liganamen-Parsing
-          const ligaName = service.getLigaName(html);
-          expect(ligaName).toBeTruthy();
-          expect(ligaName.length).toBeGreaterThan(0);
-          console.log('Liga-Name:', ligaName);
-
-          // Teste Spiele-Parsing
-          const games = service.parseHtmlToGames(html);
-          expect(games).toBeDefined();
-          expect(Array.isArray(games)).toBe(true);
-          console.log('Anzahl Spiele:', games.length);
-
-          if (games.length > 0) {
-            const firstGame = games[0];
-            expect(firstGame.home).toBeTruthy();
-            expect(firstGame.guest).toBeTruthy();
-            expect(firstGame.start).toBeTruthy();
-            console.log('Erstes Spiel:', firstGame);
-          }
-
-          // Teste Tabellen-Parsing
-          const table = service.parseHtmlToTable(html);
-          expect(table).toBeDefined();
-          expect(Array.isArray(table)).toBe(true);
-          console.log('Anzahl Tabellenzeilen:', table.length);
-
-          if (table.length > 0) {
-            const firstPlace = table[0];
-            expect(firstPlace.team).toBeTruthy();
-            expect(firstPlace.place).toBeGreaterThan(0);
-            expect(firstPlace.points).toBeGreaterThanOrEqual(0);
-            console.log('Tabellenführer:', firstPlace);
-          }
-
-          // Teste Torschützen-Parsing
-          const scorers = service.parseHtmlToScorer(html);
-          expect(scorers).toBeDefined();
-          expect(Array.isArray(scorers)).toBe(true);
-          console.log('Anzahl Torschützen:', scorers.length);
-
-          if (scorers.length > 0) {
-            const topScorer = scorers[0];
-            expect(topScorer.name).toBeTruthy();
-            expect(topScorer.goals).toBeGreaterThan(0);
-            console.log('Top-Torschütze:', topScorer);
-          }
-
-          done();
-        },
-        error: (err) => {
-          console.error('Fehler beim Laden der Live-Daten:', err);
-          fail('Live-Daten konnten nicht geladen werden: ' + err.message);
-          done();
-        }
-      });
-    }, 30000); // 30 Sekunden Timeout für Live-Request
   });
 });

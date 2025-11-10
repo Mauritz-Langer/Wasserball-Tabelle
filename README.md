@@ -1,5 +1,7 @@
 # WaterpoloTable
 
+[![CI - Build and Test](https://github.com/Mauritz-Langer/Wasserball-Tabelle/workflows/CI%20-%20Build%20and%20Test/badge.svg)](https://github.com/Mauritz-Langer/Wasserball-Tabelle/actions)
+
 This project is a web application for managing and displaying water polo league tables, games, and scorers. It is built using Angular and Angular Material.
 
 ## Table of Contents
@@ -14,6 +16,7 @@ This project is a web application for managing and displaying water polo league 
 - [Project Structure](#project-structure)
 - [Features](#features)
 - [Usage](#usage)
+- [CI/CD](#cicd)
 - [Contributing](#contributing)
 - [License](#license)
 
@@ -57,6 +60,12 @@ Run `ng test` to execute the unit tests via [Karma](https://karma-runner.github.
 
 ```bash
 ng test
+```
+
+For CI/CD pipelines, use headless mode:
+
+```bash
+ng test -- --watch=false --browsers=ChromeHeadless
 ```
 
 ## Running End-to-End Tests
@@ -165,6 +174,58 @@ waterpolotable/
 
 4. **Navigate to Maps:**
    Click on the location link to navigate to the map for the game location.
+
+## CI/CD
+
+This project uses GitHub Actions for continuous integration and automated dependency management.
+
+### Automated Workflows
+
+#### 1. Build & Test Pipeline (`ci.yml`)
+Runs on every push and pull request to `main` and `develop` branches:
+- ✅ Installs dependencies
+- ✅ Builds the application (production mode)
+- ✅ Runs unit tests with code coverage
+- ✅ Archives build artifacts
+
+#### 2. Dependabot Auto-Merge (`dependabot-auto-merge.yml`)
+Automatically manages dependency updates:
+- 🤖 Dependabot creates PRs weekly (Mondays at 06:00)
+- 🧪 Tests are run automatically for all dependency PRs
+- ✅ **Patch & Minor updates**: Auto-merged after successful tests
+- ⚠️ **Major updates**: Require manual review
+
+#### 3. Dependency Updates (`dependabot.yml`)
+Configured for:
+- npm packages (grouped by framework)
+- GitHub Actions updates
+
+### Configuration Required
+
+For auto-merge to work, enable these settings in your GitHub repository:
+
+**Settings → Actions → General:**
+- ✅ Allow GitHub Actions to create and approve pull requests
+- ✅ Read and write permissions for workflows
+
+**Settings → Pull Requests:**
+- ✅ Allow auto-merge
+
+**Settings → Branches (for `main`):**
+- ✅ Require status checks to pass before merging
+- Required check: `test`
+
+### Manual Testing
+
+```bash
+# Run tests in CI mode (headless)
+npm run test -- --watch=false --browsers=ChromeHeadless
+
+# Build for production
+npm run build -- --configuration production
+```
+
+For more details, see [.github/WORKFLOWS.md](.github/WORKFLOWS.md).
 
 ## Contributing
 
