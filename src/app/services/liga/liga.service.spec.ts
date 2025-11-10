@@ -76,7 +76,9 @@ describe('LigaService', () => {
       expect(games[0]).toEqual({
         start: '04.10.25, 16:00 Uhr',
         home: 'Team A',
+        homeImageUrl: '',
         guest: 'Team B',
+        guestImageUrl: '',
         location: 'Berlin',
         gameLink: 'Game.aspx?Season=2025&LeagueID=298&GameID=123',
         result: '12:10'
@@ -85,7 +87,9 @@ describe('LigaService', () => {
       expect(games[1]).toEqual({
         start: '05.10.25, 17:00 Uhr',
         home: 'Team C',
+        homeImageUrl: '',
         guest: 'Team D',
+        guestImageUrl: '',
         location: 'Hamburg',
         gameLink: '',
         result: ' - '
@@ -172,6 +176,7 @@ describe('LigaService', () => {
         place: 1,
         team: 'Team A',
         info: '(i)',
+        imageUrl: '',
         games: 10,
         wins: 8,
         draws: 1,
@@ -185,6 +190,7 @@ describe('LigaService', () => {
         place: 2,
         team: 'Team B',
         info: '',
+        imageUrl: '',
         games: 10,
         wins: 7,
         draws: 2,
