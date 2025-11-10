@@ -306,7 +306,7 @@ describe('LigaService', () => {
     });
   });
 
-  describe('Integration Tests mit Live-Daten', () => {
+  describe.skip('Integration Tests mit Live-Daten', () => {
     it('lädt echte Daten über den Proxy und parst sie erfolgreich', (done) => {
       // Test mit einer bekannten Liga-URL (z.B. Oberliga Nord Männer 2025)
       const testLink = 'WBGameList.aspx?V=DMOL2B&S=2025';

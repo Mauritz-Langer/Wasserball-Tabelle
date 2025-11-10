@@ -24,7 +24,7 @@ export class ThemeService {
       const theme = this.currentTheme();
       this.applyTheme(theme);
       this.saveTheme(theme);
-    });
+    }, { allowSignalWrites: true });
 
     // Lausche auf System-Theme-Änderungen
     if (window.matchMedia) {

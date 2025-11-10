@@ -102,21 +102,16 @@ describe('ThemeService', () => {
       expect(service.currentTheme()).toBe('dark');
     });
 
-    it('should save theme to localStorage', (done) => {
-      // Use setTimeout to wait for effect to run
+    it('should save theme to localStorage', () => {
       service.setTheme('dark');
-      setTimeout(() => {
-        expect(localStorage.setItem).toHaveBeenCalledWith('app-theme', 'dark');
-        done();
-      }, 0);
+      TestBed.flushEffects();
+      expect(localStorage.setItem).toHaveBeenCalledWith('app-theme', 'dark');
     });
 
-    it('should apply theme when set', (done) => {
+    it('should apply theme when set', () => {
       service.setTheme('dark');
-      setTimeout(() => {
-        expect(document.body.classList.contains('dark-theme')).toBe(true);
-        done();
-      }, 0);
+      TestBed.flushEffects();
+      expect(document.body.classList.contains('dark-theme')).toBe(true);
     });
   });
 
@@ -173,29 +168,23 @@ describe('ThemeService', () => {
       TestBed.flushEffects();
     });
 
-    it('should return light when theme is light', (done) => {
+    it('should return light when theme is light', () => {
       service.setTheme('light');
-      setTimeout(() => {
-        expect(service.effectiveTheme()).toBe('light');
-        done();
-      }, 0);
+      TestBed.flushEffects();
+      expect(service.effectiveTheme()).toBe('light');
     });
 
-    it('should return dark when theme is dark', (done) => {
+    it('should return dark when theme is dark', () => {
       service.setTheme('dark');
-      setTimeout(() => {
-        expect(service.effectiveTheme()).toBe('dark');
-        done();
-      }, 0);
+      TestBed.flushEffects();
+      expect(service.effectiveTheme()).toBe('dark');
     });
 
-    it('should resolve auto to light or dark', (done) => {
+    it('should resolve auto to light or dark', () => {
       service.setTheme('auto');
-      setTimeout(() => {
-        const effective = service.effectiveTheme();
-        expect(['light', 'dark']).toContain(effective);
-        done();
-      }, 0);
+      TestBed.flushEffects();
+      const effective = service.effectiveTheme();
+      expect(['light', 'dark']).toContain(effective);
     });
   });
 });
