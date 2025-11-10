@@ -340,7 +340,7 @@ describe('LigaComponent', () => {
       fixture.detectChanges();
     });
 
-    it('should call ligaService.getLocationLink and navigate', async () => {
+    it('should call ligaService.getLocationLink and open in new tab', async () => {
       const game: Games = {
         start: '',
         home: 'A',
@@ -355,12 +355,38 @@ describe('LigaComponent', () => {
       const event = new Event('click');
       spyOn(event, 'preventDefault');
       spyOn(event, 'stopPropagation');
+      spyOn(window, 'open');
 
-      component.navigateToMapsLink(game, event);
+      ligaService.getLocationLink.and.returnValue(Promise.resolve('https://maps.google.com'));
+
+      await component.navigateToMapsLink(game, event);
 
       expect(event.preventDefault).toHaveBeenCalled();
       expect(event.stopPropagation).toHaveBeenCalled();
       expect(ligaService.getLocationLink).toHaveBeenCalledWith('Game.aspx?id=123');
+      expect(window.open).toHaveBeenCalledWith('https://maps.google.com', '_blank');
+    });
+
+    it('should not open window when location link is empty', async () => {
+      const game: Games = {
+        start: '',
+        home: 'A',
+        homeImageUrl: '',
+        guest: 'B',
+        guestImageUrl: '',
+        location: 'Berlin',
+        gameLink: 'Game.aspx?id=123',
+        result: '10:8'
+      };
+
+      const event = new Event('click');
+      spyOn(window, 'open');
+
+      ligaService.getLocationLink.and.returnValue(Promise.resolve(''));
+
+      await component.navigateToMapsLink(game, event);
+
+      expect(window.open).not.toHaveBeenCalled();
     });
   });
 
