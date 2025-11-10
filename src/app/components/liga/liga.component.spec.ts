@@ -316,7 +316,10 @@ describe('LigaComponent', () => {
       component.navigateToGameDetails(game);
 
       expect(router.navigate).toHaveBeenCalledWith(['/game-details'], {
-        queryParams: { param: 'Game.aspx?id=123' }
+        queryParams: {
+          param: 'Game.aspx?id=123',
+          ligaParam: 'WBGameList.aspx?V=DMOL2B&S=2025'
+        }
       });
     });
 

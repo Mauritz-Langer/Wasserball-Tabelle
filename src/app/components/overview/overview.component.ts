@@ -118,6 +118,6 @@ export class OverviewComponent implements OnInit {
 
   navigateToLiga(subItem: SubItem) {
     let param = subItem.link;
-    this.router.navigate(['liga'], {queryParams: {param}});
+    this.router.navigate(['/liga'], {queryParams: {param}});
   }
 }

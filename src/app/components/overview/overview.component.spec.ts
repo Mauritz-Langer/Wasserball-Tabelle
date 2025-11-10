@@ -94,6 +94,12 @@ describe('OverviewComponent', () => {
 
   describe('favorites getter', () => {
     it('should return all favorite subItems', () => {
+      // Setup localStorage mit Favoriten vor fixture.detectChanges()
+      const favoritesData = JSON.stringify([
+        {name: 'Bundesliga Frauen', link: 'link2', gender: 'Frauen', isFavorite: true}
+      ]);
+      (localStorage.getItem as jasmine.Spy).and.returnValue(favoritesData);
+
       fixture.detectChanges();
 
       const favorites = component.favorites;
