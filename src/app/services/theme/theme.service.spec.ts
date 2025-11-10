@@ -63,16 +63,20 @@ describe('ThemeService', () => {
   describe('applyTheme', () => {
     beforeEach(() => {
       service = TestBed.inject(ThemeService);
+      // Wait for initial theme application
+      TestBed.flushEffects();
     });
 
     it('should apply light-theme class to body', () => {
       service.setTheme('light');
+      TestBed.flushEffects(); // Flush effects after setTheme
       expect(document.body.classList.contains('light-theme')).toBe(true);
       expect(document.body.classList.contains('dark-theme')).toBe(false);
     });
 
     it('should apply dark-theme class to body', () => {
       service.setTheme('dark');
+      TestBed.flushEffects(); // Flush effects after setTheme
       expect(document.body.classList.contains('dark-theme')).toBe(true);
       expect(document.body.classList.contains('light-theme')).toBe(false);
     });
@@ -80,6 +84,7 @@ describe('ThemeService', () => {
     it('should resolve auto to light or dark based on system preference', () => {
       // This test depends on system settings, so we just check that a theme is applied
       service.setTheme('auto');
+      TestBed.flushEffects(); // Flush effects after setTheme
       const hasLightOrDark = document.body.classList.contains('light-theme') ||
                             document.body.classList.contains('dark-theme');
       expect(hasLightOrDark).toBe(true);
@@ -89,6 +94,7 @@ describe('ThemeService', () => {
   describe('setTheme', () => {
     beforeEach(() => {
       service = TestBed.inject(ThemeService);
+      TestBed.flushEffects();
     });
 
     it('should update currentTheme signal', () => {
@@ -96,14 +102,21 @@ describe('ThemeService', () => {
       expect(service.currentTheme()).toBe('dark');
     });
 
-    it('should save theme to localStorage', () => {
+    it('should save theme to localStorage', (done) => {
+      // Use setTimeout to wait for effect to run
       service.setTheme('dark');
-      expect(localStorage.setItem).toHaveBeenCalledWith('app-theme', 'dark');
+      setTimeout(() => {
+        expect(localStorage.setItem).toHaveBeenCalledWith('app-theme', 'dark');
+        done();
+      }, 0);
     });
 
-    it('should apply theme when set', () => {
+    it('should apply theme when set', (done) => {
       service.setTheme('dark');
-      expect(document.body.classList.contains('dark-theme')).toBe(true);
+      setTimeout(() => {
+        expect(document.body.classList.contains('dark-theme')).toBe(true);
+        done();
+      }, 0);
     });
   });
 
@@ -157,22 +170,32 @@ describe('ThemeService', () => {
   describe('effectiveTheme', () => {
     beforeEach(() => {
       service = TestBed.inject(ThemeService);
+      TestBed.flushEffects();
     });
 
-    it('should return light when theme is light', () => {
+    it('should return light when theme is light', (done) => {
       service.setTheme('light');
-      expect(service.effectiveTheme()).toBe('light');
+      setTimeout(() => {
+        expect(service.effectiveTheme()).toBe('light');
+        done();
+      }, 0);
     });
 
-    it('should return dark when theme is dark', () => {
+    it('should return dark when theme is dark', (done) => {
       service.setTheme('dark');
-      expect(service.effectiveTheme()).toBe('dark');
+      setTimeout(() => {
+        expect(service.effectiveTheme()).toBe('dark');
+        done();
+      }, 0);
     });
 
-    it('should resolve auto to light or dark', () => {
+    it('should resolve auto to light or dark', (done) => {
       service.setTheme('auto');
-      const effective = service.effectiveTheme();
-      expect(['light', 'dark']).toContain(effective);
+      setTimeout(() => {
+        const effective = service.effectiveTheme();
+        expect(['light', 'dark']).toContain(effective);
+        done();
+      }, 0);
     });
   });
 });

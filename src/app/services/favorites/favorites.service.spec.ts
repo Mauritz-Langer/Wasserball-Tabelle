@@ -63,9 +63,14 @@ describe('FavoritesService', () => {
       const favorites = ['liga1', 'liga2'];
       localStorage.setItem('favorites', JSON.stringify(favorites));
 
+      // Skip the initial emission and only check the updated one
+      let emissionCount = 0;
       service.favoritesCount$.subscribe(count => {
-        expect(count).toBe(2);
-        done();
+        emissionCount++;
+        if (emissionCount === 2) { // Second emission after updateCount
+          expect(count).toBe(2);
+          done();
+        }
       });
 
       service.updateCount();

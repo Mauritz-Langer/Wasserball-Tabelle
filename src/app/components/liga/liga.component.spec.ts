@@ -77,7 +77,10 @@ describe('LigaComponent', () => {
     const routerSpy = jasmine.createSpyObj('Router', ['navigate']);
 
     activatedRoute = {
-      queryParams: of({ param: 'WBGameList.aspx?V=DMOL2B&S=2025' })
+      queryParams: of({ param: 'WBGameList.aspx?V=DMOL2B&S=2025' }),
+      snapshot: {
+        queryParams: { param: 'WBGameList.aspx?V=DMOL2B&S=2025' }
+      }
     };
 
     await TestBed.configureTestingModule({
