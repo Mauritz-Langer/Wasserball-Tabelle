@@ -1,4 +1,4 @@
-import { Injectable } from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable } from 'rxjs';
 import { ApiProxyService } from '../api-proxy/api-proxy.service';
@@ -19,8 +19,14 @@ import {
   providedIn: 'root'
 })
 export class GameDetailsService {
+  private http = inject(HttpClient);
+  private apiProxy = inject(ApiProxyService);
 
-  constructor(private http: HttpClient, private apiProxy: ApiProxyService) { }
+  /** Inserted by Angular inject() migration for backwards compatibility */
+  constructor(...args: unknown[]);
+
+
+  constructor() { }
 
   /**
    * Lädt die HTML-Daten für ein spezifisches Spiel

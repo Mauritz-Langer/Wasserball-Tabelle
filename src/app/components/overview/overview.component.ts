@@ -1,4 +1,4 @@
-import {Component, OnInit} from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import {Router} from '@angular/router';
 import {MatIcon} from "@angular/material/icon";
 import {
@@ -9,7 +9,7 @@ import {
   MatExpansionPanelDescription
 } from "@angular/material/expansion";
 import {MatIconButton} from "@angular/material/button";
-import {NgForOf, NgIf} from "@angular/common";
+
 import {MatCard, MatCardContent} from "@angular/material/card";
 import {OverviewService} from "../../services/overview/overview.service";
 import {FavoritesService} from "../../services/favorites/favorites.service";
@@ -22,24 +22,26 @@ import {MatInput} from "@angular/material/input";
 import {FormsModule} from "@angular/forms";
 
 @Component({
-  selector: 'app-overview',
-  standalone: true,
-  imports: [MatIcon, MatAccordion, MatExpansionPanel, MatIconButton, NgForOf, MatExpansionPanelTitle, MatExpansionPanelDescription, MatExpansionPanelHeader, MatCard, MatCardContent, MatProgressSpinner, NgIf, MatTooltip, MatFormField, MatInput, MatLabel, MatPrefix, MatSuffix, FormsModule],
-  templateUrl: './overview.component.html',
-  styleUrl: './overview.component.scss'
+    selector: 'app-overview',
+    imports: [MatIcon, MatAccordion, MatExpansionPanel, MatIconButton, MatExpansionPanelTitle, MatExpansionPanelDescription, MatExpansionPanelHeader, MatCard, MatCardContent, MatProgressSpinner, MatTooltip, MatFormField, MatInput, MatLabel, MatPrefix, MatSuffix, FormsModule],
+    templateUrl: './overview.component.html',
+    styleUrl: './overview.component.scss'
 })
 export class OverviewComponent implements OnInit {
+  private overviewService = inject(OverviewService);
+  private favoritesService = inject(FavoritesService);
+  private router = inject(Router);
+
 
   items: Item[] = [];
   filteredItems: Item[] = [];
   isLoading = true;
   searchTerm = '';
 
-  constructor(
-    private overviewService: OverviewService,
-    private favoritesService: FavoritesService,
-    private router: Router
-  ) {}
+  /** Inserted by Angular inject() migration for backwards compatibility */
+  constructor(...args: unknown[]);
+
+  constructor() {}
 
   ngOnInit(): void {
     this.overviewService.getItems().subscribe(

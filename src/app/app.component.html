@@ -16,17 +16,19 @@
     <div class="info-section">
       <!-- Theme Toggle -->
       <button mat-icon-button
-              class="theme-toggle-button"
-              [matTooltip]="getThemeTooltip()"
-              (click)="toggleTheme()">
+        class="theme-toggle-button"
+        [matTooltip]="getThemeTooltip()"
+        (click)="toggleTheme()">
         <mat-icon>{{ getThemeIcon() }}</mat-icon>
       </button>
 
       <!-- Favorites Counter -->
-      <div class="info-item" *ngIf="favoritesCount > 0" matTooltip="Favorisierte Ligen">
-        <mat-icon class="info-icon">favorite</mat-icon>
-        <span class="info-text">{{ favoritesCount }}</span>
-      </div>
+      @if (favoritesCount > 0) {
+        <div class="info-item" matTooltip="Favorisierte Ligen">
+          <mat-icon class="info-icon">favorite</mat-icon>
+          <span class="info-text">{{ favoritesCount }}</span>
+        </div>
+      }
 
       <!-- Season Info -->
       <div class="info-item" matTooltip="Aktuelle Saison">
@@ -36,13 +38,13 @@
 
       <!-- DSV Link -->
       <button mat-icon-button
-              class="dsv-button"
-              matTooltip="DSV Website öffnen"
-              (click)="openDsvWebsite()">
+        class="dsv-button"
+        matTooltip="DSV Website öffnen"
+        (click)="openDsvWebsite()">
         <mat-icon>open_in_new</mat-icon>
       </button>
     </div>
   </div>
 </mat-toolbar>
 
-<router-outlet></router-outlet>
+<router-outlet />

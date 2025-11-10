@@ -1,4 +1,4 @@
-import {Injectable} from '@angular/core';
+import { Injectable, inject } from '@angular/core';
 // entferne externes dom-parser Paket, nutze nativen DOMParser
 import {lastValueFrom, Observable} from "rxjs";
 import {HttpClient} from "@angular/common/http";
@@ -11,8 +11,14 @@ import {ApiProxyService} from "../api-proxy/api-proxy.service";
   providedIn: 'root'
 })
 export class LigaService {
+  private http = inject(HttpClient);
+  private apiProxy = inject(ApiProxyService);
 
-  constructor(private http: HttpClient, private apiProxy: ApiProxyService) {
+  /** Inserted by Angular inject() migration for backwards compatibility */
+  constructor(...args: unknown[]);
+
+
+  constructor() {
   }
 
   getItems(link: string): Observable<string> {

@@ -1,38 +1,39 @@
-import {Component, OnInit} from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import {Router, RouterOutlet, NavigationEnd} from '@angular/router';
 import {MatToolbar} from "@angular/material/toolbar";
 import {MatIcon} from "@angular/material/icon";
 import {MatIconButton} from "@angular/material/button";
-import {NgIf} from "@angular/common";
+
 import {MatTooltip} from "@angular/material/tooltip";
 import {filter} from "rxjs";
 import {FavoritesService} from "./services/favorites/favorites.service";
 import {ThemeService} from "./services/theme/theme.service";
 
 @Component({
-  selector: 'app-root',
-  standalone: true,
-  imports: [
+    selector: 'app-root',
+    imports: [
     MatToolbar,
     RouterOutlet,
     MatIcon,
     MatIconButton,
-    NgIf,
     MatTooltip
-  ],
-  templateUrl: './app.component.html',
-  styleUrl: './app.component.scss'
+],
+    templateUrl: './app.component.html',
+    styleUrl: './app.component.scss'
 })
 export class AppComponent implements OnInit {
+  private router = inject(Router);
+  private favoritesService = inject(FavoritesService);
+  themeService = inject(ThemeService);
+
   isHomePage = true;
   currentYear = new Date().getFullYear();
   favoritesCount = 0;
 
-  constructor(
-    private router: Router,
-    private favoritesService: FavoritesService,
-    public themeService: ThemeService
-  ) {}
+  /** Inserted by Angular inject() migration for backwards compatibility */
+  constructor(...args: unknown[]);
+
+  constructor() {}
 
   ngOnInit(): void {
     // Track route changes
