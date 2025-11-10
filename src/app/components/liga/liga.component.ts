@@ -1,4 +1,4 @@
-import {Component, OnInit, AfterViewInit, ElementRef, ViewChild} from '@angular/core';
+import { Component, OnInit, AfterViewInit, ElementRef, inject, viewChild } from '@angular/core';
 import {ActivatedRoute, Router, RouterLink} from '@angular/router';
 import {
   MatCell,
@@ -13,7 +13,7 @@ import {Games} from "../../models/games";
 import {LigaService} from "../../services/liga/liga.service";
 import {MatTab, MatTabGroup, MatTabLabel} from "@angular/material/tabs";
 import {Table} from "../../models/table";
-import {NgIf} from "@angular/common";
+
 import {Scorer} from "../../models/scorer";
 import {animate, state, style, transition, trigger} from "@angular/animations";
 import {MatFormField, MatLabel, MatPrefix} from "@angular/material/form-field";
@@ -24,9 +24,8 @@ import {MatCard, MatCardContent} from "@angular/material/card";
 import {MatButton, MatIconButton} from "@angular/material/button";
 
 @Component({
-  selector: 'app-liga',
-  standalone: true,
-  imports: [
+    selector: 'app-liga',
+    imports: [
     MatTable,
     MatColumnDef,
     MatHeaderCell,
@@ -40,7 +39,6 @@ import {MatButton, MatIconButton} from "@angular/material/button";
     MatTabGroup,
     MatTab,
     MatTabLabel,
-    NgIf,
     MatFormField,
     MatInput,
     MatLabel,
@@ -52,18 +50,22 @@ import {MatButton, MatIconButton} from "@angular/material/button";
     MatIconButton,
     MatButton,
     MatPrefix
-  ],
-  animations: [
-    trigger('detailExpand', [
-      state('collapsed,void', style({height: '0px', minHeight: '0'})),
-      state('expanded', style({height: '*'})),
-      transition('expanded <=> collapsed', animate('225ms cubic-bezier(0.4, 0.0, 0.2, 1)')),
-    ]),
-  ],
-  templateUrl: './liga.component.html',
-  styleUrl: './liga.component.scss'
+],
+    animations: [
+        trigger('detailExpand', [
+            state('collapsed,void', style({ height: '0px', minHeight: '0' })),
+            state('expanded', style({ height: '*' })),
+            transition('expanded <=> collapsed', animate('225ms cubic-bezier(0.4, 0.0, 0.2, 1)')),
+        ]),
+    ],
+    templateUrl: './liga.component.html',
+    styleUrl: './liga.component.scss'
 })
 export class LigaComponent implements OnInit, AfterViewInit {
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private ligaService = inject(LigaService);
+
 
   ligaName: string = '';
   isLoading = true;
@@ -81,9 +83,12 @@ export class LigaComponent implements OnInit, AfterViewInit {
   // Gruppierte Spiele nach Spieltag
   groupedGames: Map<string, Games[]> = new Map();
 
-  @ViewChild('tableContainer') tableContainer?: ElementRef<HTMLElement>;
+  readonly tableContainer = viewChild<ElementRef<HTMLElement>>('tableContainer');
 
-  constructor(private route: ActivatedRoute, private router: Router, private ligaService: LigaService) {
+  /** Inserted by Angular inject() migration for backwards compatibility */
+  constructor(...args: unknown[]);
+
+  constructor() {
   }
 
   ngOnInit(): void {
@@ -108,8 +113,9 @@ export class LigaComponent implements OnInit, AfterViewInit {
   ngAfterViewInit() {
     // Scroll-Progress-Funktionalität für die Tabelle mit ViewChild
     setTimeout(() => {
-      if (this.tableContainer) {
-        const tableContainerEl = this.tableContainer.nativeElement;
+      const tableContainer = this.tableContainer();
+      if (tableContainer) {
+        const tableContainerEl = tableContainer.nativeElement;
         const progressBar = document.querySelector('.scroll-progress .progress-bar') as HTMLElement;
 
         if (progressBar) {

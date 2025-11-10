@@ -1,496 +1,591 @@
 <div class="game-details-container">
   <!-- Loading Spinner with Message -->
-  <div *ngIf="isLoading" class="spinner-container">
-    <mat-spinner diameter="60"></mat-spinner>
-    <p class="loading-text">Lade Spieldetails...</p>
-  </div>
+  @if (isLoading) {
+    <div class="spinner-container">
+      <mat-spinner diameter="60" />
+      <p class="loading-text">Lade Spieldetails...</p>
+    </div>
+  }
 
   <!-- Error Message -->
-  <div *ngIf="error && !isLoading" class="error-container">
-    <mat-card>
-      <mat-card-content>
-        <p class="error-message">{{ error }}</p>
-        <button mat-raised-button color="primary" (click)="goBack()">
-          <mat-icon>arrow_back</mat-icon>
-          Zurück
-        </button>
-      </mat-card-content>
-    </mat-card>
-  </div>
-
-  <!-- Game Details Content -->
-  <div *ngIf="gameDetails && !isLoading" class="content">
-
-    <!-- Header with Back Button -->
-    <div class="header-actions">
-      <button mat-icon-button (click)="goBack()" class="back-button">
-        <mat-icon>arrow_back</mat-icon>
-      </button>
-      <h1 class="page-title">Spieldetails</h1>
-    </div>
-
-    <!-- Game Header -->
-    <mat-card class="game-header-card mat-elevation-z4">
-      <mat-card-content>
-        <div class="game-header">
-          <!-- Home Team -->
-          <div class="team-section home-team">
-            <img [src]="gameDetails.homeTeam.logoUrl"
-                 [alt]="gameDetails.homeTeam.name"
-                 class="team-logo"
-                 *ngIf="gameDetails.homeTeam.logoUrl && gameDetails.homeTeam.logoUrl.trim() !== ''">
-            <h2 class="team-name">{{ gameDetails.homeTeam.name }}</h2>
-            <span class="team-label">Heim</span>
-            <div class="team-final-score home">{{ getFinalHomeScore() }}</div>
-          </div>
-
-          <!-- Score -->
-          <div class="score-section">
-            <div class="final-score-wrapper">
-              <div class="versus-label">VS</div>
-              <div class="game-status-badge" [class.finished]="isGameFinished()" [class.scheduled]="!isGameFinished()">
-                {{ isGameFinished() ? 'Beendet' : 'Angesetzt' }}
-              </div>
-              <div class="scoring-system-hint" *ngIf="gameDetails.scoringSystem && gameDetails.scoringSystem.trim() !== ''">
-                {{ gameDetails.scoringSystem }}
-              </div>
-            </div>
-          </div>
-
-          <!-- Guest Team -->
-          <div class="team-section guest-team">
-            <img [src]="gameDetails.guestTeam.logoUrl"
-                 [alt]="gameDetails.guestTeam.name"
-                 class="team-logo"
-                 *ngIf="gameDetails.guestTeam.logoUrl && gameDetails.guestTeam.logoUrl.trim() !== ''">
-            <h2 class="team-name">{{ gameDetails.guestTeam.name }}</h2>
-            <span class="team-label">Gast</span>
-            <div class="team-final-score guest">{{ getFinalGuestScore() }}</div>
-          </div>
-        </div>
-
-        <!-- Quarter Scores - Outside game-header for better mobile layout -->
-        <div class="quarter-scores-enhanced" *ngIf="gameDetails.quarterScores && gameDetails.quarterScores.length > 0">
-          <div class="quarter-score-item" *ngFor="let quarter of gameDetails.quarterScores">
-            <span class="quarter-label">Q{{ quarter.quarter }}</span>
-            <span class="quarter-value">{{ quarter.home }}:{{ quarter.guest }}</span>
-          </div>
-        </div>
-
-        <!-- Quick Actions Bar -->
-        <div class="quick-actions" *ngIf="gameDetails.venue.googleMapsLink || gameDetails.videoLink">
-          <button mat-stroked-button (click)="openGoogleMaps()" *ngIf="gameDetails.venue.googleMapsLink">
-            <mat-icon>map</mat-icon>
-            Spielort
-          </button>
-          <button mat-stroked-button color="primary" (click)="openVideoLink()" *ngIf="gameDetails.videoLink">
-            <mat-icon>play_circle</mat-icon>
-            Video
-          </button>
-        </div>
-      </mat-card-content>
-    </mat-card>
-
-    <!-- Game Info - Kompaktere Version -->
-    <mat-card class="info-card-compact">
-      <mat-card-content>
-        <div class="info-chips">
-          <div class="info-chip">
-            <mat-icon>event</mat-icon>
-            <span>{{ gameDetails.startDate }}</span>
-          </div>
-          <div class="info-chip">
-            <mat-icon>sports</mat-icon>
-            <span>{{ gameDetails.league }}</span>
-          </div>
-          <div class="info-chip" *ngIf="gameDetails.playKind && gameDetails.playKind.trim() !== ''">
-            <mat-icon>emoji_events</mat-icon>
-            <span>{{ gameDetails.playKind }}</span>
-          </div>
-          <div class="info-chip">
-            <mat-icon>place</mat-icon>
-            <span>{{ gameDetails.venue.poolName }}, {{ gameDetails.venue.poolCity }}</span>
-          </div>
-        </div>
-      </mat-card-content>
-    </mat-card>
-
-    <!-- Tabs for different sections -->
-    <mat-tab-group class="details-tabs" *ngIf="hasTeamDetails() || hasPlayerStats() || hasGameEvents() || hasOfficials() || hasStatistics()">
-
-      <!-- Team Details Tab -->
-      <mat-tab label="Teams" *ngIf="hasTeamDetails()">
-        <div class="tab-content">
-          <div class="teams-grid">
-
-            <!-- Home Team Details -->
-            <mat-card>
-              <mat-card-header>
-                <mat-card-title>{{ gameDetails.homeTeam.name }}</mat-card-title>
-              </mat-card-header>
-              <mat-card-content>
-                <div class="team-details">
-                  <div class="detail-item" *ngIf="gameDetails.homeTeam.coach && gameDetails.homeTeam.coach.trim() !== ''">
-                    <strong>Trainer:</strong> {{ gameDetails.homeTeam.coach }}
-                  </div>
-                  <div class="detail-item" *ngIf="gameDetails.homeTeam.captain && gameDetails.homeTeam.captain.trim() !== ''">
-                    <strong>Kapitän:</strong> {{ gameDetails.homeTeam.captain }}
-                  </div>
-                  <div class="detail-item" *ngIf="gameDetails.homeTeam.teamLeader && gameDetails.homeTeam.teamLeader.trim() !== ''">
-                    <strong>Mannschaftsleiter:</strong> {{ gameDetails.homeTeam.teamLeader }}
-                  </div>
-                  <div class="detail-item" *ngIf="gameDetails.homeTeam.assistant && gameDetails.homeTeam.assistant.trim() !== ''">
-                    <strong>Betreuer:</strong> {{ gameDetails.homeTeam.assistant }}
-                  </div>
-                  <div class="detail-item highlight" *ngIf="gameDetails.homeTeam.bestPlayer && gameDetails.homeTeam.bestPlayer.trim() !== ''">
-                    <strong>Bester Spieler:</strong> {{ gameDetails.homeTeam.bestPlayer }}
-                  </div>
-                </div>
-              </mat-card-content>
-            </mat-card>
-
-            <!-- Guest Team Details -->
-            <mat-card>
-              <mat-card-header>
-                <mat-card-title>{{ gameDetails.guestTeam.name }}</mat-card-title>
-              </mat-card-header>
-              <mat-card-content>
-                <div class="team-details">
-                  <div class="detail-item" *ngIf="gameDetails.guestTeam.coach && gameDetails.guestTeam.coach.trim() !== ''">
-                    <strong>Trainer:</strong> {{ gameDetails.guestTeam.coach }}
-                  </div>
-                  <div class="detail-item" *ngIf="gameDetails.guestTeam.captain && gameDetails.guestTeam.captain.trim() !== ''">
-                    <strong>Kapitän:</strong> {{ gameDetails.guestTeam.captain }}
-                  </div>
-                  <div class="detail-item" *ngIf="gameDetails.guestTeam.teamLeader && gameDetails.guestTeam.teamLeader.trim() !== ''">
-                    <strong>Mannschaftsleiter:</strong> {{ gameDetails.guestTeam.teamLeader }}
-                  </div>
-                  <div class="detail-item" *ngIf="gameDetails.guestTeam.assistant && gameDetails.guestTeam.assistant.trim() !== ''">
-                    <strong>Betreuer:</strong> {{ gameDetails.guestTeam.assistant }}
-                  </div>
-                  <div class="detail-item highlight" *ngIf="gameDetails.guestTeam.bestPlayer && gameDetails.guestTeam.bestPlayer.trim() !== ''">
-                    <strong>Bester Spieler:</strong> {{ gameDetails.guestTeam.bestPlayer }}
-                  </div>
-                </div>
-              </mat-card-content>
-            </mat-card>
-          </div>
-        </div>
-      </mat-tab>
-
-      <!-- Player Statistics Tab -->
-      <mat-tab label="Spielerstatistik" *ngIf="hasPlayerStats()">
-        <div class="tab-content">
-          <div class="players-grid">
-
-            <!-- Home Team Players -->
-            <mat-card *ngIf="gameDetails.homeTeam.players && gameDetails.homeTeam.players.length > 0" class="players-card">
-              <mat-card-header>
-                <div class="team-header-with-logo">
-                  <img [src]="gameDetails.homeTeam.logoUrl"
-                       [alt]="gameDetails.homeTeam.name"
-                       class="team-logo-small"
-                       *ngIf="gameDetails.homeTeam.logoUrl && gameDetails.homeTeam.logoUrl.trim() !== ''">
-                  <mat-card-title>{{ gameDetails.homeTeam.name }}</mat-card-title>
-                </div>
-              </mat-card-header>
-              <mat-card-content>
-                <!-- Team Stats Summary -->
-                <div class="team-stats-summary">
-                  <div class="stat-badge">
-                    <span class="stat-value">{{ getTotalGoals(gameDetails.homeTeam.players) }}</span>
-                    <span class="stat-label">Tore</span>
-                  </div>
-                  <div class="stat-badge">
-                    <span class="stat-value">{{ getTopScorer(gameDetails.homeTeam.players)?.goals || 0 }}</span>
-                    <span class="stat-label">Top-Scorer</span>
-                  </div>
-                  <div class="stat-badge">
-                    <span class="stat-value">{{ getTotalFouls(gameDetails.homeTeam.players) }}</span>
-                    <span class="stat-label">Fouls</span>
-                  </div>
-                </div>
-
-                <div class="players-table-container">
-                  <table class="players-table">
-                    <thead>
-                      <tr>
-                        <th>Nr.</th>
-                        <th>Name / Vorname</th>
-                        <th>Jg.</th>
-                        <th>Tore</th>
-                        <th colspan="4" class="fouls-header">persönl. Fehler</th>
-                      </tr>
-                      <tr class="quarters-header">
-                        <th colspan="4"></th>
-                        <th>Q1</th>
-                        <th>Q2</th>
-                        <th>Q3</th>
-                        <th>Q4</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr *ngFor="let player of gameDetails.homeTeam.players"
-                          [class.top-scorer]="isTopScorer(player, gameDetails.homeTeam.players)"
-                          [class.has-goals]="player.goals > 0">
-                        <td class="player-number">{{ player.number }}</td>
-                        <td class="player-name">
-                          {{ player.name }}
-                          <mat-icon *ngIf="isTopScorer(player, gameDetails.homeTeam.players)" class="trophy-icon">emoji_events</mat-icon>
-                        </td>
-                        <td class="birth-year">{{ player.birthYear }}</td>
-                        <td class="goals-cell">
-                          <span *ngIf="player.goals > 0" class="goals-badge">{{ player.goals }}</span>
-                        </td>
-                        <td *ngFor="let quarter of [1, 2, 3, 4]" class="foul-cell">
-                          <span *ngIf="getFoulForQuarter(player.fouls, quarter)" class="foul-badge">
-                            {{ getFoulForQuarter(player.fouls, quarter) }}
-                          </span>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </mat-card-content>
-            </mat-card>
-
-            <!-- Guest Team Players -->
-            <mat-card *ngIf="gameDetails.guestTeam.players && gameDetails.guestTeam.players.length > 0" class="players-card">
-              <mat-card-header>
-                <div class="team-header-with-logo">
-                  <img [src]="gameDetails.guestTeam.logoUrl"
-                       [alt]="gameDetails.guestTeam.name"
-                       class="team-logo-small"
-                       *ngIf="gameDetails.guestTeam.logoUrl && gameDetails.guestTeam.logoUrl.trim() !== ''">
-                  <mat-card-title>{{ gameDetails.guestTeam.name }}</mat-card-title>
-                </div>
-              </mat-card-header>
-              <mat-card-content>
-                <!-- Team Stats Summary -->
-                <div class="team-stats-summary">
-                  <div class="stat-badge">
-                    <span class="stat-value">{{ getTotalGoals(gameDetails.guestTeam.players) }}</span>
-                    <span class="stat-label">Tore</span>
-                  </div>
-                  <div class="stat-badge">
-                    <span class="stat-value">{{ getTopScorer(gameDetails.guestTeam.players)?.goals || 0 }}</span>
-                    <span class="stat-label">Top-Scorer</span>
-                  </div>
-                  <div class="stat-badge">
-                    <span class="stat-value">{{ getTotalFouls(gameDetails.guestTeam.players) }}</span>
-                    <span class="stat-label">Fouls</span>
-                  </div>
-                </div>
-
-                <div class="players-table-container">
-                  <table class="players-table">
-                    <thead>
-                      <tr>
-                        <th>Nr.</th>
-                        <th>Name / Vorname</th>
-                        <th>Jg.</th>
-                        <th>Tore</th>
-                        <th colspan="4" class="fouls-header">persönl. Fehler</th>
-                      </tr>
-                      <tr class="quarters-header">
-                        <th colspan="4"></th>
-                        <th>Q1</th>
-                        <th>Q2</th>
-                        <th>Q3</th>
-                        <th>Q4</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      <tr *ngFor="let player of gameDetails.guestTeam.players"
-                          [class.top-scorer]="isTopScorer(player, gameDetails.guestTeam.players)"
-                          [class.has-goals]="player.goals > 0">
-                        <td class="player-number">{{ player.number }}</td>
-                        <td class="player-name">
-                          {{ player.name }}
-                          <mat-icon *ngIf="isTopScorer(player, gameDetails.guestTeam.players)" class="trophy-icon">emoji_events</mat-icon>
-                        </td>
-                        <td class="birth-year">{{ player.birthYear }}</td>
-                        <td class="goals-cell">
-                          <span *ngIf="player.goals > 0" class="goals-badge">{{ player.goals }}</span>
-                        </td>
-                        <td *ngFor="let quarter of [1, 2, 3, 4]" class="foul-cell">
-                          <span *ngIf="getFoulForQuarter(player.fouls, quarter)" class="foul-badge">
-                            {{ getFoulForQuarter(player.fouls, quarter) }}
-                          </span>
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </mat-card-content>
-            </mat-card>
-
-            <!-- No data message -->
-            <mat-card *ngIf="!gameDetails.homeTeam.players && !gameDetails.guestTeam.players">
-              <mat-card-content>
-                <p class="no-data">Keine Spielerstatistiken verfügbar</p>
-              </mat-card-content>
-            </mat-card>
-
-          </div>
-        </div>
-      </mat-tab>
-
-      <!-- Game Events Tab -->
-      <mat-tab label="Spielverlauf" *ngIf="hasGameEvents()">
-        <div class="tab-content">
-          <mat-card>
-            <mat-card-content>
-              <div class="events-accordion" *ngIf="gameDetails.events.length > 0; else noEvents">
-                <!-- Gruppiere Events nach Viertel mit Expansion Panels -->
-                <mat-accordion multi>
-                  <ng-container *ngFor="let quarter of [1, 2, 3, 4]">
-                    <mat-expansion-panel
-                      *ngIf="getEventsByQuarter(gameDetails.events, quarter).length > 0"
-                      [expanded]="true">
-                      <mat-expansion-panel-header class="quarter-panel-header">
-                        <mat-panel-title class="quarter-panel-title">
-                          <mat-icon>sports</mat-icon>
-                          <span class="quarter-title">{{ quarter }}. Viertel</span>
-                          <span class="quarter-score-badge">
-                            {{ getQuarterScoreByNumber(quarter)?.home || 0 }}:{{ getQuarterScoreByNumber(quarter)?.guest || 0 }}
-                          </span>
-                        </mat-panel-title>
-                      </mat-expansion-panel-header>
-
-                      <!-- Events für dieses Viertel -->
-                      <div class="events-list-quarter">
-                        <div class="event-item" *ngFor="let event of getEventsByQuarter(gameDetails.events, quarter)">
-                          <div class="event-time">
-                            <span class="time">{{ event.time }}</span>
-                          </div>
-                          <div class="event-details">
-                            <div class="event-score">{{ event.homeScore }}:{{ event.guestScore }}</div>
-                            <div class="event-info">
-                              <mat-icon class="event-icon">{{ getEventIcon(event.eventType) }}</mat-icon>
-                              <span class="event-type-text">{{ getEventTypeName(event.eventType) }}</span>
-                              <span class="event-player" *ngIf="event.player">- {{ event.player }}</span>
-                              <span class="event-goal" *ngIf="event.goalNumber"> (Tor #{{ event.goalNumber }})</span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </mat-expansion-panel>
-                  </ng-container>
-                </mat-accordion>
-              </div>
-              <ng-template #noEvents>
-                <p class="no-data">Keine Ereignisse verfügbar</p>
-              </ng-template>
-            </mat-card-content>
-          </mat-card>
-        </div>
-      </mat-tab>
-
-      <!-- Officials Tab -->
-      <mat-tab label="Offizielle" *ngIf="hasOfficials()">
-        <div class="tab-content">
-          <mat-card>
-            <mat-card-content>
-              <div class="officials-grid">
-                <div class="official-item" *ngIf="gameDetails.officials.referee1">
-                  <strong>1. Schiedsrichter:</strong> {{ gameDetails.officials.referee1 }}
-                </div>
-                <div class="official-item" *ngIf="gameDetails.officials.referee2">
-                  <strong>2. Schiedsrichter:</strong> {{ gameDetails.officials.referee2 }}
-                </div>
-                <div class="official-item" *ngIf="gameDetails.officials.timekeeper1">
-                  <strong>1. Zeitnehmer:</strong> {{ gameDetails.officials.timekeeper1 }}
-                </div>
-                <div class="official-item" *ngIf="gameDetails.officials.timekeeper2">
-                  <strong>2. Zeitnehmer:</strong> {{ gameDetails.officials.timekeeper2 }}
-                </div>
-                <div class="official-item" *ngIf="gameDetails.officials.secretary1">
-                  <strong>1. Sekretär:</strong> {{ gameDetails.officials.secretary1 }}
-                </div>
-                <div class="official-item" *ngIf="gameDetails.officials.secretary2">
-                  <strong>2. Sekretär:</strong> {{ gameDetails.officials.secretary2 }}
-                </div>
-                <div class="official-item" *ngIf="gameDetails.officials.goalJudge1">
-                  <strong>1. Torrichter:</strong> {{ gameDetails.officials.goalJudge1 }}
-                </div>
-                <div class="official-item" *ngIf="gameDetails.officials.goalJudge2">
-                  <strong>2. Torrichter:</strong> {{ gameDetails.officials.goalJudge2 }}
-                </div>
-                <div class="official-item" *ngIf="gameDetails.officials.observer1">
-                  <strong>1. Beobachter:</strong> {{ gameDetails.officials.observer1 }}
-                </div>
-                <div class="official-item" *ngIf="gameDetails.officials.observer2">
-                  <strong>2. Beobachter:</strong> {{ gameDetails.officials.observer2 }}
-                </div>
-              </div>
-            </mat-card-content>
-          </mat-card>
-        </div>
-      </mat-tab>
-
-      <!-- Statistics Tab -->
-      <mat-tab label="Statistiken" *ngIf="hasStatistics()">
-        <div class="tab-content">
-          <div class="stats-grid">
-            <!-- Home Team Stats -->
-            <mat-card>
-              <mat-card-header>
-                <mat-card-title>{{ gameDetails.statistics?.home?.label }}</mat-card-title>
-              </mat-card-header>
-              <mat-card-content>
-                <div class="stats-list">
-                  <div class="stat-item" *ngFor="let stat of gameDetails.statistics?.home?.data | keyvalue">
-                    <span class="stat-label">{{ stat.key }}:</span>
-                    <span class="stat-value">{{ stat.value }}</span>
-                  </div>
-                </div>
-              </mat-card-content>
-            </mat-card>
-
-            <!-- Guest Team Stats -->
-            <mat-card>
-              <mat-card-header>
-                <mat-card-title>{{ gameDetails.statistics?.guest?.label }}</mat-card-title>
-              </mat-card-header>
-              <mat-card-content>
-                <div class="stats-list">
-                  <div class="stat-item" *ngFor="let stat of gameDetails.statistics?.guest?.data | keyvalue">
-                    <span class="stat-label">{{ stat.key }}:</span>
-                    <span class="stat-value">{{ stat.value }}</span>
-                  </div>
-                </div>
-              </mat-card-content>
-            </mat-card>
-          </div>
-        </div>
-      </mat-tab>
-
-    </mat-tab-group>
-
-    <!-- No tabs available message -->
-    <div *ngIf="!hasTeamDetails() && !hasPlayerStats() && !hasGameEvents() && !hasOfficials() && !hasStatistics()" class="no-tabs-container">
-      <mat-card class="no-tabs-card">
+  @if (error && !isLoading) {
+    <div class="error-container">
+      <mat-card>
         <mat-card-content>
-          <div class="no-data-message">
-            <mat-icon class="no-data-icon">info</mat-icon>
-            <h2>Keine weiteren Informationen</h2>
-            <p>Für dieses Spiel sind derzeit keine zusätzlichen Details verfügbar.</p>
-          </div>
+          <p class="error-message">{{ error }}</p>
+          <button mat-raised-button color="primary" (click)="goBack()">
+            <mat-icon>arrow_back</mat-icon>
+            Zurück
+          </button>
         </mat-card-content>
       </mat-card>
     </div>
+  }
 
-    <!-- Notes -->
-    <mat-card *ngIf="gameDetails.notes" class="notes-card">
-      <mat-card-header>
-        <mat-card-title>Anmerkungen</mat-card-title>
-      </mat-card-header>
-      <mat-card-content>
-        <p>{{ gameDetails.notes }}</p>
-      </mat-card-content>
-    </mat-card>
-
-  </div>
+  <!-- Game Details Content -->
+  @if (gameDetails && !isLoading) {
+    <div class="content">
+      <!-- Header with Back Button -->
+      <div class="header-actions">
+        <button mat-icon-button (click)="goBack()" class="back-button">
+          <mat-icon>arrow_back</mat-icon>
+        </button>
+        <h1 class="page-title">Spieldetails</h1>
+      </div>
+      <!-- Game Header -->
+      <mat-card class="game-header-card mat-elevation-z4">
+        <mat-card-content>
+          <div class="game-header">
+            <!-- Home Team -->
+            <div class="team-section home-team">
+              @if (gameDetails.homeTeam.logoUrl && gameDetails.homeTeam.logoUrl.trim() !== '') {
+                <img [src]="gameDetails.homeTeam.logoUrl"
+                  [alt]="gameDetails.homeTeam.name"
+                  class="team-logo"
+                  >
+              }
+              <h2 class="team-name">{{ gameDetails.homeTeam.name }}</h2>
+              <span class="team-label">Heim</span>
+              <div class="team-final-score home">{{ getFinalHomeScore() }}</div>
+            </div>
+            <!-- Score -->
+            <div class="score-section">
+              <div class="final-score-wrapper">
+                <div class="versus-label">VS</div>
+                <div class="game-status-badge" [class.finished]="isGameFinished()" [class.scheduled]="!isGameFinished()">
+                  {{ isGameFinished() ? 'Beendet' : 'Angesetzt' }}
+                </div>
+                @if (gameDetails.scoringSystem && gameDetails.scoringSystem.trim() !== '') {
+                  <div class="scoring-system-hint">
+                    {{ gameDetails.scoringSystem }}
+                  </div>
+                }
+              </div>
+            </div>
+            <!-- Guest Team -->
+            <div class="team-section guest-team">
+              @if (gameDetails.guestTeam.logoUrl && gameDetails.guestTeam.logoUrl.trim() !== '') {
+                <img [src]="gameDetails.guestTeam.logoUrl"
+                  [alt]="gameDetails.guestTeam.name"
+                  class="team-logo"
+                  >
+              }
+              <h2 class="team-name">{{ gameDetails.guestTeam.name }}</h2>
+              <span class="team-label">Gast</span>
+              <div class="team-final-score guest">{{ getFinalGuestScore() }}</div>
+            </div>
+          </div>
+          <!-- Quarter Scores - Outside game-header for better mobile layout -->
+          @if (gameDetails.quarterScores && gameDetails.quarterScores.length > 0) {
+            <div class="quarter-scores-enhanced">
+              @for (quarter of gameDetails.quarterScores; track quarter) {
+                <div class="quarter-score-item">
+                  <span class="quarter-label">Q{{ quarter.quarter }}</span>
+                  <span class="quarter-value">{{ quarter.home }}:{{ quarter.guest }}</span>
+                </div>
+              }
+            </div>
+          }
+          <!-- Quick Actions Bar -->
+          @if (gameDetails.venue.googleMapsLink || gameDetails.videoLink) {
+            <div class="quick-actions">
+              @if (gameDetails.venue.googleMapsLink) {
+                <button mat-stroked-button (click)="openGoogleMaps()">
+                  <mat-icon>map</mat-icon>
+                  Spielort
+                </button>
+              }
+              @if (gameDetails.videoLink) {
+                <button mat-stroked-button color="primary" (click)="openVideoLink()">
+                  <mat-icon>play_circle</mat-icon>
+                  Video
+                </button>
+              }
+            </div>
+          }
+        </mat-card-content>
+      </mat-card>
+      <!-- Game Info - Kompaktere Version -->
+      <mat-card class="info-card-compact">
+        <mat-card-content>
+          <div class="info-chips">
+            <div class="info-chip">
+              <mat-icon>event</mat-icon>
+              <span>{{ gameDetails.startDate }}</span>
+            </div>
+            <div class="info-chip">
+              <mat-icon>sports</mat-icon>
+              <span>{{ gameDetails.league }}</span>
+            </div>
+            @if (gameDetails.playKind && gameDetails.playKind.trim() !== '') {
+              <div class="info-chip">
+                <mat-icon>emoji_events</mat-icon>
+                <span>{{ gameDetails.playKind }}</span>
+              </div>
+            }
+            <div class="info-chip">
+              <mat-icon>place</mat-icon>
+              <span>{{ gameDetails.venue.poolName }}, {{ gameDetails.venue.poolCity }}</span>
+            </div>
+          </div>
+        </mat-card-content>
+      </mat-card>
+      <!-- Tabs for different sections -->
+      @if (hasTeamDetails() || hasPlayerStats() || hasGameEvents() || hasOfficials() || hasStatistics()) {
+        <mat-tab-group class="details-tabs">
+          <!-- Team Details Tab -->
+          @if (hasTeamDetails()) {
+            <mat-tab label="Teams">
+              <div class="tab-content">
+                <div class="teams-grid">
+                  <!-- Home Team Details -->
+                  <mat-card>
+                    <mat-card-header>
+                      <mat-card-title>{{ gameDetails.homeTeam.name }}</mat-card-title>
+                    </mat-card-header>
+                    <mat-card-content>
+                      <div class="team-details">
+                        @if (gameDetails.homeTeam.coach && gameDetails.homeTeam.coach.trim() !== '') {
+                          <div class="detail-item">
+                            <strong>Trainer:</strong> {{ gameDetails.homeTeam.coach }}
+                          </div>
+                        }
+                        @if (gameDetails.homeTeam.captain && gameDetails.homeTeam.captain.trim() !== '') {
+                          <div class="detail-item">
+                            <strong>Kapitän:</strong> {{ gameDetails.homeTeam.captain }}
+                          </div>
+                        }
+                        @if (gameDetails.homeTeam.teamLeader && gameDetails.homeTeam.teamLeader.trim() !== '') {
+                          <div class="detail-item">
+                            <strong>Mannschaftsleiter:</strong> {{ gameDetails.homeTeam.teamLeader }}
+                          </div>
+                        }
+                        @if (gameDetails.homeTeam.assistant && gameDetails.homeTeam.assistant.trim() !== '') {
+                          <div class="detail-item">
+                            <strong>Betreuer:</strong> {{ gameDetails.homeTeam.assistant }}
+                          </div>
+                        }
+                        @if (gameDetails.homeTeam.bestPlayer && gameDetails.homeTeam.bestPlayer.trim() !== '') {
+                          <div class="detail-item highlight">
+                            <strong>Bester Spieler:</strong> {{ gameDetails.homeTeam.bestPlayer }}
+                          </div>
+                        }
+                      </div>
+                    </mat-card-content>
+                  </mat-card>
+                  <!-- Guest Team Details -->
+                  <mat-card>
+                    <mat-card-header>
+                      <mat-card-title>{{ gameDetails.guestTeam.name }}</mat-card-title>
+                    </mat-card-header>
+                    <mat-card-content>
+                      <div class="team-details">
+                        @if (gameDetails.guestTeam.coach && gameDetails.guestTeam.coach.trim() !== '') {
+                          <div class="detail-item">
+                            <strong>Trainer:</strong> {{ gameDetails.guestTeam.coach }}
+                          </div>
+                        }
+                        @if (gameDetails.guestTeam.captain && gameDetails.guestTeam.captain.trim() !== '') {
+                          <div class="detail-item">
+                            <strong>Kapitän:</strong> {{ gameDetails.guestTeam.captain }}
+                          </div>
+                        }
+                        @if (gameDetails.guestTeam.teamLeader && gameDetails.guestTeam.teamLeader.trim() !== '') {
+                          <div class="detail-item">
+                            <strong>Mannschaftsleiter:</strong> {{ gameDetails.guestTeam.teamLeader }}
+                          </div>
+                        }
+                        @if (gameDetails.guestTeam.assistant && gameDetails.guestTeam.assistant.trim() !== '') {
+                          <div class="detail-item">
+                            <strong>Betreuer:</strong> {{ gameDetails.guestTeam.assistant }}
+                          </div>
+                        }
+                        @if (gameDetails.guestTeam.bestPlayer && gameDetails.guestTeam.bestPlayer.trim() !== '') {
+                          <div class="detail-item highlight">
+                            <strong>Bester Spieler:</strong> {{ gameDetails.guestTeam.bestPlayer }}
+                          </div>
+                        }
+                      </div>
+                    </mat-card-content>
+                  </mat-card>
+                </div>
+              </div>
+            </mat-tab>
+          }
+          <!-- Player Statistics Tab -->
+          @if (hasPlayerStats()) {
+            <mat-tab label="Spielerstatistik">
+              <div class="tab-content">
+                <div class="players-grid">
+                  <!-- Home Team Players -->
+                  @if (gameDetails.homeTeam.players && gameDetails.homeTeam.players.length > 0) {
+                    <mat-card class="players-card">
+                      <mat-card-header>
+                        <div class="team-header-with-logo">
+                          @if (gameDetails.homeTeam.logoUrl && gameDetails.homeTeam.logoUrl.trim() !== '') {
+                            <img [src]="gameDetails.homeTeam.logoUrl"
+                              [alt]="gameDetails.homeTeam.name"
+                              class="team-logo-small"
+                              >
+                          }
+                          <mat-card-title>{{ gameDetails.homeTeam.name }}</mat-card-title>
+                        </div>
+                      </mat-card-header>
+                      <mat-card-content>
+                        <!-- Team Stats Summary -->
+                        <div class="team-stats-summary">
+                          <div class="stat-badge">
+                            <span class="stat-value">{{ getTotalGoals(gameDetails.homeTeam.players) }}</span>
+                            <span class="stat-label">Tore</span>
+                          </div>
+                          <div class="stat-badge">
+                            <span class="stat-value">{{ getTopScorer(gameDetails.homeTeam.players)?.goals || 0 }}</span>
+                            <span class="stat-label">Top-Scorer</span>
+                          </div>
+                          <div class="stat-badge">
+                            <span class="stat-value">{{ getTotalFouls(gameDetails.homeTeam.players) }}</span>
+                            <span class="stat-label">Fouls</span>
+                          </div>
+                        </div>
+                        <div class="players-table-container">
+                          <table class="players-table">
+                            <thead>
+                              <tr>
+                                <th>Nr.</th>
+                                <th>Name / Vorname</th>
+                                <th>Jg.</th>
+                                <th>Tore</th>
+                                <th colspan="4" class="fouls-header">persönl. Fehler</th>
+                              </tr>
+                              <tr class="quarters-header">
+                                <th colspan="4"></th>
+                                <th>Q1</th>
+                                <th>Q2</th>
+                                <th>Q3</th>
+                                <th>Q4</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              @for (player of gameDetails.homeTeam.players; track player) {
+                                <tr
+                                  [class.top-scorer]="isTopScorer(player, gameDetails.homeTeam.players)"
+                                  [class.has-goals]="player.goals > 0">
+                                  <td class="player-number">{{ player.number }}</td>
+                                  <td class="player-name">
+                                    {{ player.name }}
+                                    @if (isTopScorer(player, gameDetails.homeTeam.players)) {
+                                      <mat-icon class="trophy-icon">emoji_events</mat-icon>
+                                    }
+                                  </td>
+                                  <td class="birth-year">{{ player.birthYear }}</td>
+                                  <td class="goals-cell">
+                                    @if (player.goals > 0) {
+                                      <span class="goals-badge">{{ player.goals }}</span>
+                                    }
+                                  </td>
+                                  @for (quarter of [1, 2, 3, 4]; track quarter) {
+                                    <td class="foul-cell">
+                                      @if (getFoulForQuarter(player.fouls, quarter)) {
+                                        <span class="foul-badge">
+                                          {{ getFoulForQuarter(player.fouls, quarter) }}
+                                        </span>
+                                      }
+                                    </td>
+                                  }
+                                </tr>
+                              }
+                            </tbody>
+                          </table>
+                        </div>
+                      </mat-card-content>
+                    </mat-card>
+                  }
+                  <!-- Guest Team Players -->
+                  @if (gameDetails.guestTeam.players && gameDetails.guestTeam.players.length > 0) {
+                    <mat-card class="players-card">
+                      <mat-card-header>
+                        <div class="team-header-with-logo">
+                          @if (gameDetails.guestTeam.logoUrl && gameDetails.guestTeam.logoUrl.trim() !== '') {
+                            <img [src]="gameDetails.guestTeam.logoUrl"
+                              [alt]="gameDetails.guestTeam.name"
+                              class="team-logo-small"
+                              >
+                          }
+                          <mat-card-title>{{ gameDetails.guestTeam.name }}</mat-card-title>
+                        </div>
+                      </mat-card-header>
+                      <mat-card-content>
+                        <!-- Team Stats Summary -->
+                        <div class="team-stats-summary">
+                          <div class="stat-badge">
+                            <span class="stat-value">{{ getTotalGoals(gameDetails.guestTeam.players) }}</span>
+                            <span class="stat-label">Tore</span>
+                          </div>
+                          <div class="stat-badge">
+                            <span class="stat-value">{{ getTopScorer(gameDetails.guestTeam.players)?.goals || 0 }}</span>
+                            <span class="stat-label">Top-Scorer</span>
+                          </div>
+                          <div class="stat-badge">
+                            <span class="stat-value">{{ getTotalFouls(gameDetails.guestTeam.players) }}</span>
+                            <span class="stat-label">Fouls</span>
+                          </div>
+                        </div>
+                        <div class="players-table-container">
+                          <table class="players-table">
+                            <thead>
+                              <tr>
+                                <th>Nr.</th>
+                                <th>Name / Vorname</th>
+                                <th>Jg.</th>
+                                <th>Tore</th>
+                                <th colspan="4" class="fouls-header">persönl. Fehler</th>
+                              </tr>
+                              <tr class="quarters-header">
+                                <th colspan="4"></th>
+                                <th>Q1</th>
+                                <th>Q2</th>
+                                <th>Q3</th>
+                                <th>Q4</th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              @for (player of gameDetails.guestTeam.players; track player) {
+                                <tr
+                                  [class.top-scorer]="isTopScorer(player, gameDetails.guestTeam.players)"
+                                  [class.has-goals]="player.goals > 0">
+                                  <td class="player-number">{{ player.number }}</td>
+                                  <td class="player-name">
+                                    {{ player.name }}
+                                    @if (isTopScorer(player, gameDetails.guestTeam.players)) {
+                                      <mat-icon class="trophy-icon">emoji_events</mat-icon>
+                                    }
+                                  </td>
+                                  <td class="birth-year">{{ player.birthYear }}</td>
+                                  <td class="goals-cell">
+                                    @if (player.goals > 0) {
+                                      <span class="goals-badge">{{ player.goals }}</span>
+                                    }
+                                  </td>
+                                  @for (quarter of [1, 2, 3, 4]; track quarter) {
+                                    <td class="foul-cell">
+                                      @if (getFoulForQuarter(player.fouls, quarter)) {
+                                        <span class="foul-badge">
+                                          {{ getFoulForQuarter(player.fouls, quarter) }}
+                                        </span>
+                                      }
+                                    </td>
+                                  }
+                                </tr>
+                              }
+                            </tbody>
+                          </table>
+                        </div>
+                      </mat-card-content>
+                    </mat-card>
+                  }
+                  <!-- No data message -->
+                  @if (!gameDetails.homeTeam.players && !gameDetails.guestTeam.players) {
+                    <mat-card>
+                      <mat-card-content>
+                        <p class="no-data">Keine Spielerstatistiken verfügbar</p>
+                      </mat-card-content>
+                    </mat-card>
+                  }
+                </div>
+              </div>
+            </mat-tab>
+          }
+          <!-- Game Events Tab -->
+          @if (hasGameEvents()) {
+            <mat-tab label="Spielverlauf">
+              <div class="tab-content">
+                <mat-card>
+                  <mat-card-content>
+                    @if (gameDetails.events.length > 0) {
+                      <div class="events-accordion">
+                        <!-- Gruppiere Events nach Viertel mit Expansion Panels -->
+                        <mat-accordion multi>
+                          @for (quarter of [1, 2, 3, 4]; track quarter) {
+                            @if (getEventsByQuarter(gameDetails.events, quarter).length > 0) {
+                              <mat-expansion-panel
+                                [expanded]="true">
+                                <mat-expansion-panel-header class="quarter-panel-header">
+                                  <mat-panel-title class="quarter-panel-title">
+                                    <mat-icon>sports</mat-icon>
+                                    <span class="quarter-title">{{ quarter }}. Viertel</span>
+                                    <span class="quarter-score-badge">
+                                      {{ getQuarterScoreByNumber(quarter)?.home || 0 }}:{{ getQuarterScoreByNumber(quarter)?.guest || 0 }}
+                                    </span>
+                                  </mat-panel-title>
+                                </mat-expansion-panel-header>
+                                <!-- Events für dieses Viertel -->
+                                <div class="events-list-quarter">
+                                  @for (event of getEventsByQuarter(gameDetails.events, quarter); track event) {
+                                    <div class="event-item">
+                                      <div class="event-time">
+                                        <span class="time">{{ event.time }}</span>
+                                      </div>
+                                      <div class="event-details">
+                                        <div class="event-score">{{ event.homeScore }}:{{ event.guestScore }}</div>
+                                        <div class="event-info">
+                                          <mat-icon class="event-icon">{{ getEventIcon(event.eventType) }}</mat-icon>
+                                          <span class="event-type-text">{{ getEventTypeName(event.eventType) }}</span>
+                                          @if (event.player) {
+                                            <span class="event-player">- {{ event.player }}</span>
+                                          }
+                                          @if (event.goalNumber) {
+                                            <span class="event-goal"> (Tor #{{ event.goalNumber }})</span>
+                                          }
+                                        </div>
+                                      </div>
+                                    </div>
+                                  }
+                                </div>
+                              </mat-expansion-panel>
+                            }
+                          }
+                        </mat-accordion>
+                      </div>
+                    } @else {
+                      <p class="no-data">Keine Ereignisse verfügbar</p>
+                    }
+                  </mat-card-content>
+                </mat-card>
+              </div>
+            </mat-tab>
+          }
+          <!-- Officials Tab -->
+          @if (hasOfficials()) {
+            <mat-tab label="Offizielle">
+              <div class="tab-content">
+                <mat-card>
+                  <mat-card-content>
+                    <div class="officials-grid">
+                      @if (gameDetails.officials.referee1) {
+                        <div class="official-item">
+                          <strong>1. Schiedsrichter:</strong> {{ gameDetails.officials.referee1 }}
+                        </div>
+                      }
+                      @if (gameDetails.officials.referee2) {
+                        <div class="official-item">
+                          <strong>2. Schiedsrichter:</strong> {{ gameDetails.officials.referee2 }}
+                        </div>
+                      }
+                      @if (gameDetails.officials.timekeeper1) {
+                        <div class="official-item">
+                          <strong>1. Zeitnehmer:</strong> {{ gameDetails.officials.timekeeper1 }}
+                        </div>
+                      }
+                      @if (gameDetails.officials.timekeeper2) {
+                        <div class="official-item">
+                          <strong>2. Zeitnehmer:</strong> {{ gameDetails.officials.timekeeper2 }}
+                        </div>
+                      }
+                      @if (gameDetails.officials.secretary1) {
+                        <div class="official-item">
+                          <strong>1. Sekretär:</strong> {{ gameDetails.officials.secretary1 }}
+                        </div>
+                      }
+                      @if (gameDetails.officials.secretary2) {
+                        <div class="official-item">
+                          <strong>2. Sekretär:</strong> {{ gameDetails.officials.secretary2 }}
+                        </div>
+                      }
+                      @if (gameDetails.officials.goalJudge1) {
+                        <div class="official-item">
+                          <strong>1. Torrichter:</strong> {{ gameDetails.officials.goalJudge1 }}
+                        </div>
+                      }
+                      @if (gameDetails.officials.goalJudge2) {
+                        <div class="official-item">
+                          <strong>2. Torrichter:</strong> {{ gameDetails.officials.goalJudge2 }}
+                        </div>
+                      }
+                      @if (gameDetails.officials.observer1) {
+                        <div class="official-item">
+                          <strong>1. Beobachter:</strong> {{ gameDetails.officials.observer1 }}
+                        </div>
+                      }
+                      @if (gameDetails.officials.observer2) {
+                        <div class="official-item">
+                          <strong>2. Beobachter:</strong> {{ gameDetails.officials.observer2 }}
+                        </div>
+                      }
+                    </div>
+                  </mat-card-content>
+                </mat-card>
+              </div>
+            </mat-tab>
+          }
+          <!-- Statistics Tab -->
+          @if (hasStatistics()) {
+            <mat-tab label="Statistiken">
+              <div class="tab-content">
+                <div class="stats-grid">
+                  <!-- Home Team Stats -->
+                  <mat-card>
+                    <mat-card-header>
+                      <mat-card-title>{{ gameDetails.statistics?.home?.label }}</mat-card-title>
+                    </mat-card-header>
+                    <mat-card-content>
+                      <div class="stats-list">
+                        @for (stat of gameDetails.statistics?.home?.data | keyvalue; track stat) {
+                          <div class="stat-item">
+                            <span class="stat-label">{{ stat.key }}:</span>
+                            <span class="stat-value">{{ stat.value }}</span>
+                          </div>
+                        }
+                      </div>
+                    </mat-card-content>
+                  </mat-card>
+                  <!-- Guest Team Stats -->
+                  <mat-card>
+                    <mat-card-header>
+                      <mat-card-title>{{ gameDetails.statistics?.guest?.label }}</mat-card-title>
+                    </mat-card-header>
+                    <mat-card-content>
+                      <div class="stats-list">
+                        @for (stat of gameDetails.statistics?.guest?.data | keyvalue; track stat) {
+                          <div class="stat-item">
+                            <span class="stat-label">{{ stat.key }}:</span>
+                            <span class="stat-value">{{ stat.value }}</span>
+                          </div>
+                        }
+                      </div>
+                    </mat-card-content>
+                  </mat-card>
+                </div>
+              </div>
+            </mat-tab>
+          }
+        </mat-tab-group>
+      }
+      <!-- No tabs available message -->
+      @if (!hasTeamDetails() && !hasPlayerStats() && !hasGameEvents() && !hasOfficials() && !hasStatistics()) {
+        <div class="no-tabs-container">
+          <mat-card class="no-tabs-card">
+            <mat-card-content>
+              <div class="no-data-message">
+                <mat-icon class="no-data-icon">info</mat-icon>
+                <h2>Keine weiteren Informationen</h2>
+                <p>Für dieses Spiel sind derzeit keine zusätzlichen Details verfügbar.</p>
+              </div>
+            </mat-card-content>
+          </mat-card>
+        </div>
+      }
+      <!-- Notes -->
+      @if (gameDetails.notes) {
+        <mat-card class="notes-card">
+          <mat-card-header>
+            <mat-card-title>Anmerkungen</mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <p>{{ gameDetails.notes }}</p>
+          </mat-card-content>
+        </mat-card>
+      }
+    </div>
+  }
 </div>
 

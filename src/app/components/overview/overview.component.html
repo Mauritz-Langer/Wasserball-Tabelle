@@ -1,108 +1,123 @@
 <div class="overview-container">
   <!-- Loading Spinner -->
-  <div *ngIf="isLoading" class="spinner-container">
-    <mat-spinner diameter="60"></mat-spinner>
-    <p class="loading-text">Lade Ligen...</p>
-  </div>
+  @if (isLoading) {
+    <div class="spinner-container">
+      <mat-spinner diameter="60" />
+      <p class="loading-text">Lade Ligen...</p>
+    </div>
+  }
 
   <!-- Overview Content -->
-  <div *ngIf="!isLoading" class="content">
-    <!-- Page Header -->
-    <div class="page-header">
-      <h1 class="page-title">Wasserball Ligen</h1>
-      <p class="page-subtitle">Wähle deine Liga aus und verfolge die Saison</p>
-    </div>
-
-    <!-- Search Bar -->
-    <div class="search-section">
-      <mat-form-field appearance="outline" class="search-field">
-        <mat-label>Ligen durchsuchen</mat-label>
-        <mat-icon matPrefix>search</mat-icon>
-        <input matInput
-               [(ngModel)]="searchTerm"
-               (ngModelChange)="filterItems()"
-               placeholder="z.B. Bundesliga, Männer, Jugend..."
-               autocomplete="off">
-        <button mat-icon-button matSuffix *ngIf="searchTerm" (click)="searchTerm=''; filterItems()">
-          <mat-icon>close</mat-icon>
-        </button>
-      </mat-form-field>
-    </div>
-
-    <!-- Favorites Section -->
-    <div class="favorites-section" *ngIf="favorites.length > 0">
-      <div class="section-header">
-        <mat-icon class="section-icon">favorite</mat-icon>
-        <h2 class="section-title">Meine Favoriten</h2>
-        <span class="favorites-badge">{{ favorites.length }}</span>
+  @if (!isLoading) {
+    <div class="content">
+      <!-- Page Header -->
+      <div class="page-header">
+        <h1 class="page-title">Wasserball Ligen</h1>
+        <p class="page-subtitle">Wähle deine Liga aus und verfolge die Saison</p>
       </div>
-
-      <div class="favorites-grid">
-        <mat-card *ngFor="let favorite of favorites"
-                  class="favorite-card mat-elevation-z2"
-                  (click)="navigateToLiga(favorite)">
-          <mat-card-content>
-            <div class="favorite-content">
-              <div class="favorite-info">
-                <span class="favorite-name">{{ favorite.name }}</span>
-                <span class="favorite-gender" *ngIf="favorite.gender && favorite.gender.trim() !== ''">{{ favorite.gender }}</span>
-              </div>
-              <mat-icon class="arrow-icon">arrow_forward</mat-icon>
-            </div>
-          </mat-card-content>
-        </mat-card>
+      <!-- Search Bar -->
+      <div class="search-section">
+        <mat-form-field appearance="outline" class="search-field">
+          <mat-label>Ligen durchsuchen</mat-label>
+          <mat-icon matPrefix>search</mat-icon>
+          <input matInput
+            [(ngModel)]="searchTerm"
+            (ngModelChange)="filterItems()"
+            placeholder="z.B. Bundesliga, Männer, Jugend..."
+            autocomplete="off">
+          @if (searchTerm) {
+            <button mat-icon-button matSuffix (click)="searchTerm=''; filterItems()">
+              <mat-icon>close</mat-icon>
+            </button>
+          }
+        </mat-form-field>
       </div>
-    </div>
-
-    <!-- Leagues Section -->
-    <div class="leagues-section">
-      <div class="section-header">
-        <mat-icon class="section-icon">emoji_events</mat-icon>
-        <h2 class="section-title">Alle Ligen</h2>
-        <span class="leagues-count" *ngIf="filteredItems.length !== items.length">
-          {{ filteredItems.length }} von {{ items.length }}
-        </span>
-      </div>
-
-      <!-- No Results Message -->
-      <div *ngIf="filteredItems.length === 0" class="no-results">
-        <mat-icon class="no-results-icon">search_off</mat-icon>
-        <p class="no-results-text">Keine Ligen gefunden</p>
-        <p class="no-results-hint">Versuche es mit einem anderen Suchbegriff</p>
-      </div>
-
-      <mat-accordion class="leagues-accordion">
-        <mat-expansion-panel *ngFor="let item of filteredItems" class="league-panel">
-          <mat-expansion-panel-header>
-            <mat-panel-title class="panel-title">
-              {{ item.name }}
-            </mat-panel-title>
-            <mat-panel-description class="panel-description">
-              {{ item.subItems.length }} {{ item.subItems.length === 1 ? 'Liga' : 'Ligen' }}
-            </mat-panel-description>
-          </mat-expansion-panel-header>
-
-          <div class="subitems-container">
-            <div *ngFor="let subItem of item.subItems" class="subitem-card">
-              <div class="subitem-content" (click)="navigateToLiga(subItem)">
-                <div class="subitem-info">
-                  <span class="subitem-name">{{ subItem.name }}</span>
-                  <span class="subitem-gender" *ngIf="subItem.gender && subItem.gender.trim() !== ''">{{ subItem.gender }}</span>
-                </div>
-                <mat-icon class="open-icon">open_in_new</mat-icon>
-              </div>
-              <div class="subitem-action">
-                <button mat-icon-button
+      <!-- Favorites Section -->
+      @if (favorites.length > 0) {
+        <div class="favorites-section">
+          <div class="section-header">
+            <mat-icon class="section-icon">favorite</mat-icon>
+            <h2 class="section-title">Meine Favoriten</h2>
+            <span class="favorites-badge">{{ favorites.length }}</span>
+          </div>
+          <div class="favorites-grid">
+            @for (favorite of favorites; track favorite) {
+              <mat-card
+                class="favorite-card mat-elevation-z2"
+                (click)="navigateToLiga(favorite)">
+                <mat-card-content>
+                  <div class="favorite-content">
+                    <div class="favorite-info">
+                      <span class="favorite-name">{{ favorite.name }}</span>
+                      @if (favorite.gender && favorite.gender.trim() !== '') {
+                        <span class="favorite-gender">{{ favorite.gender }}</span>
+                      }
+                    </div>
+                    <mat-icon class="arrow-icon">arrow_forward</mat-icon>
+                  </div>
+                </mat-card-content>
+              </mat-card>
+            }
+          </div>
+        </div>
+      }
+      <!-- Leagues Section -->
+      <div class="leagues-section">
+        <div class="section-header">
+          <mat-icon class="section-icon">emoji_events</mat-icon>
+          <h2 class="section-title">Alle Ligen</h2>
+          @if (filteredItems.length !== items.length) {
+            <span class="leagues-count">
+              {{ filteredItems.length }} von {{ items.length }}
+            </span>
+          }
+        </div>
+        <!-- No Results Message -->
+        @if (filteredItems.length === 0) {
+          <div class="no-results">
+            <mat-icon class="no-results-icon">search_off</mat-icon>
+            <p class="no-results-text">Keine Ligen gefunden</p>
+            <p class="no-results-hint">Versuche es mit einem anderen Suchbegriff</p>
+          </div>
+        }
+        <mat-accordion class="leagues-accordion">
+          @for (item of filteredItems; track item) {
+            <mat-expansion-panel class="league-panel">
+              <mat-expansion-panel-header>
+                <mat-panel-title class="panel-title">
+                  {{ item.name }}
+                </mat-panel-title>
+                <mat-panel-description class="panel-description">
+                  {{ item.subItems.length }} {{ item.subItems.length === 1 ? 'Liga' : 'Ligen' }}
+                </mat-panel-description>
+              </mat-expansion-panel-header>
+              <div class="subitems-container">
+                @for (subItem of item.subItems; track subItem) {
+                  <div class="subitem-card">
+                    <div class="subitem-content" (click)="navigateToLiga(subItem)">
+                      <div class="subitem-info">
+                        <span class="subitem-name">{{ subItem.name }}</span>
+                        @if (subItem.gender && subItem.gender.trim() !== '') {
+                          <span class="subitem-gender">{{ subItem.gender }}</span>
+                        }
+                      </div>
+                      <mat-icon class="open-icon">open_in_new</mat-icon>
+                    </div>
+                    <div class="subitem-action">
+                      <button mat-icon-button
                         (click)="toggleFavorite(subItem); $event.stopPropagation()"
                         [class.favorite-active]="subItem.isFavorite"
                         matTooltip="{{ subItem.isFavorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen' }}">
-                  <mat-icon>{{ subItem.isFavorite ? 'favorite' : 'favorite_border' }}</mat-icon>
-                </button>
+                        <mat-icon>{{ subItem.isFavorite ? 'favorite' : 'favorite_border' }}</mat-icon>
+                      </button>
+                    </div>
+                  </div>
+                }
               </div>
-            </div>
-          </div>
-        </mat-expansion-panel>
-      </mat-accordion>
+            </mat-expansion-panel>
+          }
+        </mat-accordion>
+      </div>
     </div>
-  </div>
+  }
 </div>

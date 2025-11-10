@@ -2,17 +2,17 @@
 
 ## Projektübersicht
 
-Dies ist eine Angular 18-Webanwendung zur Anzeige von Wasserball-Ligen, Spielplänen, Tabellen und Torschützenlisten. Die App scrapt Daten von der DSV (Deutscher Schwimm-Verband) Website und bereitet sie benutzerfreundlich auf.
+Dies ist eine Angular 19-Webanwendung zur Anzeige von Wasserball-Ligen, Spielplänen, Tabellen und Torschützenlisten. Die App scrapt Daten von der DSV (Deutscher Schwimm-Verband) Website und bereitet sie benutzerfreundlich auf.
 
 ## Technologie-Stack
 
 ### Frontend
-- **Framework**: Angular 18 (Standalone Components)
-- **UI-Bibliothek**: Angular Material 18
+- **Framework**: Angular 19 (Standalone Components)
+- **UI-Bibliothek**: Angular Material 19
 - **Styling**: SCSS
 - **Animationen**: Angular Animations
 - **HTTP-Client**: Angular HttpClient mit RxJS
-- **TypeScript**: Version 5.4.2
+- **TypeScript**: Version 5.5
 
 ### Backend/API
 - **Proxy**: Vercel Edge Functions (Production) / Angular Dev Proxy (Development)
@@ -366,6 +366,5 @@ Bei Fragen zum Projekt:
 ---
 
 **Letzte Aktualisierung**: November 2025
-**Angular Version**: 18.0.0
+**Angular Version**: 19.0.0
 **Node Version**: Empfohlen LTS (20.x oder höher)
-
