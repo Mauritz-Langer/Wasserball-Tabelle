@@ -87,6 +87,9 @@ describe('GameDetailsComponent', () => {
     gameDetailsService.getGameData.and.returnValue(of('<html></html>'));
     gameDetailsService.parseHtmlToGameDetails.and.returnValue(mockGameDetails);
 
+    // Mock window.open globally to prevent full page reloads in any test
+    spyOn(window, 'open');
+
     fixture = TestBed.createComponent(GameDetailsComponent);
     component = fixture.componentInstance;
   });
@@ -166,7 +169,6 @@ describe('GameDetailsComponent', () => {
     });
 
     it('should open map link in new window', () => {
-      spyOn(window, 'open');
       component.gameDetails = {
         ...mockGameDetails,
         venue: { ...mockGameDetails.venue!, googleMapsLink: 'https://maps.google.com' }
@@ -178,7 +180,6 @@ describe('GameDetailsComponent', () => {
     });
 
     it('should not open when no map link', () => {
-      spyOn(window, 'open');
       component.gameDetails = {
         ...mockGameDetails,
         venue: { poolName: 'Pool', poolCity: 'City', googleMapsLink: '' }
@@ -196,7 +197,6 @@ describe('GameDetailsComponent', () => {
     });
 
     it('should open protocol link', () => {
-      spyOn(window, 'open');
       component.gameDetails = { ...mockGameDetails, protocolLink: 'protocol.pdf' };
 
       component.downloadProtocol();
@@ -211,7 +211,6 @@ describe('GameDetailsComponent', () => {
     });
 
     it('should open video link', () => {
-      spyOn(window, 'open');
       component.gameDetails = { ...mockGameDetails, videoLink: 'https://video.com' };
 
       component.openVideoLink();

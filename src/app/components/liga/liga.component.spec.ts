@@ -108,6 +108,9 @@ describe('LigaComponent', () => {
     ligaService.parseHtmlToScorer.and.returnValue(mockScorers);
     ligaService.getLocationLink.and.returnValue(Promise.resolve('https://maps.google.com'));
 
+    // Mock window.open globally to prevent full page reloads in any test
+    spyOn(window, 'open');
+
     fixture = TestBed.createComponent(LigaComponent);
     component = fixture.componentInstance;
   });
@@ -355,7 +358,6 @@ describe('LigaComponent', () => {
       const event = new Event('click');
       spyOn(event, 'preventDefault');
       spyOn(event, 'stopPropagation');
-      spyOn(window, 'open');
 
       ligaService.getLocationLink.and.returnValue(Promise.resolve('https://maps.google.com'));
 
@@ -380,7 +382,6 @@ describe('LigaComponent', () => {
       };
 
       const event = new Event('click');
-      spyOn(window, 'open');
 
       ligaService.getLocationLink.and.returnValue(Promise.resolve(''));
 

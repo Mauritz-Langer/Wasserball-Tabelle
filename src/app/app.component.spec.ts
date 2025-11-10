@@ -47,6 +47,9 @@ describe('AppComponent', () => {
       get: () => routerEventsSubject.asObservable()
     });
 
+    // Mock window.open globally to prevent full page reloads in any test
+    spyOn(window, 'open');
+
     fixture = TestBed.createComponent(AppComponent);
     component = fixture.componentInstance;
   });
@@ -96,7 +99,6 @@ describe('AppComponent', () => {
 
   describe('openDsvWebsite', () => {
     it('should open DSV website in new tab', () => {
-      spyOn(window, 'open');
 
       component.openDsvWebsite();
 
