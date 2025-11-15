@@ -1,26 +1,13 @@
 version: 2
 updates:
-  # Dependencies für npm
+  # Dependencies für npm - einzelne PRs für bessere Kontrolle
   - package-ecosystem: "npm"
     directory: "/"
     schedule:
       interval: "weekly"
       day: "monday"
       time: "06:00"
-    open-pull-requests-limit: 10
-    # Automatisches Gruppieren von Updates
-    groups:
-      angular:
-        patterns:
-          - "@angular/*"
-        update-types:
-          - "minor"
-          - "patch"
-      development-dependencies:
-        dependency-type: "development"
-        update-types:
-          - "minor"
-          - "patch"
+    open-pull-requests-limit: 20
     commit-message:
       prefix: "chore"
       include: "scope"
@@ -29,7 +16,6 @@ updates:
       - "automated"
     reviewers:
       - "mauritzlanger"
-    # Pull Requests gegen develop Branch erstellen
     target-branch: "main"
 
   # GitHub Actions Updates
@@ -44,4 +30,3 @@ updates:
     labels:
       - "dependencies"
       - "github-actions"
-
