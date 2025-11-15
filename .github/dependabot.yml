@@ -8,6 +8,36 @@ updates:
       day: "monday"
       time: "06:00"
     open-pull-requests-limit: 20
+    # Gruppierung deaktivieren für einzelne PRs pro Paket
+    groups:
+      angular-core:
+        patterns:
+          - "@angular/animations"
+          - "@angular/common"
+          - "@angular/compiler"
+          - "@angular/core"
+          - "@angular/forms"
+          - "@angular/platform-browser"
+          - "@angular/platform-browser-dynamic"
+          - "@angular/router"
+        update-types:
+          - "minor"
+          - "patch"
+      angular-material:
+        patterns:
+          - "@angular/material"
+          - "@angular/cdk"
+        update-types:
+          - "minor"
+          - "patch"
+      angular-devkit:
+        patterns:
+          - "@angular-devkit/*"
+          - "@angular/cli"
+          - "@angular/compiler-cli"
+        update-types:
+          - "minor"
+          - "patch"
     commit-message:
       prefix: "chore"
       include: "scope"
