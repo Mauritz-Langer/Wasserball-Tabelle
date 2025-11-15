@@ -19,7 +19,7 @@
     "@angular/material": "^20.2.13",
     "@angular/platform-browser": "^20.3.10",
     "@angular/platform-browser-dynamic": "^20.3.10",
-    "@angular/router": "^20.3.10",
+    "@angular/router": "^20.3.12",
     "dom-parser": "^1.1.5",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
