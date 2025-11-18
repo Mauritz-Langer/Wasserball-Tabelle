@@ -1,5 +1,7 @@
 import { Component, OnInit, AfterViewInit, ElementRef, inject, viewChild } from '@angular/core';
 import {ActivatedRoute, Router, RouterLink} from '@angular/router';
+import { CommonModule } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import {
   MatCell,
   MatCellDef,
@@ -26,6 +28,8 @@ import {MatButton, MatIconButton} from "@angular/material/button";
 @Component({
     selector: 'app-liga',
     imports: [
+    CommonModule,
+    FormsModule,
     MatTable,
     MatColumnDef,
     MatHeaderCell,
@@ -72,7 +76,7 @@ export class LigaComponent implements OnInit, AfterViewInit {
 
   displayedColumnsGames: string[] = ['start', 'homeImage', 'home', 'guest', 'guestImage', 'location', 'result'];
   dataSourceGames: MatTableDataSource<Games> = new MatTableDataSource();
-  displayedColumnsTable: string[] = ['place', 'image', 'team', 'games', 'wins', 'draws', 'losses', 'goals', 'goalDifference', 'points'];
+  displayedColumnsTable: string[] = ['place', 'image', 'team', 'games', 'wins', 'draws', 'losses', 'goals', 'goalDifference', 'points', 'form'];
   dataSourceTable: MatTableDataSource<Table> = new MatTableDataSource();
   displayedColumnsScorer = ['place', 'player', 'team', 'goals', 'games'];
   dataSourceScorer: MatTableDataSource<Scorer> = new MatTableDataSource();
@@ -103,6 +107,9 @@ export class LigaComponent implements OnInit, AfterViewInit {
 
           // Gruppiere Spiele nach Spieltagen
           this.groupGamesByMatchday();
+
+          // Berechne Form für jedes Team
+          this.calculateForm();
 
           this.isLoading = false;
         }
@@ -299,6 +306,20 @@ export class LigaComponent implements OnInit, AfterViewInit {
   }
 
   /**
+   * Prüft, ob ein Spieltag in der Vergangenheit liegt
+   */
+  isMatchdayInPast(matchday: string): boolean {
+    try {
+      const matchdayDate = this.parseGermanDate(matchday);
+      const now = new Date();
+      now.setHours(0, 0, 0, 0); // Nur Datum vergleichen
+      return matchdayDate < now;
+    } catch {
+      return false;
+    }
+  }
+
+  /**
    * Gibt Spiele für einen Spieltag zurück, sortiert nach Zeit (aufsteigend)
    */
   getGamesForMatchday(matchday: string): Games[] {
@@ -328,12 +349,150 @@ export class LigaComponent implements OnInit, AfterViewInit {
   }
 
   /**
-   * Prüft ob ein Spieltag in der Vergangenheit liegt
+   * Parse deutsches Datum mit Uhrzeit (DD.MM.YY, HH:MM Uhr)
    */
-  isMatchdayInPast(matchday: string): boolean {
-    const matchdayDate = this.parseGermanDate(matchday);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    return matchdayDate < today;
+  parseGermanDateWithTime(dateTimeStr: string): Date | null {
+    try {
+      const parts = dateTimeStr.replace(' Uhr', '').split(', ');
+      if (parts.length < 2) return null;
+
+      const [datePart, timePart] = parts;
+      const dateParts = datePart.split('.');
+      const timeParts = timePart.split(':');
+
+      if (dateParts.length < 3 || timeParts.length < 2) return null;
+
+      const day = parseInt(dateParts[0]);
+      const month = parseInt(dateParts[1]) - 1;
+      const year = parseInt(dateParts[2]) + 2000;
+      const hours = parseInt(timeParts[0]);
+      const minutes = parseInt(timeParts[1]);
+
+      return new Date(year, month, day, hours, minutes);
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Berechnet die Form (letzte 5 Spiele) für jedes Team
+   */
+  calculateForm(): void {
+    const games = this.dataSourceGames.data;
+
+    this.dataSourceTable.data.forEach(teamRow => {
+      // 1. Alle Spiele dieses Teams finden (nur gespielte Spiele mit Ergebnis)
+      const teamGames = games.filter(g =>
+        (g.home === teamRow.team || g.guest === teamRow.team) &&
+        g.result.includes(':') && g.result !== ' - '
+      );
+
+      // 2. Nach Datum sortieren (neueste zuerst)
+      teamGames.sort((a, b) => {
+        const dateA = this.parseGermanDateWithTime(a.start);
+        const dateB = this.parseGermanDateWithTime(b.start);
+        if (!dateA || !dateB) return 0;
+        return dateB.getTime() - dateA.getTime();
+      });
+
+      // 3. Die letzten 5 nehmen und Ergebnis auswerten
+      const last5 = teamGames.slice(0, 5).map(game => {
+        if (this.isGameWon(game, teamRow.team)) return 'W';
+        if (this.isGameDraw(game)) return 'D';
+        return 'L';
+      });
+
+      teamRow.form = last5;
+    });
+
+    // Trigger Change Detection für die Tabelle
+    this.dataSourceTable.data = [...this.dataSourceTable.data];
+  }
+
+  /**
+   * Exportiert Spiele als iCalendar (.ics) Datei
+   * @param teamName Optional: Nur Spiele eines bestimmten Teams exportieren
+   */
+  downloadCalendar(teamName?: string): void {
+    // Wenn teamName gesetzt ist, filtere nur dessen Spiele, sonst alle
+    const gamesToExport = teamName
+      ? this.dataSourceGames.data.filter(g => g.home === teamName || g.guest === teamName)
+      : this.dataSourceGames.data;
+
+    // Filter nur zukünftige Spiele
+    const futureGames = gamesToExport.filter(g => !this.checkEventInPast(g.start));
+
+    if (futureGames.length === 0) {
+      alert('Keine zukünftigen Spiele zum Exportieren gefunden.');
+      return;
+    }
+
+    let icsContent = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//WasserballTabelle//DE\nCALSCALE:GREGORIAN\nMETHOD:PUBLISH\n";
+
+    futureGames.forEach(game => {
+      const startDate = this.parseGermanDateWithTime(game.start);
+      if (!startDate) return;
+
+      // Annahme: Spiel dauert 90 Minuten
+      const endDate = new Date(startDate.getTime() + 90 * 60000);
+
+      // Formatieren für ICS: YYYYMMDDTHHmmssZ
+      const startStr = this.formatDateForICS(startDate);
+      const endStr = this.formatDateForICS(endDate);
+
+      // Eindeutige UID generieren
+      const uid = `${startStr}-${game.home.replace(/\s/g, '')}-${game.guest.replace(/\s/g, '')}@wasserball-tabelle.de`;
+
+      // DTSTAMP (Erstellungszeitpunkt)
+      const now = new Date();
+      const dtstamp = this.formatDateForICS(now);
+
+      icsContent += "BEGIN:VEVENT\n";
+      icsContent += `UID:${uid}\n`;
+      icsContent += `DTSTAMP:${dtstamp}\n`;
+      icsContent += `DTSTART:${startStr}\n`;
+      icsContent += `DTEND:${endStr}\n`;
+      icsContent += `SUMMARY:${game.home} vs. ${game.guest}\n`;
+      icsContent += `DESCRIPTION:Wasserball - ${this.ligaName}\\nErgebnis: ${game.result}\n`;
+      if (game.location) {
+        icsContent += `LOCATION:${game.location}\n`;
+      }
+      icsContent += "STATUS:CONFIRMED\n";
+      icsContent += "TRANSP:OPAQUE\n";
+      icsContent += "END:VEVENT\n";
+    });
+
+    icsContent += "END:VCALENDAR";
+
+    // Download auslösen
+    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    const filename = teamName
+      ? `spielplan_${teamName.replace(/\s/g, '_')}.ics`
+      : `spielplan_${this.ligaName.replace(/\s/g, '_')}.ics`;
+    link.download = filename;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.URL.revokeObjectURL(url);
+  }
+
+  /**
+   * Formatiert ein Datum für ICS-Format: YYYYMMDDTHHmmss
+   */
+  private formatDateForICS(date: Date): string {
+    const pad = (n: number) => n < 10 ? '0' + n : n.toString();
+
+    const year = date.getFullYear();
+    const month = pad(date.getMonth() + 1);
+    const day = pad(date.getDate());
+    const hours = pad(date.getHours());
+    const minutes = pad(date.getMinutes());
+    const seconds = pad(date.getSeconds());
+
+    return `${year}${month}${day}T${hours}${minutes}${seconds}`;
   }
 }
+

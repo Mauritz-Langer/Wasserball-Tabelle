@@ -126,6 +126,38 @@
     }
   }
 
+  .share-button {
+    width: 48px;
+    height: 48px;
+    flex-shrink: 0;
+    margin-left: auto;
+
+    @media (max-width: 768px) {
+      width: 44px;
+      height: 44px;
+      -webkit-tap-highlight-color: rgba(25, 118, 210, 0.1);
+
+      &:active {
+        background: rgba(25, 118, 210, 0.08);
+        transform: scale(0.95);
+        transition: transform 0.1s ease, background 0.1s ease;
+      }
+    }
+
+    mat-icon {
+      font-size: 24px;
+      color: #1976d2;
+
+      @media (max-width: 768px) {
+        font-size: 22px;
+      }
+    }
+
+    &:hover mat-icon {
+      color: #1565c0;
+    }
+  }
+
   .page-title {
     margin: 0;
     font-size: 32px;
@@ -2433,3 +2465,588 @@
   }
 }
 
+// ===================================
+// TIMELINE CARD & VISUALIZATION
+// ===================================
+
+.timeline-card {
+  margin-bottom: 24px;
+  background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+  border-radius: 16px !important;
+
+  @media (max-width: 768px) {
+    margin-bottom: 16px;
+    border-radius: 12px !important;
+    // Verhindere horizontales Überlaufen
+    overflow: hidden;
+  }
+
+  mat-card-content {
+    @media (max-width: 768px) {
+      padding: 16px !important;
+    }
+  }
+
+  .timeline-title {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin: 0 0 24px 0;
+    font-size: 20px;
+    font-weight: 600;
+    color: #1976d2;
+
+    @media (max-width: 768px) {
+      font-size: 16px;
+      margin-bottom: 16px;
+      gap: 8px;
+    }
+
+    mat-icon {
+      font-size: 28px;
+      width: 28px;
+      height: 28px;
+
+      @media (max-width: 768px) {
+        font-size: 22px;
+        width: 22px;
+        height: 22px;
+      }
+    }
+  }
+
+  // Mobile Scroll-Hinweis
+  .timeline-scroll-hint {
+    display: none;
+
+    @media (max-width: 768px) {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+      color: #1976d2;
+      font-size: 11px;
+      font-weight: 600;
+      border-radius: 8px;
+      margin-bottom: 12px;
+      animation: pulse-hint 3s ease-in-out infinite;
+
+      mat-icon {
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+        animation: swipe-horizontal 2s ease-in-out infinite;
+      }
+    }
+  }
+
+  @keyframes swipe-horizontal {
+    0%, 100% {
+      transform: translateX(0);
+    }
+    50% {
+      transform: translateX(8px);
+    }
+  }
+
+  .game-timeline {
+    position: relative;
+    padding: 40px 0 20px 0;
+    min-height: 120px;
+
+    @media (max-width: 768px) {
+      padding: 24px 16px 12px 16px; // Seitliches Padding für besseres Scrollen
+      min-height: 140px;
+      // Ermögliche horizontales Scrollen
+      overflow-x: auto;
+      overflow-y: visible;
+      -webkit-overflow-scrolling: touch;
+
+      // Scroll-Snap für bessere Navigation
+      scroll-snap-type: x proximity;
+      scroll-padding: 16px;
+
+      // Benutzerdefinierte Scrollbar (sichtbar aber dezent)
+      scrollbar-width: thin;
+      scrollbar-color: rgba(25, 118, 210, 0.3) rgba(0, 0, 0, 0.05);
+
+      &::-webkit-scrollbar {
+        height: 6px;
+      }
+
+      &::-webkit-scrollbar-track {
+        background: rgba(0, 0, 0, 0.05);
+        border-radius: 3px;
+        margin: 0 16px;
+      }
+
+      &::-webkit-scrollbar-thumb {
+        background: rgba(25, 118, 210, 0.3);
+        border-radius: 3px;
+
+        &:active {
+          background: rgba(25, 118, 210, 0.5);
+        }
+      }
+
+      // Scroll-Schatten für bessere Orientierung
+      background:
+        linear-gradient(90deg, white 0%, transparent 20px),
+        linear-gradient(90deg, transparent calc(100% - 20px), white 100%),
+        radial-gradient(farthest-side at 0 50%, rgba(0,0,0,.15), transparent),
+        radial-gradient(farthest-side at 100% 50%, rgba(0,0,0,.15), transparent);
+      background-repeat: no-repeat;
+      background-size: 20px 100%, 20px 100%, 15px 100%, 15px 100%;
+      background-position: 0 0, 100% 0, 0 0, 100% 0;
+      background-attachment: local, local, scroll, scroll;
+    }
+
+    // Viertel-Markierungen oben
+    .timeline-quarters {
+      display: flex;
+      justify-content: space-around;
+      margin-bottom: 16px;
+
+      @media (max-width: 768px) {
+        margin-bottom: 12px;
+        // Gleiche Breite wie Timeline-Linie
+        width: 800px;
+        min-width: 800px;
+      }
+
+      @media (max-width: 480px) {
+        width: 700px;
+        min-width: 700px;
+      }
+
+      .quarter-marker {
+        flex: 1;
+        text-align: center;
+
+        .quarter-label {
+          display: inline-block;
+          padding: 6px 16px;
+          background: linear-gradient(135deg, #1976d2 0%, #42a5f5 100%);
+          color: white;
+          border-radius: 20px;
+          font-size: 13px;
+          font-weight: 600;
+          box-shadow: 0 2px 8px rgba(25, 118, 210, 0.3);
+
+          @media (max-width: 768px) {
+            padding: 4px 12px;
+            font-size: 11px;
+            border-radius: 12px;
+            white-space: nowrap;
+          }
+        }
+      }
+    }
+
+    // Timeline-Linie
+    .timeline-line {
+      position: relative;
+      height: 60px;
+      background: linear-gradient(90deg, #e3f2fd 0%, #bbdefb 50%, #e3f2fd 100%);
+      border-radius: 30px;
+      box-shadow: 0 4px 12px rgba(25, 118, 210, 0.2);
+
+      @media (max-width: 768px) {
+        height: 70px; // Höher für bessere Touch-Targets
+        border-radius: 35px;
+        // Deutlich größere Breite für horizontales Scrollen
+        // 32 Minuten Spielzeit = mind. 800px (25px pro Minute)
+        min-width: max(100%, 800px);
+        width: 800px; // Feste Breite für konsistentes Scrollen
+      }
+
+      @media (max-width: 480px) {
+        width: 700px; // Etwas kompakter auf sehr kleinen Screens
+        min-width: 700px;
+      }
+
+      // Viertel-Trennlinien
+      .quarter-divider {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        width: 2px;
+        background: linear-gradient(180deg, rgba(25, 118, 210, 0.2) 0%, rgba(25, 118, 210, 0.5) 50%, rgba(25, 118, 210, 0.2) 100%);
+        transform: translateX(-50%);
+
+        @media (max-width: 768px) {
+          width: 1px;
+          background: linear-gradient(180deg, rgba(25, 118, 210, 0.15) 0%, rgba(25, 118, 210, 0.4) 50%, rgba(25, 118, 210, 0.15) 100%);
+        }
+      }
+
+      // Timeline-Events
+      .timeline-event {
+        position: absolute;
+        top: 50%;
+        transform: translate(-50%, -50%);
+        cursor: pointer;
+        z-index: 10;
+        transition: all 0.2s ease;
+        -webkit-tap-highlight-color: transparent;
+
+        @media (max-width: 768px) {
+          // Größerer Touch-Bereich
+          padding: 8px;
+          margin: -8px;
+        }
+
+        .event-marker-icon {
+          width: 32px;
+          height: 32px;
+          font-size: 20px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: white;
+          border-radius: 50%;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+          transition: all 0.2s ease;
+
+          @media (max-width: 768px) {
+            width: 36px; // Größer für besseres Touch-Target
+            height: 36px;
+            font-size: 18px;
+            box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
+          }
+        }
+
+        // Event-Popup (Tooltip)
+        .event-popup {
+          position: absolute;
+          bottom: calc(100% + 16px); // Mehr Abstand
+          left: 50%;
+          transform: translateX(-50%) scale(0);
+          background: white;
+          border-radius: 12px;
+          padding: 12px;
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+          min-width: 150px;
+          text-align: center;
+          opacity: 0;
+          pointer-events: none;
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+          z-index: 100;
+          border: 2px solid #e3f2fd;
+
+          @media (max-width: 768px) {
+            padding: 12px;
+            min-width: 140px;
+            border-radius: 10px;
+            // Verhindere dass Popup aus Viewport läuft
+            max-width: calc(100vw - 40px);
+
+            // Anpassung für Popups am Rand
+            &.popup-left {
+              left: auto;
+              right: 0;
+              transform: translateX(0) scale(0);
+
+              &::after {
+                left: auto;
+                right: 16px;
+                transform: translateX(0);
+              }
+            }
+
+            &.popup-right {
+              left: 0;
+              transform: translateX(0) scale(0);
+
+              &::after {
+                left: 16px;
+                transform: translateX(0);
+              }
+            }
+          }
+
+          &::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 10px solid transparent;
+            border-right: 10px solid transparent;
+            border-top: 10px solid white;
+            filter: drop-shadow(0 2px 2px rgba(0, 0, 0, 0.1));
+
+            @media (max-width: 768px) {
+              border-left-width: 8px;
+              border-right-width: 8px;
+              border-top-width: 8px;
+            }
+          }
+
+          .event-popup-time {
+            font-size: 14px;
+            font-weight: 700;
+            color: #1976d2;
+            margin-bottom: 6px;
+
+            @media (max-width: 768px) {
+              font-size: 13px;
+              margin-bottom: 4px;
+            }
+          }
+
+          .event-popup-type {
+            font-size: 12px;
+            font-weight: 600;
+            color: rgba(0, 0, 0, 0.87);
+            margin-bottom: 6px;
+
+            @media (max-width: 768px) {
+              font-size: 11px;
+              margin-bottom: 4px;
+            }
+          }
+
+          .event-popup-player {
+            font-size: 11px;
+            color: rgba(0, 0, 0, 0.6);
+            margin-bottom: 6px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+
+            @media (max-width: 768px) {
+              font-size: 10px;
+              margin-bottom: 4px;
+              white-space: normal;
+              line-height: 1.3;
+            }
+          }
+
+          .event-popup-score {
+            font-size: 18px;
+            font-weight: 800;
+            color: #1976d2;
+            font-family: 'Roboto Mono', monospace;
+
+            @media (max-width: 768px) {
+              font-size: 16px;
+            }
+          }
+        }
+
+        // Desktop Hover-Effekt
+        @media (min-width: 769px) {
+          &:hover {
+            transform: translate(-50%, -50%) scale(1.15);
+            z-index: 20;
+
+            .event-marker-icon {
+              box-shadow: 0 4px 16px rgba(0, 0, 0, 0.3);
+            }
+
+            .event-popup {
+              transform: translateX(-50%) scale(1);
+              opacity: 1;
+            }
+          }
+        }
+
+        // Mobile Touch/Active Effekt
+        @media (max-width: 768px) {
+          &:active {
+            transform: translate(-50%, -50%) scale(0.95);
+
+            .event-marker-icon {
+              box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+            }
+          }
+
+          // Popup wird durch Click/Touch getoggelt (via JS)
+          &.active {
+            z-index: 20;
+
+            .event-marker-icon {
+              box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+              transform: scale(1.1);
+            }
+
+            .event-popup {
+              transform: translateX(-50%) scale(1);
+              opacity: 1;
+              pointer-events: auto;
+
+              &.popup-left {
+                transform: translateX(0) scale(1);
+              }
+
+              &.popup-right {
+                transform: translateX(0) scale(1);
+              }
+            }
+          }
+        }
+
+        // Event-Typen Farben
+        &.event-goal {
+          .event-marker-icon {
+            background: linear-gradient(135deg, #4caf50 0%, #66bb6a 100%);
+            color: white;
+
+            @media (max-width: 768px) {
+              border: 2px solid white;
+            }
+          }
+        }
+
+        &.event-penalty {
+          .event-marker-icon {
+            background: linear-gradient(135deg, #ff9800 0%, #ffb74d 100%);
+            color: white;
+
+            @media (max-width: 768px) {
+              border: 2px solid white;
+            }
+          }
+        }
+
+        &.event-exclusion {
+          .event-marker-icon {
+            background: linear-gradient(135deg, #f44336 0%, #ef5350 100%);
+            color: white;
+
+            @media (max-width: 768px) {
+              border: 2px solid white;
+            }
+          }
+        }
+      }
+    }
+
+    // Zeit-Labels unten
+    .timeline-time-labels {
+      position: relative;
+      display: flex;
+      justify-content: space-between;
+      margin-top: 12px;
+
+      @media (max-width: 768px) {
+        margin-top: 16px;
+        // Gleiche Breite wie Timeline-Linie für korrektes Alignment
+        width: 800px;
+        min-width: 800px;
+      }
+
+      @media (max-width: 480px) {
+        width: 700px;
+        min-width: 700px;
+      }
+
+      .time-label {
+        position: absolute;
+        transform: translateX(-50%);
+        font-size: 12px;
+        font-weight: 600;
+        color: rgba(0, 0, 0, 0.6);
+
+        @media (max-width: 768px) {
+          font-size: 11px;
+          font-weight: 700;
+          color: rgba(0, 0, 0, 0.7);
+          // Verbesserte Lesbarkeit mit Hintergrund
+          background: rgba(255, 255, 255, 0.9);
+          padding: 2px 6px;
+          border-radius: 4px;
+          box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+        }
+      }
+    }
+  }
+}
+
+@keyframes pulse-hint {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.85; transform: scale(0.98); }
+}
+
+// Dark Mode für Timeline
+:host-context(body.dark-theme) {
+  .timeline-card {
+    background: linear-gradient(135deg, var(--surface-color) 0%, var(--surface-elevated) 100%);
+    border: 1px solid var(--border-color);
+
+    .timeline-title {
+      color: var(--text-primary);
+    }
+
+    .game-timeline {
+      // Viertel-Markierungen oben
+      .timeline-quarters {
+        .quarter-marker {
+          .quarter-label {
+            background: linear-gradient(135deg, #64b5f6 0%, #90caf9 100%);
+            color: white;
+          }
+        }
+      }
+
+      // Timeline-Linie
+      .timeline-line {
+        background: linear-gradient(90deg, rgba(76, 175, 80, 0.2) 0%, rgba(76, 175, 80, 0.5) 50%, rgba(76, 175, 80, 0.2) 100%);
+      }
+
+      // Timeline-Events
+      .timeline-event {
+        .event-marker-icon {
+          background: white;
+          color: #1976d2;
+        }
+
+        // Event-Popup (Tooltip)
+        .event-popup {
+          background: var(--surface-color);
+          border: 1px solid var(--border-color);
+
+          .event-popup-time {
+            color: #1976d2;
+          }
+
+          .event-popup-type,
+          .event-popup-player {
+            color: rgba(0, 0, 0, 0.87);
+          }
+
+          .event-popup-score {
+            color: #1976d2;
+          }
+        }
+
+        // Event-Typen Farben
+        &.event-goal {
+          .event-marker-icon {
+            background: linear-gradient(135deg, #4caf50 0%, #66bb6a 100%);
+            color: white;
+          }
+        }
+
+        &.event-penalty {
+          .event-marker-icon {
+            background: linear-gradient(135deg, #ff9800 0%, #ffb74d 100%);
+            color: white;
+          }
+        }
+
+        &.event-exclusion {
+          .event-marker-icon {
+            background: linear-gradient(135deg, #f44336 0%, #ef5350 100%);
+            color: white;
+          }
+        }
+      }
+    }
+  }
+}

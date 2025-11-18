@@ -8,7 +8,7 @@ import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatTab, MatTabGroup } from '@angular/material/tabs';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { GameDetailsService } from '../../services/game-details/game-details.service';
-import { GameDetails } from '../../models/game-details';
+import { GameDetails, GameEvent } from '../../models/game-details';
 
 @Component({
     selector: 'app-game-details',
@@ -38,6 +38,9 @@ export class GameDetailsComponent implements OnInit {
   gameDetails: GameDetails | null = null;
   isLoading = true;
   error: string | null = null;
+
+  // Timeline state für Mobile
+  activeEventIndex: number | null = null;
 
   /** Inserted by Angular inject() migration for backwards compatibility */
   constructor(...args: unknown[]);
@@ -358,5 +361,172 @@ export class GameDetailsComponent implements OnInit {
     // Wenn nichts davon zutrifft, gilt das Spiel als noch nicht beendet
     return false;
   }
-}
 
+  /**
+   * Berechnet die Position eines Events auf der Timeline (0-100%)
+   * @param event Das GameEvent
+   * @returns Position in Prozent (0-100)
+   */
+  getEventTimelinePosition(event: GameEvent): number {
+    // Parse die Spielminute aus dem time-String
+    const minute = this.parseGameMinute(event.time, event.period);
+    if (minute === null) return 0;
+
+    // Wasserball: 4 Viertel à 8 Minuten = 32 Minuten gesamt
+    const totalGameMinutes = 32;
+    const position = (minute / totalGameMinutes) * 100;
+
+    // Begrenze auf 0-100%
+    return Math.max(0, Math.min(100, position));
+  }
+
+  /**
+   * Parst die Spielminute aus dem time-String
+   * @param time Zeit-String (z.B. "5:23" oder "12:34")
+   * @param period Viertel (1-4)
+   * @returns Absolute Spielminute oder null
+   */
+  parseGameMinute(time: string, period: number): number | null {
+    try {
+      // Zeit-Format: "M:SS" (z.B. "5:23" für 5 Minuten 23 Sekunden im Viertel)
+      const parts = time.split(':');
+      if (parts.length !== 2) return null;
+
+      const minutes = parseInt(parts[0]);
+      const seconds = parseInt(parts[1]);
+
+      if (isNaN(minutes) || isNaN(seconds)) return null;
+
+      // Berechne absolute Spielminute
+      // Jedes Viertel hat 8 Minuten
+      const quarterStartMinute = (period - 1) * 8;
+      const minuteInQuarter = minutes + (seconds / 60);
+
+      return quarterStartMinute + minuteInQuarter;
+    } catch {
+      return null;
+    }
+  }
+
+  /**
+   * Gruppiert Events nach Viertel für die Timeline
+   */
+  getEventsByPeriod(period: number): GameEvent[] {
+    if (!this.gameDetails?.events) return [];
+    return this.gameDetails.events.filter(e => e.period === period);
+  }
+
+  /**
+   * Gibt alle Events sortiert nach Zeit zurück
+   */
+  getAllEventsSorted(): GameEvent[] {
+    if (!this.gameDetails?.events) return [];
+    return [...this.gameDetails.events].sort((a, b) => {
+      const minuteA = this.parseGameMinute(a.time, a.period) || 0;
+      const minuteB = this.parseGameMinute(b.time, b.period) || 0;
+      return minuteA - minuteB;
+    });
+  }
+
+  /**
+   * Teilt den User via Web Share API
+   */
+  shareGame(): void {
+    if (!this.gameDetails) return;
+
+    const shareData = {
+      title: `Wasserball: ${this.gameDetails.homeTeam.name} vs ${this.gameDetails.guestTeam.name}`,
+      text: `Endergebnis: ${this.getFinalHomeScore()}:${this.getFinalGuestScore()}\n${this.gameDetails.league}`,
+      url: window.location.href
+    };
+
+    // Prüfe ob Web Share API verfügbar ist
+    if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+      navigator.share(shareData)
+        .then(() => console.log('Erfolgreich geteilt'))
+        .catch((error) => console.log('Fehler beim Teilen:', error));
+    } else {
+      // Fallback: Kopiere Link in Zwischenablage
+      this.copyToClipboard(window.location.href);
+    }
+  }
+
+  /**
+   * Kopiert Text in die Zwischenablage
+   */
+  private copyToClipboard(text: string): void {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(text)
+        .then(() => {
+          alert('Link in Zwischenablage kopiert!');
+        })
+        .catch((error) => {
+          console.error('Fehler beim Kopieren:', error);
+          this.fallbackCopyToClipboard(text);
+        });
+    } else {
+      this.fallbackCopyToClipboard(text);
+    }
+  }
+
+  /**
+   * Fallback für ältere Browser
+   */
+  private fallbackCopyToClipboard(text: string): void {
+    const textArea = document.createElement('textarea');
+    textArea.value = text;
+    textArea.style.position = 'fixed';
+    textArea.style.left = '-999999px';
+    document.body.appendChild(textArea);
+    textArea.select();
+    try {
+      document.execCommand('copy');
+      alert('Link in Zwischenablage kopiert!');
+    } catch (error) {
+      console.error('Fallback-Kopieren fehlgeschlagen:', error);
+      alert('Link konnte nicht kopiert werden. Bitte manuell kopieren: ' + text);
+    }
+    document.body.removeChild(textArea);
+  }
+
+  /**
+   * Toggle Event-Popup für Mobile (Touch)
+   * @param index Index des Events in der sortierten Liste
+   * @param event Click/Touch Event
+   */
+  toggleEventPopup(index: number, event: Event): void {
+    event.stopPropagation();
+
+    // Toggle: Wenn bereits aktiv, deaktivieren
+    if (this.activeEventIndex === index) {
+      this.activeEventIndex = null;
+    } else {
+      this.activeEventIndex = index;
+    }
+  }
+
+  /**
+   * Prüft ob ein Event aktiv (geöffnet) ist
+   * @param index Index des Events
+   */
+  isEventActive(index: number): boolean {
+    return this.activeEventIndex === index;
+  }
+
+  /**
+   * Schließt alle Event-Popups (z.B. bei Tap außerhalb)
+   */
+  closeAllEventPopups(): void {
+    this.activeEventIndex = null;
+  }
+
+  /**
+   * Berechnet Popup-Position-Klasse für Events am Rand
+   * @param position Position in Prozent (0-100)
+   */
+  getPopupPositionClass(position: number): string {
+    if (position < 20) return 'popup-right';
+    if (position > 80) return 'popup-left';
+    return '';
+  }
+}

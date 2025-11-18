@@ -28,6 +28,16 @@
                 Spiele
               </ng-template>
               <div class="tab-content">
+                <!-- Calendar Export Button -->
+                <mat-card class="export-card">
+                  <mat-card-content>
+                    <button mat-raised-button color="primary" (click)="downloadCalendar()">
+                      <mat-icon>calendar_month</mat-icon>
+                      Spielplan exportieren
+                    </button>
+                    <span class="export-hint">Exportiere alle zukünftigen Spiele in deinen Kalender</span>
+                  </mat-card-content>
+                </mat-card>
                 <!-- Filter -->
                 <mat-card class="filter-card">
                   <mat-card-content>
@@ -207,6 +217,22 @@
                           <strong>{{ element.points }}</strong>
                         </td>
                       </ng-container>
+                      <!-- Form Column -->
+                      <ng-container matColumnDef="form">
+                        <th mat-header-cell *matHeaderCellDef>Form</th>
+                        <td mat-cell *matCellDef="let element" class="form-cell">
+                          @if (element['form'] && element['form'].length > 0) {
+                            <div class="form-indicators">
+                              @for (result of element['form']; track $index) {
+                                <span class="form-dot" [class.win]="result === 'W'" [class.draw]="result === 'D'" [class.loss]="result === 'L'"
+                                  [attr.title]="result === 'W' ? 'Sieg' : (result === 'D' ? 'Unentschieden' : 'Niederlage')">
+                                  {{ result }}
+                                </span>
+                              }
+                            </div>
+                          }
+                        </td>
+                      </ng-container>
                       <!-- Expanded Detail -->
                       <ng-container matColumnDef="expandedDetail">
                         <td mat-cell *matCellDef="let element" [attr.colspan]="displayedColumnsTable.length">
@@ -223,6 +249,10 @@
                                   <p>{{ element.info }}</p>
                                 }
                               </div>
+                              <button mat-stroked-button color="primary" (click)="downloadCalendar(element.team); $event.stopPropagation()" class="export-team-button">
+                                <mat-icon>calendar_month</mat-icon>
+                                Spielplan exportieren
+                              </button>
                             </div>
                             @if (expandedGames && expandedGames.length > 0) {
                               <div class="team-games">
