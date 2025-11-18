@@ -131,87 +131,8 @@
         </mat-card-content>
       </mat-card>
       <!-- Tabs for different sections -->
-      @if (hasTeamDetails() || hasPlayerStats() || hasGameEvents() || hasOfficials() || hasStatistics()) {
+      @if (hasTeamDetails() || hasPlayerStats() || hasGameEvents() || hasStatistics()) {
         <mat-tab-group class="details-tabs">
-          <!-- Team Details Tab -->
-          @if (hasTeamDetails()) {
-            <mat-tab label="Teams">
-              <div class="tab-content">
-                <div class="teams-grid">
-                  <!-- Home Team Details -->
-                  <mat-card>
-                    <mat-card-header>
-                      <mat-card-title>{{ gameDetails.homeTeam.name }}</mat-card-title>
-                    </mat-card-header>
-                    <mat-card-content>
-                      <div class="team-details">
-                        @if (gameDetails.homeTeam.coach && gameDetails.homeTeam.coach.trim() !== '') {
-                          <div class="detail-item">
-                            <strong>Trainer:</strong> {{ gameDetails.homeTeam.coach }}
-                          </div>
-                        }
-                        @if (gameDetails.homeTeam.captain && gameDetails.homeTeam.captain.trim() !== '') {
-                          <div class="detail-item">
-                            <strong>Kapitän:</strong> {{ gameDetails.homeTeam.captain }}
-                          </div>
-                        }
-                        @if (gameDetails.homeTeam.teamLeader && gameDetails.homeTeam.teamLeader.trim() !== '') {
-                          <div class="detail-item">
-                            <strong>Mannschaftsleiter:</strong> {{ gameDetails.homeTeam.teamLeader }}
-                          </div>
-                        }
-                        @if (gameDetails.homeTeam.assistant && gameDetails.homeTeam.assistant.trim() !== '') {
-                          <div class="detail-item">
-                            <strong>Betreuer:</strong> {{ gameDetails.homeTeam.assistant }}
-                          </div>
-                        }
-                        @if (gameDetails.homeTeam.bestPlayer && gameDetails.homeTeam.bestPlayer.trim() !== '') {
-                          <div class="detail-item highlight">
-                            <strong>Bester Spieler:</strong> {{ gameDetails.homeTeam.bestPlayer }}
-                          </div>
-                        }
-                      </div>
-                    </mat-card-content>
-                  </mat-card>
-                  <!-- Guest Team Details -->
-                  <mat-card>
-                    <mat-card-header>
-                      <mat-card-title>{{ gameDetails.guestTeam.name }}</mat-card-title>
-                    </mat-card-header>
-                    <mat-card-content>
-                      <div class="team-details">
-                        @if (gameDetails.guestTeam.coach && gameDetails.guestTeam.coach.trim() !== '') {
-                          <div class="detail-item">
-                            <strong>Trainer:</strong> {{ gameDetails.guestTeam.coach }}
-                          </div>
-                        }
-                        @if (gameDetails.guestTeam.captain && gameDetails.guestTeam.captain.trim() !== '') {
-                          <div class="detail-item">
-                            <strong>Kapitän:</strong> {{ gameDetails.guestTeam.captain }}
-                          </div>
-                        }
-                        @if (gameDetails.guestTeam.teamLeader && gameDetails.guestTeam.teamLeader.trim() !== '') {
-                          <div class="detail-item">
-                            <strong>Mannschaftsleiter:</strong> {{ gameDetails.guestTeam.teamLeader }}
-                          </div>
-                        }
-                        @if (gameDetails.guestTeam.assistant && gameDetails.guestTeam.assistant.trim() !== '') {
-                          <div class="detail-item">
-                            <strong>Betreuer:</strong> {{ gameDetails.guestTeam.assistant }}
-                          </div>
-                        }
-                        @if (gameDetails.guestTeam.bestPlayer && gameDetails.guestTeam.bestPlayer.trim() !== '') {
-                          <div class="detail-item highlight">
-                            <strong>Bester Spieler:</strong> {{ gameDetails.guestTeam.bestPlayer }}
-                          </div>
-                        }
-                      </div>
-                    </mat-card-content>
-                  </mat-card>
-                </div>
-              </div>
-            </mat-tab>
-          }
           <!-- Player Statistics Tab -->
           @if (hasPlayerStats()) {
             <mat-tab label="Spielerstatistik">
@@ -454,66 +375,82 @@
               </div>
             </mat-tab>
           }
-          <!-- Officials Tab -->
-          @if (hasOfficials()) {
-            <mat-tab label="Offizielle">
+          <!-- Team Details Tab -->
+          @if (hasTeamDetails()) {
+            <mat-tab label="Teams">
               <div class="tab-content">
-                <mat-card>
-                  <mat-card-content>
-                    <div class="officials-grid">
-                      @if (gameDetails.officials.referee1) {
-                        <div class="official-item">
-                          <strong>1. Schiedsrichter:</strong> {{ gameDetails.officials.referee1 }}
-                        </div>
-                      }
-                      @if (gameDetails.officials.referee2) {
-                        <div class="official-item">
-                          <strong>2. Schiedsrichter:</strong> {{ gameDetails.officials.referee2 }}
-                        </div>
-                      }
-                      @if (gameDetails.officials.timekeeper1) {
-                        <div class="official-item">
-                          <strong>1. Zeitnehmer:</strong> {{ gameDetails.officials.timekeeper1 }}
-                        </div>
-                      }
-                      @if (gameDetails.officials.timekeeper2) {
-                        <div class="official-item">
-                          <strong>2. Zeitnehmer:</strong> {{ gameDetails.officials.timekeeper2 }}
-                        </div>
-                      }
-                      @if (gameDetails.officials.secretary1) {
-                        <div class="official-item">
-                          <strong>1. Sekretär:</strong> {{ gameDetails.officials.secretary1 }}
-                        </div>
-                      }
-                      @if (gameDetails.officials.secretary2) {
-                        <div class="official-item">
-                          <strong>2. Sekretär:</strong> {{ gameDetails.officials.secretary2 }}
-                        </div>
-                      }
-                      @if (gameDetails.officials.goalJudge1) {
-                        <div class="official-item">
-                          <strong>1. Torrichter:</strong> {{ gameDetails.officials.goalJudge1 }}
-                        </div>
-                      }
-                      @if (gameDetails.officials.goalJudge2) {
-                        <div class="official-item">
-                          <strong>2. Torrichter:</strong> {{ gameDetails.officials.goalJudge2 }}
-                        </div>
-                      }
-                      @if (gameDetails.officials.observer1) {
-                        <div class="official-item">
-                          <strong>1. Beobachter:</strong> {{ gameDetails.officials.observer1 }}
-                        </div>
-                      }
-                      @if (gameDetails.officials.observer2) {
-                        <div class="official-item">
-                          <strong>2. Beobachter:</strong> {{ gameDetails.officials.observer2 }}
-                        </div>
-                      }
-                    </div>
-                  </mat-card-content>
-                </mat-card>
+                <div class="teams-grid">
+                  <!-- Home Team Details -->
+                  <mat-card>
+                    <mat-card-header>
+                      <mat-card-title>{{ gameDetails.homeTeam.name }}</mat-card-title>
+                    </mat-card-header>
+                    <mat-card-content>
+                      <div class="team-details">
+                        @if (gameDetails.homeTeam.coach && gameDetails.homeTeam.coach.trim() !== '') {
+                          <div class="detail-item">
+                            <strong>Trainer:</strong> {{ gameDetails.homeTeam.coach }}
+                          </div>
+                        }
+                        @if (gameDetails.homeTeam.captain && gameDetails.homeTeam.captain.trim() !== '') {
+                          <div class="detail-item">
+                            <strong>Kapitän:</strong> {{ gameDetails.homeTeam.captain }}
+                          </div>
+                        }
+                        @if (gameDetails.homeTeam.teamLeader && gameDetails.homeTeam.teamLeader.trim() !== '') {
+                          <div class="detail-item">
+                            <strong>Mannschaftsleiter:</strong> {{ gameDetails.homeTeam.teamLeader }}
+                          </div>
+                        }
+                        @if (gameDetails.homeTeam.assistant && gameDetails.homeTeam.assistant.trim() !== '') {
+                          <div class="detail-item">
+                            <strong>Betreuer:</strong> {{ gameDetails.homeTeam.assistant }}
+                          </div>
+                        }
+                        @if (gameDetails.homeTeam.bestPlayer && gameDetails.homeTeam.bestPlayer.trim() !== '') {
+                          <div class="detail-item highlight">
+                            <strong>Bester Spieler:</strong> {{ gameDetails.homeTeam.bestPlayer }}
+                          </div>
+                        }
+                      </div>
+                    </mat-card-content>
+                  </mat-card>
+                  <!-- Guest Team Details -->
+                  <mat-card>
+                    <mat-card-header>
+                      <mat-card-title>{{ gameDetails.guestTeam.name }}</mat-card-title>
+                    </mat-card-header>
+                    <mat-card-content>
+                      <div class="team-details">
+                        @if (gameDetails.guestTeam.coach && gameDetails.guestTeam.coach.trim() !== '') {
+                          <div class="detail-item">
+                            <strong>Trainer:</strong> {{ gameDetails.guestTeam.coach }}
+                          </div>
+                        }
+                        @if (gameDetails.guestTeam.captain && gameDetails.guestTeam.captain.trim() !== '') {
+                          <div class="detail-item">
+                            <strong>Kapitän:</strong> {{ gameDetails.guestTeam.captain }}
+                          </div>
+                        }
+                        @if (gameDetails.guestTeam.teamLeader && gameDetails.guestTeam.teamLeader.trim() !== '') {
+                          <div class="detail-item">
+                            <strong>Mannschaftsleiter:</strong> {{ gameDetails.guestTeam.teamLeader }}
+                          </div>
+                        }
+                        @if (gameDetails.guestTeam.assistant && gameDetails.guestTeam.assistant.trim() !== '') {
+                          <div class="detail-item">
+                            <strong>Betreuer:</strong> {{ gameDetails.guestTeam.assistant }}
+                          </div>
+                        }
+                        @if (gameDetails.guestTeam.bestPlayer && gameDetails.guestTeam.bestPlayer.trim() !== '') {
+                          <div class="detail-item highlight">
+                            <strong>Bester Spieler:</strong> {{ gameDetails.guestTeam.bestPlayer }}
+                          </div>
+                        }
+                      </div>
+                    </mat-card-content>
+                  </mat-card>
+                </div>
               </div>
             </mat-tab>
           }
@@ -561,7 +498,7 @@
         </mat-tab-group>
       }
       <!-- No tabs available message -->
-      @if (!hasTeamDetails() && !hasPlayerStats() && !hasGameEvents() && !hasOfficials() && !hasStatistics()) {
+      @if (!hasTeamDetails() && !hasPlayerStats() && !hasGameEvents() && !hasStatistics()) {
         <div class="no-tabs-container">
           <mat-card class="no-tabs-card">
             <mat-card-content>
@@ -582,6 +519,68 @@
           </mat-card-header>
           <mat-card-content>
             <p>{{ gameDetails.notes }}</p>
+          </mat-card-content>
+        </mat-card>
+      }
+      <!-- Officials Section (always visible if data available) -->
+      @if (hasOfficials()) {
+        <mat-card class="officials-card">
+          <mat-card-header>
+            <mat-card-title>Offizielle</mat-card-title>
+          </mat-card-header>
+          <mat-card-content>
+            <div class="officials-grid">
+              @if (gameDetails.officials.referee1) {
+                <div class="official-item">
+                  <strong>1. Schiedsrichter:</strong> {{ gameDetails.officials.referee1 }}
+                </div>
+              }
+              @if (gameDetails.officials.referee2) {
+                <div class="official-item">
+                  <strong>2. Schiedsrichter:</strong> {{ gameDetails.officials.referee2 }}
+                </div>
+              }
+              @if (gameDetails.officials.timekeeper1) {
+                <div class="official-item">
+                  <strong>1. Zeitnehmer:</strong> {{ gameDetails.officials.timekeeper1 }}
+                </div>
+              }
+              @if (gameDetails.officials.timekeeper2) {
+                <div class="official-item">
+                  <strong>2. Zeitnehmer:</strong> {{ gameDetails.officials.timekeeper2 }}
+                </div>
+              }
+              @if (gameDetails.officials.secretary1) {
+                <div class="official-item">
+                  <strong>1. Sekretär:</strong> {{ gameDetails.officials.secretary1 }}
+                </div>
+              }
+              @if (gameDetails.officials.secretary2) {
+                <div class="official-item">
+                  <strong>2. Sekretär:</strong> {{ gameDetails.officials.secretary2 }}
+                </div>
+              }
+              @if (gameDetails.officials.goalJudge1) {
+                <div class="official-item">
+                  <strong>1. Torrichter:</strong> {{ gameDetails.officials.goalJudge1 }}
+                </div>
+              }
+              @if (gameDetails.officials.goalJudge2) {
+                <div class="official-item">
+                  <strong>2. Torrichter:</strong> {{ gameDetails.officials.goalJudge2 }}
+                </div>
+              }
+              @if (gameDetails.officials.observer1) {
+                <div class="official-item">
+                  <strong>1. Beobachter:</strong> {{ gameDetails.officials.observer1 }}
+                </div>
+              }
+              @if (gameDetails.officials.observer2) {
+                <div class="official-item">
+                  <strong>2. Beobachter:</strong> {{ gameDetails.officials.observer2 }}
+                </div>
+              }
+            </div>
           </mat-card-content>
         </mat-card>
       }

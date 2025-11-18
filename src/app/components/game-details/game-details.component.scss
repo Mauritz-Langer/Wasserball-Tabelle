@@ -858,10 +858,12 @@
 
     @media (max-width: 768px) {
       margin: 0 16px;
+      overflow: hidden; // Verhindert dass die Tabelle die Card vergrößert
     }
 
     @media (max-width: 480px) {
       margin: 0 12px;
+      overflow: hidden;
     }
 
     mat-card-header {
@@ -995,10 +997,11 @@
       position: relative;
 
       @media (max-width: 768px) {
-        margin-left: 0;
-        margin-right: 0;
+        // In mobiler Ansicht: Tabelle bricht aus dem Card-Padding aus
+        margin-left: -16px;
+        margin-right: -16px;
         border-radius: 0;
-        width: 100%; // Kompensiert negative margins
+        width: calc(100% + 32px); // Kompensiert die negativen margins
 
         // Scroll-Schatten
         background:
@@ -1013,9 +1016,9 @@
       }
 
       @media (max-width: 480px) {
-        margin-left: 0;
-        margin-right: 0;
-        width: 100%; // Kompensiert negative margins für kleinere Screens
+        margin-left: -12px;
+        margin-right: -12px;
+        width: calc(100% + 24px); // Kompensiert die negativen margins für kleinere Screens
       }
 
       // Scroll-Hint für Mobile
@@ -1831,6 +1834,15 @@
 
   mat-card {
     transition: all 0.3s ease;
+    margin: 0 24px;
+
+    @media (max-width: 768px) {
+      margin: 0 16px;
+    }
+
+    @media (max-width: 480px) {
+      margin: 0 12px;
+    }
 
     &:hover {
       transform: translateY(-4px);
@@ -2017,6 +2029,71 @@
   }
 }
 
+.officials-card {
+  margin-top: 24px;
+  background: linear-gradient(135deg, #e8f5e9 0%, #ffffff 100%);
+  border-left: 4px solid #4caf50;
+
+  @media (max-width: 768px) {
+    margin-top: 16px;
+  }
+
+  mat-card-header {
+    mat-card-title {
+      color: #2e7d32;
+      font-weight: 700;
+    }
+  }
+
+  mat-card-content {
+    .officials-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+      gap: 16px;
+
+      @media (max-width: 768px) {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+
+      .official-item {
+        padding: 12px;
+        background: rgba(255, 255, 255, 0.8);
+        border-radius: 8px;
+        border: 1px solid rgba(76, 175, 80, 0.2);
+        transition: all 0.3s ease;
+
+        &:hover {
+          background: rgba(255, 255, 255, 1);
+          box-shadow: 0 2px 8px rgba(76, 175, 80, 0.15);
+          transform: translateY(-2px);
+        }
+
+        strong {
+          color: #2e7d32;
+          display: block;
+          margin-bottom: 4px;
+          font-size: 13px;
+          font-weight: 600;
+
+          @media (max-width: 768px) {
+            font-size: 12px;
+          }
+        }
+
+        color: rgba(0, 0, 0, 0.7);
+        font-size: 14px;
+
+        @media (max-width: 768px) {
+          font-size: 13px;
+          padding: 10px;
+        }
+      }
+    }
+  }
+}
+
+
 // ===================================
 // DARK MODE STYLES
 // ===================================
@@ -2147,10 +2224,12 @@
 
     @media (max-width: 768px) {
       margin: 0 16px;
+      overflow: hidden; // Verhindert dass die Tabelle die Card vergrößert
     }
 
     @media (max-width: 480px) {
       margin: 0 12px;
+      overflow: hidden;
     }
 
     .team-stats-summary {
@@ -2283,6 +2362,18 @@
       border: 1px solid var(--border-color);
     }
 
+    mat-card-content {
+      padding: 20px !important;
+
+      @media (max-width: 768px) {
+        padding: 16px !important;
+      }
+
+      @media (max-width: 480px) {
+        padding: 12px !important;
+      }
+    }
+
     .stats-list .stat-item {
       border-bottom-color: var(--divider-color);
 
@@ -2312,6 +2403,32 @@
     p {
       color: var(--text-primary);
       background: rgba(255, 193, 7, 0.08);
+    }
+  }
+
+  .officials-card {
+    background: linear-gradient(135deg, rgba(76, 175, 80, 0.15) 0%, var(--surface-color) 100%);
+    border-left-color: #81c784;
+    border: 1px solid var(--border-color);
+
+    mat-card-title {
+      color: #81c784;
+    }
+
+    .officials-grid .official-item {
+      background: var(--surface-elevated);
+      border: 1px solid var(--border-color);
+      border-left: 3px solid #81c784;
+      color: var(--text-primary);
+
+      &:hover {
+        background: rgba(129, 199, 132, 0.05);
+        box-shadow: 0 2px 8px rgba(129, 199, 132, 0.2);
+      }
+
+      strong {
+        color: #81c784;
+      }
     }
   }
 }
