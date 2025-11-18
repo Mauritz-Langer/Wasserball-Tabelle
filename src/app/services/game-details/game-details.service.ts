@@ -105,15 +105,33 @@ export class GameDetailsService {
 
   /**
    * Hilfsfunktion: Extrahiert Textinhalt eines Elements
+   * Entfernt Label-Prefixe wie "Spielnummer: " aber behält Zeiten wie "7:35" bei
    */
   private getTextContent(doc: any, id: string): string {
     const element = doc.getElementById(id);
     if (!element) return '';
 
     const text = element.textContent?.trim() || '';
-    if (text.includes(':') && !text.includes('Uhr')) {
-      return text.split(':')[1]?.trim() || '';
+
+    // Wenn Text "Uhr" enthält, ist es ein Datumsfeld - nicht splitten
+    if (text.includes('Uhr')) {
+      return text;
     }
+
+    // Wenn Text einen Doppelpunkt enthält, prüfe ob es ein Label-Prefix ist
+    // Label-Prefixe haben ein Leerzeichen NACH dem Doppelpunkt
+    // Zeiten/Spielstände haben KEINE Leerzeichen nach dem Doppelpunkt
+    if (text.includes(':')) {
+      const colonIndex = text.indexOf(':');
+      // Prüfe ob nach dem Doppelpunkt ein Leerzeichen kommt
+      if (colonIndex < text.length - 1 && text[colonIndex + 1] === ' ') {
+        // Es ist ein Label-Prefix wie "Spielnummer: 12345"
+        return text.split(':')[1]?.trim() || '';
+      }
+      // Es ist eine Zeit oder Spielstand wie "7:35" oder "12:5"
+      return text;
+    }
+
     return text;
   }
 
@@ -436,18 +454,22 @@ export class GameDetailsService {
 
     // gameRepeater kann bis zu 100 Einträge haben (erweitert für größere Spiele)
     for (let i = 0; i < 100; i++) {
-      const time = this.getTextContent(doc, `ContentSection__gameRepeater__timeLabel_${i}`);
+      // Hole das time-Element direkt ohne getTextContent (um ':' nicht zu verlieren)
+      const timeElement = doc.getElementById(`ContentSection__gameRepeater__timeLabel_${i}`);
 
       // Wenn kein time-Element existiert, sind wir am Ende
-      if (!time) break;
+      if (!timeElement) break;
+
+      const time = timeElement.textContent?.trim() || '';
 
       const period = this.getTextContent(doc, `ContentSection__gameRepeater__periodLabel_${i}`);
       const player = this.getTextContent(doc, `ContentSection__gameRepeater__playerLabel_${i}`);
       const eventType = this.getTextContent(doc, `ContentSection__gameRepeater__eventkeyLabel_${i}`);
 
       // WICHTIG: Das "goals"-Feld enthält den aktuellen Spielstand im Format "X:Y"
-      // Die "home" und "guest" Felder enthalten die Trikotnummer des Spielers!
-      const goalsText = this.getTextContent(doc, `ContentSection__gameRepeater__goalsLabel_${i}`);
+      // Hole das goals-Element direkt, um den Spielstand zu erhalten
+      const goalsElement = doc.getElementById(`ContentSection__gameRepeater__goalsLabel_${i}`);
+      const goalsText = goalsElement?.textContent?.trim() || '';
 
       // Parse Spielstand aus goals-Feld (Format: "12:5" oder leer)
       let homeScore = lastHomeScore;
