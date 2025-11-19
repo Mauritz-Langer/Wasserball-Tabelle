@@ -49,7 +49,9 @@
               }
               <h2 class="team-name">{{ gameDetails.homeTeam.name }}</h2>
               <span class="team-label">Heim</span>
-              <div class="team-final-score home">{{ getFinalHomeScore() }}</div>
+              @if (isGameFinished()) {
+                <div class="team-final-score home">{{ getFinalHomeScore() }}</div>
+              }
             </div>
             <!-- Score -->
             <div class="score-section">
@@ -75,7 +77,9 @@
               }
               <h2 class="team-name">{{ gameDetails.guestTeam.name }}</h2>
               <span class="team-label">Gast</span>
-              <div class="team-final-score guest">{{ getFinalGuestScore() }}</div>
+              @if (isGameFinished()) {
+                <div class="team-final-score guest">{{ getFinalGuestScore() }}</div>
+              }
             </div>
           </div>
           <!-- Quarter Scores - Outside game-header for better mobile layout -->
@@ -90,22 +94,24 @@
             </div>
           }
           <!-- Quick Actions Bar -->
-          @if (gameDetails.venue.googleMapsLink || gameDetails.videoLink) {
-            <div class="quick-actions">
-              @if (gameDetails.venue.googleMapsLink) {
-                <button mat-stroked-button (click)="openGoogleMaps()">
-                  <mat-icon>map</mat-icon>
-                  Spielort
-                </button>
-              }
-              @if (gameDetails.videoLink) {
-                <button mat-stroked-button color="primary" (click)="openVideoLink()">
-                  <mat-icon>play_circle</mat-icon>
-                  Video
-                </button>
-              }
-            </div>
-          }
+          <div class="quick-actions">
+            @if (gameDetails.venue.googleMapsLink) {
+              <button mat-stroked-button (click)="openGoogleMaps()">
+                <mat-icon>map</mat-icon>
+                Spielort
+              </button>
+            }
+            @if (gameDetails.videoLink) {
+              <button mat-stroked-button color="primary" (click)="openVideoLink()">
+                <mat-icon>play_circle</mat-icon>
+                Video
+              </button>
+            }
+            <button mat-stroked-button color="accent" (click)="openShareImageDialog()">
+              <mat-icon>photo_camera</mat-icon>
+              Share Pic
+            </button>
+          </div>
         </mat-card-content>
       </mat-card>
       <!-- Game Info - Kompaktere Version -->
@@ -649,4 +655,3 @@
     </div>
   }
 </div>
-

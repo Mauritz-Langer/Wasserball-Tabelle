@@ -30,16 +30,13 @@ export class AppComponent implements OnInit {
   currentYear = new Date().getFullYear();
   favoritesCount = 0;
 
-  /** Inserted by Angular inject() migration for backwards compatibility */
-  constructor(...args: unknown[]);
-
   constructor() {}
 
   ngOnInit(): void {
     // Track route changes
     this.router.events.pipe(
-      filter(event => event instanceof NavigationEnd)
-    ).subscribe((event: any) => {
+      filter((event): event is NavigationEnd => event instanceof NavigationEnd)
+    ).subscribe((event: NavigationEnd) => {
       this.isHomePage = event.url === '/' || event.url.startsWith('/?');
     });
 

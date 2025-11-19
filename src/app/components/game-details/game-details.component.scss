@@ -46,8 +46,12 @@
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
 }
 
 // Error State
@@ -275,7 +279,7 @@
         font-weight: 600;
         text-transform: uppercase;
         letter-spacing: 1px;
-        color: rgba(0, 0, 0, 0.5);
+        color: var(--text-secondary);
         padding: 4px 12px;
         background: rgba(0, 0, 0, 0.05);
         border-radius: 12px;
@@ -340,7 +344,7 @@
         .versus-label {
           font-size: 24px;
           font-weight: 800;
-          color: rgba(0, 0, 0, 0.3);
+          color: var(--text-secondary);
           letter-spacing: 2px;
 
           @media (max-width: 768px) {
@@ -358,13 +362,6 @@
           letter-spacing: 1px;
           box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 
-          @media (max-width: 768px) {
-            padding: 4px 12px; // Reduziert von 6px 16px
-            font-size: 10px; // Reduziert von 11px
-            border-radius: 12px;
-            letter-spacing: 0.5px;
-          }
-
           &.finished {
             background: linear-gradient(135deg, #4caf50 0%, #66bb6a 100%);
             color: white;
@@ -378,7 +375,7 @@
 
         .scoring-system-hint {
           font-size: 11px;
-          color: rgba(0, 0, 0, 0.5);
+          color: var(--text-secondary);
           text-align: center;
 
           @media (max-width: 768px) {
@@ -430,7 +427,7 @@
       .quarter-label {
         font-size: 10px;
         font-weight: 600;
-        color: rgba(0, 0, 0, 0.5);
+        color: var(--text-secondary);
         text-transform: uppercase;
         letter-spacing: 0.5px;
 
@@ -543,7 +540,7 @@
       border-radius: 20px;
       font-size: 13px;
       font-weight: 500;
-      color: rgba(0, 0, 0, 0.87);
+      color: var(--text-secondary);
       border: 1px solid rgba(25, 118, 210, 0.2);
       transition: all 0.2s ease;
       min-height: 40px;
@@ -1036,11 +1033,10 @@
         width: calc(100% + 32px); // Kompensiert die negativen margins
 
         // Scroll-Schatten
-        background:
-          linear-gradient(90deg, white 30%, rgba(255,255,255,0)),
-          linear-gradient(90deg, rgba(255,255,255,0), white 70%) 100% 0,
-          radial-gradient(farthest-side at 0 50%, rgba(0,0,0,.2), rgba(0,0,0,0)),
-          radial-gradient(farthest-side at 100% 50%, rgba(0,0,0,.2), rgba(0,0,0,0)) 100% 0;
+        background: linear-gradient(90deg, white 30%, rgba(255, 255, 255, 0)),
+        linear-gradient(90deg, rgba(255, 255, 255, 0), white 70%) 100% 0,
+        radial-gradient(farthest-side at 0 50%, rgba(0, 0, 0, .2), rgba(0, 0, 0, 0)),
+        radial-gradient(farthest-side at 100% 50%, rgba(0, 0, 0, .2), rgba(0, 0, 0, 0)) 100% 0;
         background-repeat: no-repeat;
         background-size: 40px 100%, 40px 100%, 14px 100%, 14px 100%;
         background-attachment: local, local, scroll, scroll;
@@ -1069,7 +1065,7 @@
           font-weight: 600;
           border-radius: 0 0 8px 8px;
           animation: pulse-hint 3s ease-in-out infinite;
-          box-shadow: 0 -2px 4px rgba(0,0,0,0.05);
+          box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.05);
         }
       }
 
@@ -1398,13 +1394,21 @@
 }
 
 @keyframes trophy-pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.15); }
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.15);
+  }
 }
 
 @keyframes pulse-hint {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.85; }
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.85;
+  }
 }
 
 // ===================================
@@ -1428,8 +1432,10 @@
         font-size: 11px;
       }
     }
+
     &.goals-cell {
       text-align: center;
+
       .goals-badge {
         display: inline-flex;
         align-items: center;
@@ -1451,10 +1457,12 @@
         }
       }
     }
+
     &.foul-cell {
       text-align: center;
       border-left: 1px solid rgba(0, 0, 0, 0.06);
       padding: 8px;
+
       .foul-badge {
         display: inline-flex;
         align-items: center;
@@ -2127,345 +2135,6 @@
 
 
 // ===================================
-// DARK MODE STYLES
-// ===================================
-
-:host-context(body.dark-theme) {
-  .game-details-container {
-    background-color: var(--background-color);
-  }
-
-  .spinner-container .loading-text {
-    color: var(--text-secondary);
-  }
-
-  .error-container {
-    .error-message {
-      color: #ef5350;
-    }
-
-    mat-card {
-      background-color: var(--surface-color);
-      border: 1px solid var(--border-color);
-    }
-  }
-
-  .header-actions .page-title {
-    background: linear-gradient(135deg, #64b5f6 0%, #90caf9 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  .game-header-card {
-    background: linear-gradient(135deg, var(--surface-color) 0%, var(--surface-elevated) 100%);
-    border: 1px solid var(--border-color);
-
-    .team-name {
-      color: var(--text-primary);
-    }
-
-    .team-label {
-      color: var(--text-secondary);
-      background: var(--surface-elevated);
-    }
-
-    .team-final-score {
-      &.home {
-        color: #64b5f6;
-      }
-
-      &.guest {
-        color: #e57373;
-      }
-    }
-
-    .versus-label {
-      color: var(--text-secondary);
-    }
-
-    .quarter-score-item {
-      background: var(--surface-elevated);
-      border: 1px solid var(--border-color);
-
-      .quarter-label {
-        color: var(--text-secondary);
-      }
-
-      .quarter-value {
-        color: #64b5f6;
-      }
-    }
-  }
-
-  .info-card-compact {
-    background-color: var(--surface-color);
-    border: 1px solid var(--border-color);
-
-    .info-chip {
-      background: var(--surface-elevated);
-      color: var(--text-primary);
-      border-color: var(--border-color);
-
-      &:hover {
-        background: var(--surface-color);
-        border-color: #64b5f6;
-      }
-
-      mat-icon {
-        color: #64b5f6;
-      }
-    }
-  }
-
-  .mat-mdc-tab-labels {
-    color: var(--text-secondary) !important;
-  }
-
-  .teams-grid mat-card {
-    background-color: var(--surface-color);
-    border: 1px solid var(--border-color);
-
-    .team-details .detail-item {
-      border-bottom-color: var(--divider-color);
-      color: var(--text-primary);
-
-      &:hover {
-        background: var(--surface-elevated);
-      }
-
-      strong {
-        color: var(--text-secondary);
-      }
-
-      &.highlight {
-        background: var(--game-won-bg);
-        border-color: #81c784;
-
-        strong {
-          color: #81c784;
-        }
-      }
-    }
-  }
-
-  .players-card {
-    background-color: var(--surface-color);
-    border: 1px solid var(--border-color);
-    margin: 0 24px;
-
-    @media (max-width: 768px) {
-      margin: 0 16px;
-      overflow: hidden; // Verhindert dass die Tabelle die Card vergrößert
-    }
-
-    @media (max-width: 480px) {
-      margin: 0 12px;
-      overflow: hidden;
-    }
-
-    .team-stats-summary {
-      background: var(--surface-elevated);
-      border: 1px solid var(--border-color);
-
-      .stat-badge {
-        background: var(--surface-color);
-
-        .stat-value {
-          color: #64b5f6;
-        }
-      }
-    }
-
-    .players-table {
-      background: var(--surface-elevated);
-      thead {
-        background: var(--surface-elevated);
-
-        th {
-          color: var(--text-primary);
-          background: var(--surface-elevated);
-          border-bottom-color: var(--border-color);
-        }
-
-        tr.quarters-header th {
-          background: var(--surface-color);
-          color: #64b5f6;
-        }
-      }
-
-      tbody {
-        tr {
-          border-bottom-color: var(--divider-color);
-
-          &.top-scorer {
-            background: rgba(255, 152, 0, 0.15);
-
-            .player-name {
-              color: #ffb74d;
-            }
-          }
-        }
-
-        td {
-          color: var(--text-primary);
-
-          &.player-number {
-            background: rgba(100, 181, 246, 0.2);
-            color: #64b5f6;
-          }
-
-          &.birth-year {
-            color: var(--text-secondary);
-          }
-        }
-      }
-    }
-  }
-
-  .events-accordion ::ng-deep {
-    .mat-expansion-panel {
-      background-color: var(--surface-color);
-      border-color: var(--border-color);
-    }
-  }
-
-  .events-list-quarter .event-item {
-    background: var(--surface-color);
-    border-bottom-color: var(--divider-color);
-
-    &:hover {
-      background-color: var(--surface-elevated);
-    }
-
-    .event-time .time {
-      color: var(--text-primary);
-    }
-
-    .event-details {
-      .event-score {
-        background: linear-gradient(135deg, #64b5f6 0%, #90caf9 100%);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-      }
-
-      .event-info {
-        color: var(--text-primary);
-
-        .event-icon,
-        .event-type-text {
-          color: #64b5f6;
-        }
-
-        .event-player {
-          color: var(--text-primary);
-        }
-
-        .event-goal {
-          color: #81c784;
-          background: var(--game-won-bg);
-        }
-      }
-    }
-  }
-
-  .officials-grid .official-item {
-    background: var(--surface-elevated);
-    border: 1px solid var(--border-color);
-    border-left-color: #64b5f6;
-    color: var(--text-primary);
-
-    strong {
-      color: #64b5f6;
-    }
-
-    &:nth-child(even) {
-      border-left-color: #90caf9;
-
-      strong {
-        color: #90caf9;
-      }
-    }
-  }
-
-  .stats-grid {
-    mat-card {
-      background-color: var(--surface-color);
-      border: 1px solid var(--border-color);
-    }
-
-    mat-card-content {
-      padding: 20px !important;
-
-      @media (max-width: 768px) {
-        padding: 16px !important;
-      }
-
-      @media (max-width: 480px) {
-        padding: 12px !important;
-      }
-    }
-
-    .stats-list .stat-item {
-      border-bottom-color: var(--divider-color);
-
-      &:hover {
-        background: var(--surface-elevated);
-      }
-
-      .stat-label {
-        color: var(--text-secondary) !important;
-      }
-
-      .stat-value {
-        color: #64b5f6;
-      }
-    }
-  }
-
-  .notes-card {
-    background: linear-gradient(135deg, rgba(255, 193, 7, 0.15) 0%, var(--surface-color) 100%);
-    border-left-color: #ffb74d;
-    border: 1px solid var(--border-color);
-
-    mat-card-title {
-      color: #ffb74d;
-    }
-
-    p {
-      color: var(--text-primary);
-      background: rgba(255, 193, 7, 0.08);
-    }
-  }
-
-  .officials-card {
-    background: linear-gradient(135deg, rgba(76, 175, 80, 0.15) 0%, var(--surface-color) 100%);
-    border-left-color: #81c784;
-    border: 1px solid var(--border-color);
-
-    mat-card-title {
-      color: #81c784;
-    }
-
-    .officials-grid .official-item {
-      background: var(--surface-elevated);
-      border: 1px solid var(--border-color);
-      border-left: 3px solid #81c784;
-      color: var(--text-primary);
-
-      &:hover {
-        background: rgba(129, 199, 132, 0.05);
-        box-shadow: 0 2px 8px rgba(129, 199, 132, 0.2);
-      }
-
-      strong {
-        color: #81c784;
-      }
-    }
-  }
-}
-
-// ===================================
 // TIMELINE CARD & VISUALIZATION
 // ===================================
 
@@ -2592,11 +2261,10 @@
       }
 
       // Scroll-Schatten für bessere Orientierung
-      background:
-        linear-gradient(90deg, white 0%, transparent 20px),
-        linear-gradient(90deg, transparent calc(100% - 20px), white 100%),
-        radial-gradient(farthest-side at 0 50%, rgba(0,0,0,.15), transparent),
-        radial-gradient(farthest-side at 100% 50%, rgba(0,0,0,.15), transparent);
+      background: linear-gradient(90deg, white 0%, transparent 20px),
+      linear-gradient(90deg, transparent calc(100% - 20px), white 100%),
+      radial-gradient(farthest-side at 0 50%, rgba(0, 0, 0, .15), transparent),
+      radial-gradient(farthest-side at 100% 50%, rgba(0, 0, 0, .15), transparent);
       background-repeat: no-repeat;
       background-size: 20px 100%, 20px 100%, 15px 100%, 15px 100%;
       background-position: 0 0, 100% 0, 0 0, 100% 0;
@@ -2969,83 +2637,584 @@
 }
 
 @keyframes pulse-hint {
-  0%, 100% { opacity: 1; transform: scale(1); }
-  50% { opacity: 0.85; transform: scale(0.98); }
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(0.98);
+  }
 }
 
-// Dark Mode für Timeline
+// ===================================
+// DARK MODE STYLES
+// ===================================
+
 :host-context(body.dark-theme) {
+  .game-details-container {
+    background-color: var(--background-color);
+    color: var(--text-primary);
+  }
+
+  .spinner-container .loading-text {
+    color: var(--text-secondary);
+  }
+
+  .error-container {
+    .error-message {
+      color: #ef5350;
+    }
+
+    mat-card {
+      background-color: var(--surface-color);
+      border: 1px solid var(--border-color);
+    }
+  }
+
+  .header-actions {
+    .page-title {
+      background: linear-gradient(135deg, #64b5f6 0%, #90caf9 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .share-button mat-icon {
+      color: #64b5f6;
+    }
+  }
+
+
+  .game-header-card {
+    background: linear-gradient(135deg, var(--surface-color) 0%, var(--surface-elevated) 100%);
+    border: 1px solid var(--border-color);
+
+    .team-logo {
+      filter: drop-shadow(0 4px 8px rgba(0, 0, 0, 0.3)) brightness(0.9) contrast(1.1);
+    }
+
+    .team-name {
+      color: var(--text-primary);
+    }
+
+    .team-label {
+      color: var(--text-secondary);
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .team-final-score {
+      &.home {
+        color: #64b5f6;
+      }
+
+      &.guest {
+        color: #e57373;
+      }
+    }
+
+    .versus-label {
+      color: var(--text-secondary);
+    }
+
+    .scoring-system-hint {
+      color: var(--text-secondary);
+    }
+
+    .quarter-scores-enhanced {
+      .quarter-score-item {
+        background: var(--surface-elevated);
+        border: 1px solid var(--border-color);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+
+        .quarter-label {
+          color: var(--text-secondary);
+        }
+
+        .quarter-value {
+          color: #64b5f6;
+        }
+      }
+    }
+
+    .quick-actions {
+      border-top-color: var(--divider-color);
+
+      button:not([color="primary"]) {
+        color: var(--text-secondary);
+        border-color: var(--divider-color);
+      }
+    }
+  }
+
+  .info-card-compact {
+    background-color: var(--surface-color);
+    border: 1px solid var(--border-color);
+
+    .info-chips .info-chip {
+      background: linear-gradient(135deg, var(--surface-elevated) 0%, var(--surface-color) 100%);
+      color: var(--text-primary);
+      border-color: var(--border-color);
+
+      &:hover {
+        background: linear-gradient(135deg, var(--surface-color) 0%, var(--surface-elevated) 100%);
+        border-color: #64b5f6;
+        box-shadow: 0 4px 8px rgba(100, 181, 246, 0.2);
+      }
+
+      mat-icon {
+        color: #64b5f6;
+      }
+    }
+  }
+
+  .details-tabs ::ng-deep {
+    .mat-mdc-tab-labels {
+      background: var(--surface-elevated);
+      border-bottom: 2px solid var(--border-color);
+    }
+
+    .mat-mdc-tab {
+      color: var(--text-secondary) !important;
+
+      &.mdc-tab--active {
+        color: #64b5f6 !important;
+      }
+
+      // Alle Text-Elemente in Tabs
+      * {
+        color: inherit !important;
+      }
+
+      // Spezifisch für Tab-Content
+      mat-icon {
+        color: inherit !important;
+      }
+    }
+
+    .mat-mdc-tab-labels {
+      color: inherit !important;
+
+      * {
+        color: inherit !important;
+      }
+    }
+
+    .mat-mdc-tab-label-content {
+      color: inherit !important;
+
+      * {
+        color: inherit !important;
+      }
+    }
+
+    .mat-mdc-tab-label-active {
+      color: #64b5f6 !important;
+
+      * {
+        color: inherit !important;
+      }
+    }
+
+    .mdc-tab-indicator__content--underline {
+      border-color: #64b5f6 !important;
+    }
+
+    .mat-mdc-tab-body-content {
+      color: var(--text-primary) !important;
+    }
+
+    // Zusätzliche Sicherheit für alle Text-Elemente
+    .mat-mdc-tab-label-content,
+    .mat-mdc-tab-label-content *,
+    .mat-mdc-tab-label *,
+    .mat-mdc-tab * {
+      color: inherit !important;
+    }
+  }
+
+  .teams-grid mat-card,
+  .stats-grid mat-card,
+  .players-grid mat-card {
+    background-color: var(--surface-color);
+    border: 1px solid var(--border-color);
+
+    mat-card-title {
+      color: var(--text-primary);
+    }
+
+    &:hover {
+      box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
+    }
+  }
+
+  .teams-grid .team-details .detail-item {
+    border-bottom-color: var(--divider-color);
+    color: var(--text-primary);
+
+    &:hover {
+      background: rgba(100, 181, 246, 0.08);
+    }
+
+    strong {
+      color: var(--text-secondary);
+    }
+
+    &.highlight {
+      background: linear-gradient(90deg, rgba(129, 199, 132, 0.1) 0%, transparent 100%);
+      border-color: #81c784;
+
+      strong {
+        color: #81c784;
+      }
+    }
+  }
+
+  .players-grid .players-card {
+    .team-stats-summary {
+      background: var(--surface-elevated);
+      border-radius: 12px;
+
+      .stat-badge {
+        background: var(--surface-color);
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+
+        .stat-value {
+          color: #64b5f6;
+        }
+
+        .stat-label {
+          color: var(--text-secondary);
+        }
+      }
+    }
+
+    .players-table-container {
+      box-shadow: 0 0 0 1px var(--divider-color);
+
+      @media (max-width: 768px) {
+        background: linear-gradient(90deg, var(--surface-color) 30%, transparent),
+        linear-gradient(90deg, transparent, var(--surface-color) 70%) 100% 0,
+        radial-gradient(farthest-side at 0 50%, rgba(0, 0, 0, .4), transparent),
+        radial-gradient(farthest-side at 100% 50%, rgba(0, 0, 0, .4), transparent) 100% 0;
+        background-repeat: no-repeat;
+        background-size: 40px 100%, 40px 100%, 14px 100%, 14px 100%;
+        background-attachment: local, local, scroll, scroll;
+        background-color: var(--surface-color);
+      }
+
+      &::after {
+        @media (max-width: 768px) {
+          background: linear-gradient(135deg, var(--surface-elevated) 0%, var(--surface-color) 100%);
+          color: #64b5f6;
+          box-shadow: 0 -2px 4px rgba(0, 0, 0, 0.2);
+        }
+      }
+
+      .players-table {
+        thead {
+          background: var(--surface-elevated);
+          box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+
+          th {
+            color: var(--text-primary);
+            border-bottom-color: var(--border-color);
+          }
+
+          tr.quarters-header th {
+            border-left-color: var(--divider-color);
+            color: #64b5f6;
+            background: var(--surface-color);
+          }
+        }
+
+        tbody {
+          tr {
+            border-bottom-color: var(--divider-color);
+
+            &:hover {
+              background-color: rgba(100, 181, 246, 0.08);
+            }
+
+            &.top-scorer {
+              background: linear-gradient(90deg, rgba(255, 152, 0, 0.1) 0%, transparent 100%);
+
+              &:hover {
+                background: linear-gradient(90deg, rgba(255, 152, 0, 0.15) 0%, transparent 100%);
+              }
+
+              .player-name {
+                color: #ffb74d;
+              }
+            }
+          }
+
+          td {
+            color: var(--text-primary);
+
+            &.player-number {
+              background: rgba(100, 181, 246, 0.1);
+              color: #64b5f6;
+            }
+
+            &.birth-year {
+              color: var(--text-secondary);
+            }
+
+            &.foul-cell {
+              border-left-color: var(--divider-color);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  .events-accordion ::ng-deep {
+    .mat-expansion-panel {
+      background-color: var(--surface-color);
+      border-color: var(--border-color);
+
+      &.mat-expanded {
+        box-shadow: 0 4px 12px rgba(100, 181, 246, 0.15);
+        border-color: #64b5f6;
+      }
+
+      .mat-expansion-panel-header {
+        background: linear-gradient(135deg, #1e88e5 0%, #42a5f5 100%);
+        color: white;
+      }
+    }
+  }
+
+  .events-list-quarter .event-item {
+    background: var(--surface-elevated);
+    border-bottom-color: var(--divider-color);
+
+    &:hover {
+      background-color: var(--surface-color);
+
+      &::before {
+        background: #64b5f6;
+      }
+    }
+
+    .event-time .time {
+      color: var(--text-primary);
+    }
+
+    .event-details {
+      .event-score {
+        background: linear-gradient(135deg, #64b5f6 0%, #90caf9 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      .event-info {
+        color: var(--text-primary);
+
+        .event-icon,
+        .event-type-text {
+          color: #64b5f6;
+        }
+
+        .event-player {
+          color: var(--text-secondary);
+        }
+
+        .event-goal {
+          color: #a5d6a7;
+          background: linear-gradient(135deg, rgba(129, 199, 132, 0.1) 0%, rgba(129, 199, 132, 0.2) 100%);
+        }
+      }
+    }
+  }
+
+  .no-data {
+    color: var(--text-secondary);
+  }
+
+  .no-tabs-container .no-tabs-card {
+    background-color: var(--surface-color);
+
+    .no-data-message {
+      .no-data-icon {
+        color: #64b5f6;
+      }
+
+      h2 {
+        color: var(--text-primary);
+      }
+
+      p {
+        color: var(--text-secondary);
+      }
+    }
+  }
+
+  .notes-card {
+    background: linear-gradient(135deg, rgba(255, 202, 40, 0.1) 0%, transparent 100%);
+    border-left-color: #ffca28;
+
+    mat-card-header mat-card-title {
+      color: #ffca28;
+    }
+
+    mat-card-content p {
+      color: var(--text-secondary);
+      background: rgba(255, 255, 255, 0.05);
+    }
+  }
+
+  .officials-card {
+    background: linear-gradient(135deg, rgba(129, 199, 132, 0.1) 0%, transparent 100%);
+    border-left-color: #81c784;
+
+    mat-card-header mat-card-title {
+      color: #81c784;
+    }
+
+    mat-card-content .officials-grid .official-item {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(129, 199, 132, 0.3);
+
+      &:hover {
+        background: rgba(255, 255, 255, 0.08);
+        box-shadow: 0 2px 8px rgba(129, 199, 132, 0.15);
+      }
+
+      strong {
+        color: #81c784;
+      }
+
+      color: var(--text-secondary);
+    }
+  }
+
+  .stats-grid {
+    .stats-list .stat-item {
+      border-bottom-color: var(--divider-color);
+
+      &:hover {
+        background: rgba(100, 181, 246, 0.08);
+      }
+
+      .stat-label {
+        color: var(--text-secondary);
+      }
+
+      .stat-value {
+        color: #64b5f6;
+      }
+    }
+  }
+
+  // Timeline Dark Mode
   .timeline-card {
     background: linear-gradient(135deg, var(--surface-color) 0%, var(--surface-elevated) 100%);
     border: 1px solid var(--border-color);
 
     .timeline-title {
-      color: var(--text-primary);
+      color: #64b5f6;
+    }
+
+    .timeline-scroll-hint {
+      background: linear-gradient(135deg, var(--surface-elevated) 0%, var(--surface-color) 100%);
+      color: #64b5f6;
     }
 
     .game-timeline {
-      // Viertel-Markierungen oben
-      .timeline-quarters {
-        .quarter-marker {
-          .quarter-label {
-            background: linear-gradient(135deg, #64b5f6 0%, #90caf9 100%);
-            color: white;
+      @media (max-width: 768px) {
+        scrollbar-color: rgba(100, 181, 246, 0.3) rgba(255, 255, 255, 0.05);
+
+        &::-webkit-scrollbar-track {
+          background: rgba(255, 255, 255, 0.05);
+        }
+        &::-webkit-scrollbar-thumb {
+          background: rgba(100, 181, 246, 0.3);
+
+          &:active {
+            background: rgba(100, 181, 246, 0.5);
           }
+        }
+
+        background: linear-gradient(90deg, var(--surface-elevated) 0%, transparent 20px),
+        linear-gradient(90deg, transparent calc(100% - 20px), var(--surface-elevated) 100%),
+        radial-gradient(farthest-side at 0 50%, rgba(0, 0, 0, .3), transparent),
+        radial-gradient(farthest-side at 100% 50%, rgba(0, 0, 0, .3), transparent);
+        background-repeat: no-repeat;
+        background-size: 20px 100%, 20px 100%, 15px 100%, 15px 100%;
+        background-position: 0 0, 100% 0, 0 0, 100% 0;
+        background-attachment: local, local, scroll, scroll;
+      }
+
+      .timeline-line {
+        background: linear-gradient(90deg, rgba(100, 181, 246, 0.15) 0%, rgba(100, 181, 246, 0.3) 50%, rgba(100, 181, 246, 0.15) 100%);
+        box-shadow: 0 4px 12px rgba(100, 181, 246, 0.1);
+
+        .quarter-divider {
+          background: linear-gradient(180deg, rgba(100, 181, 246, 0.2) 0%, rgba(100, 181, 246, 0.4) 50%, rgba(100, 181, 246, 0.2) 100%);
         }
       }
 
-      // Timeline-Linie
-      .timeline-line {
-        background: linear-gradient(90deg, rgba(76, 175, 80, 0.2) 0%, rgba(76, 175, 80, 0.5) 50%, rgba(76, 175, 80, 0.2) 100%);
-      }
-
-      // Timeline-Events
       .timeline-event {
         .event-marker-icon {
-          background: white;
-          color: #1976d2;
+          background: var(--surface-elevated);
+          color: #64b5f6;
+          box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
         }
 
-        // Event-Popup (Tooltip)
         .event-popup {
-          background: var(--surface-color);
-          border: 1px solid var(--border-color);
+          background: var(--surface-elevated);
+          border-color: var(--border-color);
+          box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
 
-          .event-popup-time {
-            color: #1976d2;
+          &::after {
+            border-top-color: var(--surface-elevated);
+            filter: drop-shadow(0 -2px 2px rgba(0, 0, 0, 0.2));
           }
 
-          .event-popup-type,
+          .event-popup-time {
+            color: #64b5f6;
+          }
+
+          .event-popup-type {
+            color: var(--text-primary);
+          }
+
           .event-popup-player {
-            color: rgba(0, 0, 0, 0.87);
+            color: var(--text-secondary);
           }
 
           .event-popup-score {
-            color: #1976d2;
+            color: #64b5f6;
           }
         }
 
-        // Event-Typen Farben
-        &.event-goal {
-          .event-marker-icon {
-            background: linear-gradient(135deg, #4caf50 0%, #66bb6a 100%);
-            color: white;
-          }
+        &.event-goal .event-marker-icon {
+          background: linear-gradient(135deg, #66bb6a 0%, #81c784 100%);
+          color: #1b5e20;
+          border: 2px solid #c8e6c9;
         }
 
-        &.event-penalty {
-          .event-marker-icon {
-            background: linear-gradient(135deg, #ff9800 0%, #ffb74d 100%);
-            color: white;
-          }
+        &.event-penalty .event-marker-icon {
+          background: linear-gradient(135deg, #ffb74d 0%, #ffca28 100%);
+          color: #e65100;
+          border: 2px solid #ffe082;
         }
 
-        &.event-exclusion {
-          .event-marker-icon {
-            background: linear-gradient(135deg, #f44336 0%, #ef5350 100%);
-            color: white;
-          }
+        &.event-exclusion .event-marker-icon {
+          background: linear-gradient(135deg, #ef5350 0%, #e57373 100%);
+          color: #b71c1c;
+          border: 2px solid #ffcdd2;
         }
+      }
+
+      .timeline-time-labels .time-label {
+        color: var(--text-secondary);
+        background: var(--surface-elevated);
+        box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
       }
     }
   }

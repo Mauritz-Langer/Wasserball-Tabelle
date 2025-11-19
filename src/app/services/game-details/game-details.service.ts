@@ -60,11 +60,11 @@ export class GameDetailsService {
     const startDate = this.getTextContent(doc, 'ContentSection__startdateLabel');
     const playKind = this.getTextContent(doc, 'ContentSection__playkindLabel');
 
-    // Extrahiere Logos aus dem Header-Element
-    const { homeLogoUrl, guestLogoUrl } = this.extractLogosFromHeader(doc);
+    // Extrahiere Logos und Namen aus dem Header-Element
+    const { homeLogoUrl, guestLogoUrl, homeName, guestName } = this.extractLogosAndNamesFromHeader(doc);
 
-    const homeTeam = this.parseTeamDetails(doc, 'white', homeLogoUrl);
-    const guestTeam = this.parseTeamDetails(doc, 'blue', guestLogoUrl);
+    const homeTeam = this.parseTeamDetails(doc, 'white', homeLogoUrl, homeName);
+    const guestTeam = this.parseTeamDetails(doc, 'blue', guestLogoUrl, guestName);
 
     // Extrahiere Final Score und Scoring System separat
     const { finalScore, scoringSystem } = this.parseFinalScoreAndSystem(doc);
@@ -143,16 +143,26 @@ export class GameDetailsService {
   }
 
   /**
-   * Extrahiert die Logos aus dem Header-Element
+   * Extrahiert die Logos und Namen aus dem Header-Element
    * Format: <span id="ContentSection__headerLabel"><img src="..."/>Team1 : <img src="..."/>Team2</span>
    */
-  private extractLogosFromHeader(doc: any): { homeLogoUrl: string, guestLogoUrl: string } {
+  private extractLogosAndNamesFromHeader(doc: any): { homeLogoUrl: string, guestLogoUrl: string, homeName: string, guestName: string } {
     let homeLogoUrl = '';
     let guestLogoUrl = '';
+    let homeName = '';
+    let guestName = '';
 
     const headerElement = doc.getElementById('ContentSection__headerLabel');
     if (headerElement) {
       const images = headerElement.querySelectorAll('img');
+      const fullHeaderText = headerElement.textContent?.trim() || '';
+
+      // Extrahiere Namen aus dem Text-Content
+      if (fullHeaderText.includes(':')) {
+        const parts = fullHeaderText.split(':');
+        homeName = parts[0]?.trim() || '';
+        guestName = parts[1]?.trim() || '';
+      }
 
       // Erstes Bild = Heim-Team, Zweites Bild = Gast-Team
       if (images.length >= 1) {
@@ -182,7 +192,7 @@ export class GameDetailsService {
       }
     }
 
-    return { homeLogoUrl, guestLogoUrl };
+    return { homeLogoUrl, guestLogoUrl, homeName, guestName };
   }
 
   /**
@@ -235,8 +245,8 @@ export class GameDetailsService {
   /**
    * Parst Team-Details (Heim oder Gast)
    */
-  private parseTeamDetails(doc: any, prefix: string, logoUrl: string): TeamDetails {
-    const name = this.getTextContent(doc, `ContentSection__${prefix}Label`);
+  private parseTeamDetails(doc: any, prefix: string, logoUrl: string, fallbackName: string): TeamDetails {
+    const name = this.getTextContent(doc, `ContentSection__${prefix}Label`) || fallbackName;
     const players = this.parsePlayerStatistics(doc, prefix);
 
     return {

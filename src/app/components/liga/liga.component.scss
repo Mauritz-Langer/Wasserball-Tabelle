@@ -216,7 +216,7 @@
     }
 
     .export-hint {
-      color: rgba(0, 0, 0, 0.6);
+      color: var(--text-secondary);
       font-size: 13px;
 
       @media (max-width: 768px) {

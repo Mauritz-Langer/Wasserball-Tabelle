@@ -1,0 +1,324 @@
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;700;900&family=Teko:wght@600&display=swap');
+
+:host {
+  display: block;
+  font-family: 'Roboto', sans-serif;
+  background-color: var(--surface-color);
+  color: var(--text-primary);
+}
+
+// Container for the visible dialog content
+.dialog-container {
+  background-color: var(--surface-color);
+  color: var(--text-primary);
+  padding: 24px;
+  text-align: center;
+}
+
+.dialog-title {
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 8px;
+  color: var(--text-primary);
+}
+
+.dialog-subtitle {
+  font-size: 14px;
+  color: var(--text-secondary);
+  margin-bottom: 24px;
+}
+
+.preview-container {
+  margin-bottom: 24px;
+  .preview-image {
+    width: 100%;
+    max-width: 270px; // 1080px / 4
+    height: auto;
+    border-radius: 8px;
+    border: 1px solid var(--border-color);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  }
+}
+
+:host(.dark-theme) .preview-image {
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+}
+
+.loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  min-height: 300px;
+  gap: 16px;
+  p {
+    font-size: 16px;
+    color: var(--text-secondary);
+  }
+}
+
+.actions-container {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  button {
+    width: 100%;
+    height: 48px;
+    font-size: 16px;
+  }
+}
+
+
+// =============================================
+// STYLES FOR THE IMAGE TO BE GENERATED
+// =============================================
+
+.share-image-content {
+  width: 1080px;
+  height: 1920px;
+  position: absolute;
+  top: -9999px;
+  left: -9999px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+
+  .background-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(160deg, #005c97, #363795);
+    z-index: 1;
+  }
+
+  .content-layer {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    padding: 60px 50px;
+    color: white;
+  }
+
+  .header {
+    text-align: center;
+    margin-bottom: 40px;
+    flex-shrink: 0;
+    .league-badge {
+      display: inline-block;
+      background: rgba(255, 255, 255, 0.15);
+      color: white;
+      padding: 12px 30px;
+      border-radius: 50px;
+      font-size: 42px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      border: 2px solid rgba(255, 255, 255, 0.4);
+      max-width: 100%;
+      white-space: normal;
+      word-break: break-word;
+    }
+  }
+
+  // Styles for FINISHED games
+  .main-content {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex-grow: 1;
+    gap: 40px;
+
+    .teams-and-score {
+      display: flex;
+      align-items: center;
+      justify-content: space-around;
+      width: 100%;
+    }
+
+    .team {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      width: 30%;
+
+      .team-logo {
+        width: 250px;
+        height: 250px;
+        object-fit: contain;
+        margin-bottom: 25px;
+        filter: drop-shadow(0 8px 16px rgba(0, 0, 0, 0.3));
+      }
+
+      .team-name {
+        font-size: 60px;
+        font-weight: 900;
+        line-height: 1.15;
+        margin: 0;
+        word-wrap: break-word;
+      }
+    }
+
+    .score-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 15px;
+      flex-shrink: 0;
+
+      .final-score {
+        font-family: 'Teko', sans-serif;
+        font-size: 220px;
+        font-weight: 600;
+        line-height: 1;
+        text-shadow: 0 0 30px rgba(255, 255, 255, 0.5);
+      }
+
+      .status-badge {
+        background: rgba(0, 0, 0, 0.25);
+        padding: 10px 25px;
+        border-radius: 30px;
+        font-size: 30px;
+        font-weight: 700;
+        text-transform: uppercase;
+        margin-top: 10px;
+      }
+    }
+  }
+
+  // Styles for FUTURE games (Announcement)
+  .main-content-future {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    flex-grow: 1;
+    gap: 30px;
+
+    .team-vertical {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+
+      .team-logo-large {
+        width: 350px;
+        height: 350px;
+        object-fit: contain;
+        margin-bottom: 20px;
+        filter: drop-shadow(0 10px 25px rgba(0, 0, 0, 0.3));
+      }
+
+      .team-name-large {
+        font-size: 80px;
+        font-weight: 900;
+        line-height: 1.1;
+        margin: 0;
+        word-wrap: break-word;
+      }
+    }
+
+    .versus-divider {
+      font-family: 'Teko', sans-serif;
+      font-size: 100px;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.8);
+      margin: 10px 0;
+      width: 80%;
+      text-align: center;
+      border-top: 2px solid rgba(255, 255, 255, 0.3);
+      border-bottom: 2px solid rgba(255, 255, 255, 0.3);
+      padding: 10px 0;
+    }
+
+    .game-details-future {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 25px;
+      margin-top: 40px;
+      padding: 30px;
+      background: rgba(0, 0, 0, 0.2);
+      border-radius: 20px;
+      width: 100%;
+      max-width: 800px;
+
+      .detail-item-future {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        font-size: 48px;
+        font-weight: 700;
+        width: 100%;
+        justify-content: center;
+
+        mat-icon {
+          font-size: 52px;
+          width: 52px;
+          height: 52px;
+          color: rgba(255, 255, 255, 0.8);
+          flex-shrink: 0; // Prevent icon from shrinking
+        }
+
+        span {
+          text-align: center;
+        }
+      }
+    }
+  }
+
+  .quarter-scores-container {
+    padding: 25px;
+    background: rgba(0, 0, 0, 0.2);
+    border-radius: 20px;
+    width: 100%;
+    max-width: 800px;
+    flex-shrink: 0;
+
+    .quarter-scores-grid {
+      display: flex;
+      justify-content: space-around;
+    }
+
+    .quarter-score-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      padding: 0 15px;
+
+      .quarter-label {
+        font-size: 26px;
+        font-weight: 700;
+        color: rgba(255, 255, 255, 0.7);
+      }
+
+      .quarter-value {
+        font-size: 44px;
+        font-weight: 900;
+      }
+    }
+  }
+
+  .footer {
+    margin-top: auto;
+    padding-top: 30px;
+    border-top: 2px solid rgba(255, 255, 255, 0.3);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 28px;
+    color: rgba(255, 255, 255, 0.8);
+    flex-shrink: 0;
+
+    .watermark {
+      font-weight: 700;
+      opacity: 0.8;
+    }
+  }
+}

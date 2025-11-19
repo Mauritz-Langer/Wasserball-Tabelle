@@ -7,11 +7,15 @@ import { MatIcon } from '@angular/material/icon';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatTab, MatTabGroup } from '@angular/material/tabs';
 import { MatExpansionModule } from '@angular/material/expansion';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { GameDetailsService } from '../../services/game-details/game-details.service';
 import { GameDetails, GameEvent } from '../../models/game-details';
+import { ShareImageComponent } from '../share-image/share-image.component';
 
 @Component({
     selector: 'app-game-details',
+    standalone: true,
     imports: [
         CommonModule,
         MatCard,
@@ -24,7 +28,10 @@ import { GameDetails, GameEvent } from '../../models/game-details';
         MatIconButton,
         MatTabGroup,
         MatTab,
-        MatExpansionModule
+        MatExpansionModule,
+        MatDialogModule,
+        ShareImageComponent,
+        MatSnackBarModule
     ],
     templateUrl: './game-details.component.html',
     styleUrl: './game-details.component.scss'
@@ -33,6 +40,8 @@ export class GameDetailsComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private gameDetailsService = inject(GameDetailsService);
+  private dialog = inject(MatDialog);
+  private snackBar = inject(MatSnackBar);
 
 
   gameDetails: GameDetails | null = null;
@@ -41,9 +50,6 @@ export class GameDetailsComponent implements OnInit {
 
   // Timeline state für Mobile
   activeEventIndex: number | null = null;
-
-  /** Inserted by Angular inject() migration for backwards compatibility */
-  constructor(...args: unknown[]);
 
   constructor() {}
 
@@ -120,6 +126,143 @@ export class GameDetailsComponent implements OnInit {
       window.open(this.gameDetails.videoLink, '_blank');
     }
   }
+
+  /**
+   * Parst den deutschen Datumsstring in ein Date-Objekt
+   */
+  private parseGameDate(dateStr: string): Date | null {
+    try {
+      const cleanedStr = dateStr.replace(' Uhr', '').trim();
+      const parts = cleanedStr.split(' ');
+
+      let datePart: string;
+      let timePart: string;
+
+      if (parts.length > 1 && parts[parts.length - 1].includes(':')) {
+        timePart = parts[parts.length - 1];
+        datePart = parts.slice(0, parts.length - 1).join(' ').replace(',', '').trim();
+      } else {
+        datePart = cleanedStr.replace(',', '').trim();
+        timePart = '00:00';
+      }
+
+      const dateParts = datePart.split('.');
+      const timeParts = timePart.split(':');
+
+      if (dateParts.length < 3 || timeParts.length < 2) {
+        console.error('Could not parse date or time parts from:', datePart, timePart);
+        return null;
+      }
+
+      const day = parseInt(dateParts[0]);
+      const month = parseInt(dateParts[1]) - 1;
+      let year = parseInt(dateParts[2]);
+
+      if (year < 100) {
+        year += 2000;
+      }
+
+      const hours = parseInt(timeParts[0]);
+      const minutes = parseInt(timeParts[1]);
+
+      if (isNaN(day) || isNaN(month) || isNaN(year) || isNaN(hours) || isNaN(minutes)) {
+        console.error('Invalid number found during date parsing');
+        return null;
+      }
+
+      return new Date(year, month, day, hours, minutes);
+    } catch (error) {
+      console.error('Error parsing game date string:', dateStr, error);
+      return null;
+    }
+  }
+
+  /**
+   * Öffnet den Dialog zur Erstellung des Share-Images
+   */
+  openShareImageDialog(): void {
+    if (!this.gameDetails) {
+      return;
+    }
+
+    const gameDate = this.parseGameDate(this.gameDetails.startDate);
+
+    this.dialog.open(ShareImageComponent, {
+      width: '90vw',
+      maxWidth: '500px',
+      data: {
+        homeTeam: {
+          name: this.gameDetails.homeTeam.name,
+          logo: this.gameDetails.homeTeam.logoUrl
+        },
+        guestTeam: {
+          name: this.gameDetails.guestTeam.name,
+          logo: this.gameDetails.guestTeam.logoUrl
+        },
+        finalScore: `${this.getFinalHomeScore()}:${this.getFinalGuestScore()}`,
+        gameDate: gameDate, // Pass Date object
+        gameLocation: `${this.gameDetails.venue.poolName}, ${this.gameDetails.venue.poolCity}`,
+        league: this.gameDetails.league,
+        quarterScores: this.gameDetails.quarterScores,
+        isFutureGame: !this.isGameFinished()
+      }
+    });
+  }
+
+  /**
+   * Teilt den User via Web Share API oder kopiert den Link
+   */
+  shareGame(): void {
+    if (!this.gameDetails) return;
+
+    const title = `Wasserball: ${this.gameDetails.homeTeam.name} vs ${this.gameDetails.guestTeam.name}`;
+    let text = `${title}\nLiga: ${this.gameDetails.league}\nDatum: ${this.gameDetails.startDate}`;
+    if (this.isGameFinished()) {
+      text += `\nEndergebnis: ${this.getFinalHomeScore()}:${this.getFinalGuestScore()}`;
+    }
+    text += `\n\nDetails zum Spiel findest du hier:`;
+
+    const shareData = {
+      title: title,
+      text: text,
+      url: window.location.href
+    };
+
+    if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
+      navigator.share(shareData)
+        .then(() => this.showSnackbar('Spiel erfolgreich geteilt!'))
+        .catch((error) => {
+          if (error.name !== 'AbortError') {
+            this.showSnackbar('Fehler beim Teilen: ' + error.message, true);
+          }
+        });
+    } else {
+      this.copyToClipboard(window.location.href);
+    }
+  }
+
+  /**
+   * Kopiert den Link in die Zwischenablage und zeigt eine Snackbar
+   */
+  private copyToClipboard(text: string): void {
+    navigator.clipboard.writeText(text).then(() => {
+      this.showSnackbar('Link in die Zwischenablage kopiert!');
+    }).catch(err => {
+      this.showSnackbar('Fehler beim Kopieren des Links.', true);
+      console.error('Could not copy text: ', err);
+    });
+  }
+
+  /**
+   * Zeigt eine Snackbar-Nachricht an
+   */
+  private showSnackbar(message: string, isError: boolean = false): void {
+    this.snackBar.open(message, 'Schließen', {
+      duration: 3000,
+      panelClass: isError ? ['snackbar-error'] : ['snackbar-success']
+    });
+  }
+
 
   /**
    * Lädt das Protokoll herunter
@@ -318,44 +461,12 @@ export class GameDetailsComponent implements OnInit {
     }
 
     // 3. Prüfe ob das Datum in der Vergangenheit liegt
-    if (this.gameDetails.startDate) {
-      try {
-        // Deutsches Datumsformat parsen: "DD.MM.YYYY, HH:MM Uhr" oder "DD.MM.YY, HH:MM Uhr"
-        const dateStr = this.gameDetails.startDate;
-        const parts = dateStr.replace(' Uhr', '').split(', ');
-
-        if (parts.length >= 1) {
-          const datePart = parts[0].trim();
-          const timePart = parts[1]?.trim() || '00:00';
-
-          const dateParts = datePart.split('.');
-          const timeParts = timePart.split(':');
-
-          if (dateParts.length >= 3 && timeParts.length >= 2) {
-            const day = parseInt(dateParts[0]);
-            const month = parseInt(dateParts[1]) - 1; // Monate sind 0-basiert
-            let year = parseInt(dateParts[2]);
-
-            // Wenn Jahr 2-stellig ist (z.B. 24), zu 4-stellig konvertieren
-            if (year < 100) {
-              year += 2000;
-            }
-
-            const hours = parseInt(timeParts[0]);
-            const minutes = parseInt(timeParts[1]);
-
-            const gameDate = new Date(year, month, day, hours, minutes);
-            const now = new Date();
-
-            // Spiel ist beendet, wenn es mehr als 2 Stunden in der Vergangenheit liegt
-            // (um laufende Spiele zu berücksichtigen)
-            const twoHoursAgo = new Date(now.getTime() - (2 * 60 * 60 * 1000));
-            return gameDate < twoHoursAgo;
-          }
-        }
-      } catch (error) {
-        console.error('Error parsing game date:', error);
-      }
+    const gameDate = this.parseGameDate(this.gameDetails.startDate);
+    if (gameDate) {
+      const now = new Date();
+      // Spiel ist beendet, wenn es mehr als 2 Stunden in der Vergangenheit liegt
+      const twoHoursAgo = new Date(now.getTime() - (2 * 60 * 60 * 1000));
+      return gameDate < twoHoursAgo;
     }
 
     // Wenn nichts davon zutrifft, gilt das Spiel als noch nicht beendet
@@ -426,67 +537,6 @@ export class GameDetailsComponent implements OnInit {
       const minuteB = this.parseGameMinute(b.time, b.period) || 0;
       return minuteA - minuteB;
     });
-  }
-
-  /**
-   * Teilt den User via Web Share API
-   */
-  shareGame(): void {
-    if (!this.gameDetails) return;
-
-    const shareData = {
-      title: `Wasserball: ${this.gameDetails.homeTeam.name} vs ${this.gameDetails.guestTeam.name}`,
-      text: `Endergebnis: ${this.getFinalHomeScore()}:${this.getFinalGuestScore()}\n${this.gameDetails.league}`,
-      url: window.location.href
-    };
-
-    // Prüfe ob Web Share API verfügbar ist
-    if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
-      navigator.share(shareData)
-        .then(() => console.log('Erfolgreich geteilt'))
-        .catch((error) => console.log('Fehler beim Teilen:', error));
-    } else {
-      // Fallback: Kopiere Link in Zwischenablage
-      this.copyToClipboard(window.location.href);
-    }
-  }
-
-  /**
-   * Kopiert Text in die Zwischenablage
-   */
-  private copyToClipboard(text: string): void {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(text)
-        .then(() => {
-          alert('Link in Zwischenablage kopiert!');
-        })
-        .catch((error) => {
-          console.error('Fehler beim Kopieren:', error);
-          this.fallbackCopyToClipboard(text);
-        });
-    } else {
-      this.fallbackCopyToClipboard(text);
-    }
-  }
-
-  /**
-   * Fallback für ältere Browser
-   */
-  private fallbackCopyToClipboard(text: string): void {
-    const textArea = document.createElement('textarea');
-    textArea.value = text;
-    textArea.style.position = 'fixed';
-    textArea.style.left = '-999999px';
-    document.body.appendChild(textArea);
-    textArea.select();
-    try {
-      document.execCommand('copy');
-      alert('Link in Zwischenablage kopiert!');
-    } catch (error) {
-      console.error('Fallback-Kopieren fehlgeschlagen:', error);
-      alert('Link konnte nicht kopiert werden. Bitte manuell kopieren: ' + text);
-    }
-    document.body.removeChild(textArea);
   }
 
   /**

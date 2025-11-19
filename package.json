@@ -22,6 +22,7 @@
     "@angular/router": "^20.3.12",
     "@angular/service-worker": "^20.3.12",
     "dom-parser": "^1.1.5",
+    "html2canvas": "^1.4.1",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0",
     "zone.js": "~0.15.1"

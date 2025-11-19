@@ -1,0 +1,102 @@
+<div class="dialog-container">
+  <!-- This is the element that will be converted to an image -->
+  <div #shareImage class="share-image-content">
+    <div class="background-layer"></div>
+    <div class="content-layer">
+      <header class="header">
+        <span class="league-badge">{{ league }}</span>
+      </header>
+
+      <!-- Layout for FINISHED games -->
+      <main class="main-content" *ngIf="!isFutureGame">
+        <div class="teams-and-score">
+          <div class="team home-team">
+            <img [src]="homeTeam.logo" alt="{{ homeTeam.name }} Logo" class="team-logo" />
+            <h2 class="team-name">{{ homeTeam.name }}</h2>
+          </div>
+
+          <div class="score-container">
+            <span class="final-score">{{ finalScore }}</span>
+            <span class="status-badge">Endergebnis</span>
+          </div>
+
+          <div class="team guest-team">
+            <img [src]="guestTeam.logo" alt="{{ guestTeam.name }} Logo" class="team-logo" />
+            <h2 class="team-name">{{ guestTeam.name }}</h2>
+          </div>
+        </div>
+
+        <div class="quarter-scores-container" *ngIf="quarterScores && quarterScores.length > 0">
+          <div class="quarter-scores-grid">
+            <div *ngFor="let quarter of quarterScores" class="quarter-score-item">
+              <span class="quarter-label">Q{{ quarter.quarter }}</span>
+              <span class="quarter-value">{{ quarter.home }}:{{ quarter.guest }}</span>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <!-- Layout for FUTURE games (Announcement) -->
+      <main class="main-content-future" *ngIf="isFutureGame">
+        <div class="team-vertical home-team">
+          <img [src]="homeTeam.logo" alt="{{ homeTeam.name }} Logo" class="team-logo-large" />
+          <h2 class="team-name-large">{{ homeTeam.name }}</h2>
+        </div>
+
+        <div class="versus-divider">VS</div>
+
+        <div class="team-vertical guest-team">
+          <img [src]="guestTeam.logo" alt="{{ guestTeam.name }} Logo" class="team-logo-large" />
+          <h2 class="team-name-large">{{ guestTeam.name }}</h2>
+        </div>
+
+        <div class="game-details-future">
+          <div class="detail-item-future">
+            <mat-icon>event</mat-icon>
+            <span>{{ gameDate | date:'EEEE, dd. MMMM yyyy' }}</span>
+          </div>
+          <div class="detail-item-future">
+            <mat-icon>schedule</mat-icon>
+            <span>{{ gameDate | date:'HH:mm' }} Uhr</span>
+          </div>
+          <div class="detail-item-future">
+            <mat-icon>place</mat-icon>
+            <span>{{ gameLocation }}</span>
+          </div>
+        </div>
+      </main>
+
+      <footer class="footer">
+        <div class="watermark">
+          <span>Wasserball-Tabelle</span>
+        </div>
+      </footer>
+    </div>
+  </div>
+
+  <!-- This is the visible part of the dialog -->
+  <div class="preview-and-actions">
+    <h2 class="dialog-title">Share Pic</h2>
+    <p class="dialog-subtitle">Dein Bild wurde generiert. Lade es herunter und teile es!</p>
+
+    <div class="preview-container" *ngIf="!isLoading && generatedImage">
+      <img [src]="generatedImage" alt="Vorschau des Share-Bildes" class="preview-image">
+    </div>
+
+    <div class="loading-container" *ngIf="isLoading">
+      <mat-progress-spinner mode="indeterminate" diameter="50"></mat-progress-spinner>
+      <p>Generiere Bild...</p>
+    </div>
+
+    <div class="actions-container">
+      <button mat-flat-button color="primary" (click)="downloadImage()" [disabled]="isLoading || !generatedImage">
+        <mat-icon>download</mat-icon>
+        Herunterladen
+      </button>
+      <button mat-dialog-close mat-stroked-button>
+        <mat-icon>close</mat-icon>
+        Schließen
+      </button>
+    </div>
+  </div>
+</div>
