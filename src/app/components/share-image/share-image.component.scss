@@ -13,6 +13,9 @@
   color: var(--text-primary);
   padding: 24px;
   text-align: center;
+  // Make the dialog content scrollable on smaller screens
+  max-height: 85vh;
+  overflow-y: auto;
 }
 
 .dialog-title {
@@ -65,6 +68,12 @@
     width: 100%;
     height: 48px;
     font-size: 16px;
+
+    mat-icon {
+      font-size: 28px; // Increase icon size
+      height: 28px;
+      width: 28px;
+    }
   }
 }
 
@@ -113,7 +122,7 @@
       color: white;
       padding: 12px 30px;
       border-radius: 50px;
-      font-size: 42px;
+      font-size: 42px !important;
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 2px;
@@ -156,7 +165,7 @@
       }
 
       .team-name {
-        font-size: 60px;
+        font-size: 60px !important;
         font-weight: 900;
         line-height: 1.15;
         margin: 0;
@@ -173,7 +182,7 @@
 
       .final-score {
         font-family: 'Teko', sans-serif;
-        font-size: 220px;
+        font-size: 220px !important;
         font-weight: 600;
         line-height: 1;
         text-shadow: 0 0 30px rgba(255, 255, 255, 0.5);
@@ -183,7 +192,7 @@
         background: rgba(0, 0, 0, 0.25);
         padding: 10px 25px;
         border-radius: 30px;
-        font-size: 30px;
+        font-size: 30px !important;
         font-weight: 700;
         text-transform: uppercase;
         margin-top: 10px;
@@ -198,7 +207,7 @@
     align-items: center;
     justify-content: center;
     flex-grow: 1;
-    gap: 30px;
+    gap: 20px;
 
     .team-vertical {
       display: flex;
@@ -207,15 +216,15 @@
       text-align: center;
 
       .team-logo-large {
-        width: 350px;
-        height: 350px;
+        width: 400px;
+        height: 400px;
         object-fit: contain;
-        margin-bottom: 20px;
-        filter: drop-shadow(0 10px 25px rgba(0, 0, 0, 0.3));
+        margin-bottom: 15px;
+        filter: drop-shadow(0 12px 30px rgba(0, 0, 0, 0.35));
       }
 
       .team-name-large {
-        font-size: 80px;
+        font-size: 72px !important;
         font-weight: 900;
         line-height: 1.1;
         margin: 0;
@@ -225,15 +234,15 @@
 
     .versus-divider {
       font-family: 'Teko', sans-serif;
-      font-size: 100px;
+      font-size: 90px !important;
       font-weight: 600;
       color: rgba(255, 255, 255, 0.8);
-      margin: 10px 0;
+      margin: 5px 0;
       width: 80%;
       text-align: center;
       border-top: 2px solid rgba(255, 255, 255, 0.3);
       border-bottom: 2px solid rgba(255, 255, 255, 0.3);
-      padding: 10px 0;
+      padding: 5px 0;
     }
 
     .game-details-future {
@@ -241,28 +250,28 @@
       flex-direction: column;
       align-items: center;
       gap: 25px;
-      margin-top: 40px;
+      margin-top: 30px;
       padding: 30px;
       background: rgba(0, 0, 0, 0.2);
       border-radius: 20px;
       width: 100%;
-      max-width: 800px;
+      max-width: 850px;
 
       .detail-item-future {
         display: flex;
         align-items: center;
         gap: 20px;
-        font-size: 48px;
+        font-size: 46px !important;
         font-weight: 700;
         width: 100%;
         justify-content: center;
 
         mat-icon {
-          font-size: 52px;
+          font-size: 52px !important;
           width: 52px;
           height: 52px;
           color: rgba(255, 255, 255, 0.8);
-          flex-shrink: 0; // Prevent icon from shrinking
+          flex-shrink: 0;
         }
 
         span {
@@ -293,13 +302,13 @@
       padding: 0 15px;
 
       .quarter-label {
-        font-size: 26px;
+        font-size: 26px !important;
         font-weight: 700;
         color: rgba(255, 255, 255, 0.7);
       }
 
       .quarter-value {
-        font-size: 44px;
+        font-size: 44px !important;
         font-weight: 900;
       }
     }
@@ -312,7 +321,7 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    font-size: 28px;
+    font-size: 28px !important;
     color: rgba(255, 255, 255, 0.8);
     flex-shrink: 0;
 
