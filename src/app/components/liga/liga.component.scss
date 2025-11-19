@@ -189,15 +189,40 @@
   }
 }
 
-.filter-section {
+.export-card {
   margin-bottom: 24px;
 
-  .search-field {
-    width: 100%;
-    max-width: 600px;
+  mat-card-content {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    flex-wrap: wrap;
 
     @media (max-width: 768px) {
-      max-width: 100%;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    button {
+      min-width: 200px;
+
+      @media (max-width: 768px) {
+        width: 100%;
+      }
+
+      mat-icon {
+        margin-right: 8px;
+      }
+    }
+
+    .export-hint {
+      color: var(--text-secondary);
+      font-size: 13px;
+
+      @media (max-width: 768px) {
+        font-size: 12px;
+        text-align: center;
+      }
     }
   }
 }
@@ -895,6 +920,66 @@
       }
     }
 
+    // Form Cell - Anzeige der letzten 5 Spiele
+    .form-cell {
+      .form-indicators {
+        display: flex;
+        gap: 4px;
+        justify-content: flex-start;
+        flex-wrap: nowrap;
+
+        .form-dot {
+          width: 24px;
+          height: 24px;
+          border-radius: 4px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          font-size: 11px;
+          font-weight: 700;
+          color: white;
+          transition: all 0.2s ease;
+          cursor: help;
+
+          @media (max-width: 768px) {
+            width: 20px;
+            height: 20px;
+            font-size: 10px;
+          }
+
+          &.win {
+            background: linear-gradient(135deg, #4caf50 0%, #66bb6a 100%);
+            box-shadow: 0 2px 4px rgba(76, 175, 80, 0.3);
+
+            &:hover {
+              transform: scale(1.1);
+              box-shadow: 0 4px 8px rgba(76, 175, 80, 0.4);
+            }
+          }
+
+          &.draw {
+            background: linear-gradient(135deg, #ff9800 0%, #ffb74d 100%);
+            box-shadow: 0 2px 4px rgba(255, 152, 0, 0.3);
+
+            &:hover {
+              transform: scale(1.1);
+              box-shadow: 0 4px 8px rgba(255, 152, 0, 0.4);
+            }
+          }
+
+          &.loss {
+            background: linear-gradient(135deg, #f44336 0%, #ef5350 100%);
+            box-shadow: 0 2px 4px rgba(244, 67, 54, 0.3);
+
+            &:hover {
+              transform: scale(1.1);
+              box-shadow: 0 4px 8px rgba(244, 67, 54, 0.4);
+            }
+          }
+        }
+      }
+    }
+
     .table-row {
       cursor: pointer;
       transition: background-color 0.2s;
@@ -991,6 +1076,19 @@
 
       @media (max-width: 768px) {
         font-size: 12px;
+      }
+    }
+
+    .export-team-button {
+      margin-left: auto;
+
+      @media (max-width: 768px) {
+        width: 100%;
+        margin-left: 0;
+      }
+
+      mat-icon {
+        margin-right: 8px;
       }
     }
   }

@@ -10,4 +10,5 @@ export interface Table {
   goals: string;
   goalDifference: number;
   points: number;
+  form?: ('W' | 'D' | 'L')[]; // Win, Draw, Loss - Die letzten 5 Spiele
 }

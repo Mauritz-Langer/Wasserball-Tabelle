@@ -31,6 +31,9 @@
           <mat-icon>arrow_back</mat-icon>
         </button>
         <h1 class="page-title">Spieldetails</h1>
+        <button mat-icon-button (click)="shareGame()" class="share-button" title="Spiel teilen">
+          <mat-icon>share</mat-icon>
+        </button>
       </div>
       <!-- Game Header -->
       <mat-card class="game-header-card mat-elevation-z4">
@@ -46,7 +49,9 @@
               }
               <h2 class="team-name">{{ gameDetails.homeTeam.name }}</h2>
               <span class="team-label">Heim</span>
-              <div class="team-final-score home">{{ getFinalHomeScore() }}</div>
+              @if (isGameFinished()) {
+                <div class="team-final-score home">{{ getFinalHomeScore() }}</div>
+              }
             </div>
             <!-- Score -->
             <div class="score-section">
@@ -72,7 +77,9 @@
               }
               <h2 class="team-name">{{ gameDetails.guestTeam.name }}</h2>
               <span class="team-label">Gast</span>
-              <div class="team-final-score guest">{{ getFinalGuestScore() }}</div>
+              @if (isGameFinished()) {
+                <div class="team-final-score guest">{{ getFinalGuestScore() }}</div>
+              }
             </div>
           </div>
           <!-- Quarter Scores - Outside game-header for better mobile layout -->
@@ -87,22 +94,24 @@
             </div>
           }
           <!-- Quick Actions Bar -->
-          @if (gameDetails.venue.googleMapsLink || gameDetails.videoLink) {
-            <div class="quick-actions">
-              @if (gameDetails.venue.googleMapsLink) {
-                <button mat-stroked-button (click)="openGoogleMaps()">
-                  <mat-icon>map</mat-icon>
-                  Spielort
-                </button>
-              }
-              @if (gameDetails.videoLink) {
-                <button mat-stroked-button color="primary" (click)="openVideoLink()">
-                  <mat-icon>play_circle</mat-icon>
-                  Video
-                </button>
-              }
-            </div>
-          }
+          <div class="quick-actions">
+            @if (gameDetails.venue.googleMapsLink) {
+              <button mat-stroked-button (click)="openGoogleMaps()">
+                <mat-icon>map</mat-icon>
+                Spielort
+              </button>
+            }
+            @if (gameDetails.videoLink) {
+              <button mat-stroked-button color="primary" (click)="openVideoLink()">
+                <mat-icon>play_circle</mat-icon>
+                Video
+              </button>
+            }
+            <button mat-stroked-button color="accent" (click)="openShareImageDialog()">
+              <mat-icon>photo_camera</mat-icon>
+              Share Pic
+            </button>
+          </div>
         </mat-card-content>
       </mat-card>
       <!-- Game Info - Kompaktere Version -->
@@ -319,7 +328,66 @@
           <!-- Game Events Tab -->
           @if (hasGameEvents()) {
             <mat-tab label="Spielverlauf">
-              <div class="tab-content">
+              <div class="tab-content" (click)="closeAllEventPopups()">
+                <!-- Timeline Visualisierung -->
+                <mat-card class="timeline-card">
+                  <mat-card-content>
+                    <h3 class="timeline-title">
+                      <mat-icon>timeline</mat-icon>
+                      Spielverlauf Timeline
+                    </h3>
+                    <!-- Mobile Scroll-Hinweis -->
+                    <div class="timeline-scroll-hint">
+                      <mat-icon>swipe</mat-icon>
+                      <span>← Wische für Spielverlauf →</span>
+                    </div>
+                    <div class="game-timeline">
+                      <!-- Viertel-Markierungen -->
+                      <div class="timeline-quarters">
+                        @for (quarter of [1, 2, 3, 4]; track quarter) {
+                          <div class="quarter-marker">
+                            <span class="quarter-label">Q{{ quarter }}</span>
+                          </div>
+                        }
+                      </div>
+                      <!-- Timeline-Linie -->
+                      <div class="timeline-line">
+                        <!-- Viertel-Trennlinien -->
+                        @for (quarter of [1, 2, 3, 4]; track quarter) {
+                          <div class="quarter-divider" [style.left.%]="(quarter / 4) * 100"></div>
+                        }
+                        <!-- Events auf der Timeline -->
+                        @for (event of getAllEventsSorted(); track event; let i = $index) {
+                          <div class="timeline-event"
+                               [style.left.%]="getEventTimelinePosition(event)"
+                               [class.event-goal]="event.eventType === 'T' || event.eventType === 'Goal'"
+                               [class.event-penalty]="event.eventType === 'P' || event.eventType === 'Penalty'"
+                               [class.event-exclusion]="event.eventType === 'A' || event.eventType === 'Exclusion'"
+                               [class.active]="isEventActive(i)"
+                               [attr.title]="event.time + ' - ' + getEventTypeName(event.eventType) + (event.player ? ': ' + event.player : '')"
+                               (click)="toggleEventPopup(i, $event)">
+                            <mat-icon class="event-marker-icon">{{ getEventIcon(event.eventType) }}</mat-icon>
+                            <div class="event-popup" [class]="getPopupPositionClass(getEventTimelinePosition(event))">
+                              <div class="event-popup-time">{{ event.time }}</div>
+                              <div class="event-popup-type">{{ getEventTypeName(event.eventType) }}</div>
+                              @if (event.player) {
+                                <div class="event-popup-player">{{ event.player }}</div>
+                              }
+                              <div class="event-popup-score">{{ event.homeScore }}:{{ event.guestScore }}</div>
+                            </div>
+                          </div>
+                        }
+                      </div>
+                      <!-- Zeit-Markierungen (0, 8, 16, 24, 32 Min) -->
+                      <div class="timeline-time-labels">
+                        @for (time of [0, 8, 16, 24, 32]; track time) {
+                          <span class="time-label" [style.left.%]="(time / 32) * 100">{{ time }}'</span>
+                        }
+                      </div>
+                    </div>
+                  </mat-card-content>
+                </mat-card>
+                <!-- Bestehende Events-Accordion -->
                 <mat-card>
                   <mat-card-content>
                     @if (gameDetails.events.length > 0) {
@@ -587,4 +655,3 @@
     </div>
   }
 </div>
-
