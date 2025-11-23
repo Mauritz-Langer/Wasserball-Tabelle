@@ -9,6 +9,7 @@ import {
   MatExpansionPanelDescription
 } from "@angular/material/expansion";
 import {MatIconButton} from "@angular/material/button";
+import * as amplitude from '@amplitude/unified';
 
 import {MatCard, MatCardContent} from "@angular/material/card";
 import {OverviewService} from "../../services/overview/overview.service";
@@ -67,6 +68,7 @@ export class OverviewComponent implements OnInit {
       return;
     }
 
+    let resultCount = 0;
     this.filteredItems = this.items
       .map(item => {
         const filteredSubItems = item.subItems.filter(subItem =>
@@ -74,13 +76,19 @@ export class OverviewComponent implements OnInit {
           (subItem.gender?.toLowerCase().includes(term) ?? false)
         );
 
-        // Wichtig: Wir erstellen eine Kopie des Items, aber behalten die originalen SubItem-Referenzen
+        resultCount += filteredSubItems.length;
+
         return {
           ...item,
           subItems: filteredSubItems
         };
       })
       .filter(item => item.subItems.length > 0);
+
+    amplitude.track('Search Performed', {
+      searchTerm: term,
+      resultCount: resultCount,
+    });
   }
 
   toggleFavorite(subItem: SubItem): void {
@@ -91,6 +99,9 @@ export class OverviewComponent implements OnInit {
         originalSubItem.isFavorite = !originalSubItem.isFavorite;
         // Synchronisiere mit dem gefilterten Item
         subItem.isFavorite = originalSubItem.isFavorite;
+        amplitude.track(originalSubItem.isFavorite ? 'Favorite Added' : 'Favorite Removed', {
+          leagueName: originalSubItem.name,
+        });
       }
     });
     this.saveFavorites();
@@ -119,6 +130,7 @@ export class OverviewComponent implements OnInit {
   }
 
   navigateToLiga(subItem: SubItem) {
+    amplitude.track('League Selected', { leagueName: subItem.name });
     let param = subItem.link;
     this.router.navigate(['/liga'], {queryParams: {param}});
   }

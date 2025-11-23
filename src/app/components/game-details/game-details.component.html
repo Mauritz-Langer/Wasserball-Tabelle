@@ -141,7 +141,7 @@
       </mat-card>
       <!-- Tabs for different sections -->
       @if (hasTeamDetails() || hasPlayerStats() || hasGameEvents() || hasStatistics()) {
-        <mat-tab-group class="details-tabs">
+        <mat-tab-group class="details-tabs" (selectedIndexChange)="trackTabChange($event)">
           <!-- Player Statistics Tab -->
           @if (hasPlayerStats()) {
             <mat-tab label="Spielerstatistik">
