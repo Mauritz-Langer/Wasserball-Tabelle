@@ -10,7 +10,7 @@ export class ImageGeneratorService {
 
   async generateImage(element: HTMLElement): Promise<string> {
     const canvas = await html2canvas(element, {
-      scale: 3, // Increased scale for even better quality
+      scale: 2, // Keep it high for quality, but 3 is too much for mobile
       useCORS: true,
       allowTaint: true,
       scrollX: 0,

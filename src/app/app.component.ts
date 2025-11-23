@@ -3,6 +3,7 @@ import {Router, RouterOutlet, NavigationEnd} from '@angular/router';
 import {MatToolbar} from "@angular/material/toolbar";
 import {MatIcon} from "@angular/material/icon";
 import {MatIconButton} from "@angular/material/button";
+import * as amplitude from '@amplitude/unified';
 
 import {MatTooltip} from "@angular/material/tooltip";
 import {filter} from "rxjs";
@@ -30,7 +31,9 @@ export class AppComponent implements OnInit {
   currentYear = new Date().getFullYear();
   favoritesCount = 0;
 
-  constructor() {}
+  constructor() {
+    amplitude.initAll('106978c8b7e8e15d1a519bf6fda3175d', {"analytics":{"autocapture":true},"sessionReplay":{"sampleRate":1}});
+  }
 
   ngOnInit(): void {
     // Track route changes
@@ -51,11 +54,15 @@ export class AppComponent implements OnInit {
   }
 
   openDsvWebsite(): void {
+    amplitude.track('External Link Clicked', { destination: 'DSV Website' });
     window.open('https://dsvdaten.dsv.de/Modules/WB/Index.aspx', '_blank');
   }
 
   toggleTheme(): void {
     this.themeService.toggleTheme();
+    amplitude.track('Theme Toggled', {
+      theme: this.themeService.isDarkMode() ? 'dark' : 'light',
+    });
   }
 
   getThemeIcon(): string {

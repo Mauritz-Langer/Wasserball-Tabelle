@@ -12,6 +12,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { GameDetailsService } from '../../services/game-details/game-details.service';
 import { GameDetails, GameEvent } from '../../models/game-details';
 import { ShareImageComponent } from '../share-image/share-image.component';
+import * as amplitude from '@amplitude/unified';
 
 @Component({
     selector: 'app-game-details',
@@ -76,18 +77,40 @@ export class GameDetailsComponent implements OnInit {
       next: (html: string) => {
         try {
           this.gameDetails = this.gameDetailsService.parseHtmlToGameDetails(html);
+          amplitude.track('Game Details Viewed', {
+            gameId: this.gameDetails.gameId,
+            league: this.gameDetails.league,
+            homeTeam: this.gameDetails.homeTeam.name,
+            guestTeam: this.gameDetails.guestTeam.name,
+          });
           this.isLoading = false;
         } catch (error) {
           console.error('Error parsing game details:', error);
           this.error = 'Fehler beim Laden der Spieldetails';
+          amplitude.track('Error Occurred', {
+            errorMessage: 'Fehler beim Laden der Spieldetails',
+            errorContext: 'loadGameDetails',
+          });
           this.isLoading = false;
         }
       },
       error: (error) => {
         console.error('Error loading game details:', error);
         this.error = 'Fehler beim Laden der Spieldetails';
+        amplitude.track('Error Occurred', {
+          errorMessage: 'Fehler beim Laden der Spieldetails',
+          errorContext: 'loadGameDetails',
+        });
         this.isLoading = false;
       }
+    });
+  }
+
+  trackTabChange(event: any): void {
+    const tabLabel = event.tab.textLabel;
+    amplitude.track('Tab Viewed', {
+      tabName: tabLabel,
+      gameId: this.gameDetails?.gameId,
     });
   }
 
@@ -114,6 +137,7 @@ export class GameDetailsComponent implements OnInit {
    */
   openGoogleMaps(): void {
     if (this.gameDetails?.venue.googleMapsLink) {
+      amplitude.track('External Link Clicked', { destination: 'Google Maps' });
       window.open(this.gameDetails.venue.googleMapsLink, '_blank');
     }
   }
@@ -123,7 +147,58 @@ export class GameDetailsComponent implements OnInit {
    */
   openVideoLink(): void {
     if (this.gameDetails?.videoLink) {
+      amplitude.track('External Link Clicked', { destination: 'Video' });
       window.open(this.gameDetails.videoLink, '_blank');
+    }
+  }
+
+  /**
+   * Parst den deutschen Datumsstring in ein Date-Objekt
+   */
+  private parseGameDate(dateStr: string): Date | null {
+    try {
+      const cleanedStr = dateStr.replace(' Uhr', '').trim();
+      const parts = cleanedStr.split(' ');
+
+      let datePart: string;
+      let timePart: string;
+
+      if (parts.length > 1 && parts[parts.length - 1].includes(':')) {
+        timePart = parts[parts.length - 1];
+        datePart = parts.slice(0, parts.length - 1).join(' ').replace(',', '').trim();
+      } else {
+        datePart = cleanedStr.replace(',', '').trim();
+        timePart = '00:00';
+      }
+
+      const dateParts = datePart.split('.');
+      const timeParts = timePart.split(':');
+
+      if (dateParts.length < 3 || timeParts.length < 2) {
+        console.error('Could not parse date or time parts from:', datePart, timePart);
+        return null;
+      }
+
+      const day = parseInt(dateParts[0]);
+      const month = parseInt(dateParts[1]) - 1;
+      let year = parseInt(dateParts[2]);
+
+      if (year < 100) {
+        year += 2000;
+      }
+
+      const hours = parseInt(timeParts[0]);
+      const minutes = parseInt(timeParts[1]);
+
+      if (isNaN(day) || isNaN(month) || isNaN(year) || isNaN(hours) || isNaN(minutes)) {
+        console.error('Invalid number found during date parsing');
+        return null;
+      }
+
+      return new Date(year, month, day, hours, minutes);
+    } catch (error) {
+      console.error('Error parsing game date string:', dateStr, error);
+      return null;
     }
   }
 
@@ -134,6 +209,15 @@ export class GameDetailsComponent implements OnInit {
     if (!this.gameDetails) {
       return;
     }
+
+    amplitude.track('Share Image Generated', {
+      gameId: this.gameDetails.gameId,
+      league: this.gameDetails.league,
+      homeTeam: this.gameDetails.homeTeam.name,
+      guestTeam: this.gameDetails.guestTeam.name,
+    });
+
+    const gameDate = this.parseGameDate(this.gameDetails.startDate);
 
     this.dialog.open(ShareImageComponent, {
       width: '90vw',
@@ -148,7 +232,7 @@ export class GameDetailsComponent implements OnInit {
           logo: this.gameDetails.guestTeam.logoUrl
         },
         finalScore: `${this.getFinalHomeScore()}:${this.getFinalGuestScore()}`,
-        gameDate: this.gameDetails.startDate,
+        gameDate: gameDate, // Pass Date object
         gameLocation: `${this.gameDetails.venue.poolName}, ${this.gameDetails.venue.poolCity}`,
         league: this.gameDetails.league,
         quarterScores: this.gameDetails.quarterScores,
@@ -162,6 +246,13 @@ export class GameDetailsComponent implements OnInit {
    */
   shareGame(): void {
     if (!this.gameDetails) return;
+
+    amplitude.track('Game Shared', {
+      gameId: this.gameDetails.gameId,
+      league: this.gameDetails.league,
+      homeTeam: this.gameDetails.homeTeam.name,
+      guestTeam: this.gameDetails.guestTeam.name,
+    });
 
     const title = `Wasserball: ${this.gameDetails.homeTeam.name} vs ${this.gameDetails.guestTeam.name}`;
     let text = `${title}\nLiga: ${this.gameDetails.league}\nDatum: ${this.gameDetails.startDate}`;
@@ -217,6 +308,10 @@ export class GameDetailsComponent implements OnInit {
    */
   downloadProtocol(): void {
     if (this.gameDetails?.protocolLink) {
+      amplitude.track('Protocol Downloaded', {
+        gameId: this.gameDetails.gameId,
+        league: this.gameDetails.league,
+      });
       window.open(this.gameDetails.protocolLink, '_blank');
     }
   }
@@ -409,44 +504,12 @@ export class GameDetailsComponent implements OnInit {
     }
 
     // 3. Prüfe ob das Datum in der Vergangenheit liegt
-    if (this.gameDetails.startDate) {
-      try {
-        // Deutsches Datumsformat parsen: "DD.MM.YYYY, HH:MM Uhr" oder "DD.MM.YY, HH:MM Uhr"
-        const dateStr = this.gameDetails.startDate;
-        const parts = dateStr.replace(' Uhr', '').split(', ');
-
-        if (parts.length >= 1) {
-          const datePart = parts[0].trim();
-          const timePart = parts[1]?.trim() || '00:00';
-
-          const dateParts = datePart.split('.');
-          const timeParts = timePart.split(':');
-
-          if (dateParts.length >= 3 && timeParts.length >= 2) {
-            const day = parseInt(dateParts[0]);
-            const month = parseInt(dateParts[1]) - 1; // Monate sind 0-basiert
-            let year = parseInt(dateParts[2]);
-
-            // Wenn Jahr 2-stellig ist (z.B. 24), zu 4-stellig konvertieren
-            if (year < 100) {
-              year += 2000;
-            }
-
-            const hours = parseInt(timeParts[0]);
-            const minutes = parseInt(timeParts[1]);
-
-            const gameDate = new Date(year, month, day, hours, minutes);
-            const now = new Date();
-
-            // Spiel ist beendet, wenn es mehr als 2 Stunden in der Vergangenheit liegt
-            // (um laufende Spiele zu berücksichtigen)
-            const twoHoursAgo = new Date(now.getTime() - (2 * 60 * 60 * 1000));
-            return gameDate < twoHoursAgo;
-          }
-        }
-      } catch (error) {
-        console.error('Error parsing game date:', error);
-      }
+    const gameDate = this.parseGameDate(this.gameDetails.startDate);
+    if (gameDate) {
+      const now = new Date();
+      // Spiel ist beendet, wenn es mehr als 2 Stunden in der Vergangenheit liegt
+      const twoHoursAgo = new Date(now.getTime() - (2 * 60 * 60 * 1000));
+      return gameDate < twoHoursAgo;
     }
 
     // Wenn nichts davon zutrifft, gilt das Spiel als noch nicht beendet
