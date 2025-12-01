@@ -136,8 +136,15 @@ export class GameDetailsService {
       // Prüfe ob nach dem Doppelpunkt ein Leerzeichen kommt
       if (colonIndex < text.length - 1 && text[colonIndex + 1] === ' ') {
         // Es ist ein Label-Prefix wie "Spielnummer: 12345"
+        const label = text.substring(0, colonIndex).trim();
         const value = text.substring(colonIndex + 1).trim();
-        // Wenn der Wert nach dem Label leer ist, gebe leeren String zurück
+
+        // Wenn der Wert leer ist ODER das Label nochmal enthält, gebe leeren String zurück
+        // Dies behandelt Fälle wie "Betreuer: " oder "Betreuer: Betreuer"
+        if (!value || value === label || value.endsWith(label + ':')) {
+          return '';
+        }
+
         return value;
       }
 
