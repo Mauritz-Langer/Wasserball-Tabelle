@@ -41,6 +41,7 @@ export interface TeamDetails {
   coach?: string;
   captain?: string;
   teamLeader?: string;
+  companionLeader?: string;
   assistant?: string;
   bestPlayer?: string;
   players?: PlayerStatistics[];

@@ -684,6 +684,10 @@
         display: none; // Icons ausblenden auf sehr kleinen Displays
       }
     }
+
+    .mat-mdc-tab-body-content {
+      overflow: visible !important;
+    }
   }
 }
 
@@ -2147,7 +2151,7 @@
     margin-bottom: 16px;
     border-radius: 12px !important;
     // Verhindere horizontales Überlaufen
-    overflow: hidden;
+    overflow: visible;
   }
 
   mat-card-content {
@@ -2401,7 +2405,7 @@
           opacity: 0;
           pointer-events: none;
           transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
-          z-index: 100;
+          z-index: 1000;
           border: 2px solid #e3f2fd;
 
           @media (max-width: 768px) {

@@ -470,6 +470,11 @@
                             <strong>Mannschaftsleiter:</strong> {{ gameDetails.homeTeam.teamLeader }}
                           </div>
                         }
+                        @if (gameDetails.homeTeam.companionLeader && gameDetails.homeTeam.companionLeader.trim() !== '') {
+                          <div class="detail-item">
+                            <strong>Mannschaftsbegleiter:</strong> {{ gameDetails.homeTeam.companionLeader }}
+                          </div>
+                        }
                         @if (gameDetails.homeTeam.assistant && gameDetails.homeTeam.assistant.trim() !== '') {
                           <div class="detail-item">
                             <strong>Betreuer:</strong> {{ gameDetails.homeTeam.assistant }}
@@ -503,6 +508,11 @@
                         @if (gameDetails.guestTeam.teamLeader && gameDetails.guestTeam.teamLeader.trim() !== '') {
                           <div class="detail-item">
                             <strong>Mannschaftsleiter:</strong> {{ gameDetails.guestTeam.teamLeader }}
+                          </div>
+                        }
+                        @if (gameDetails.guestTeam.companionLeader && gameDetails.guestTeam.companionLeader.trim() !== '') {
+                          <div class="detail-item">
+                            <strong>Mannschaftsbegleiter:</strong> {{ gameDetails.guestTeam.companionLeader }}
                           </div>
                         }
                         @if (gameDetails.guestTeam.assistant && gameDetails.guestTeam.assistant.trim() !== '') {

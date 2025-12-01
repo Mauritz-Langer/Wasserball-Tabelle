@@ -1,18 +1,18 @@
-import { Injectable, inject } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { Observable } from 'rxjs';
-import { ApiProxyService } from '../api-proxy/api-proxy.service';
+import {inject, Injectable} from '@angular/core';
+import {HttpClient} from '@angular/common/http';
+import {Observable} from 'rxjs';
+import {ApiProxyService} from '../api-proxy/api-proxy.service';
 import {
   GameDetails,
   GameEvent,
+  GameStatistics,
   Officials,
+  PersonalFoul,
+  PlayerStatistics,
   QuarterScore,
   TeamDetails,
-  Venue,
-  GameStatistics,
   TeamStatistics,
-  PlayerStatistics,
-  PersonalFoul
+  Venue
 } from '../../models/game-details';
 
 @Injectable({
@@ -95,11 +95,11 @@ export class GameDetailsService {
       officials,
       events,
       statistics: statistics || undefined,
-      notes: notes || undefined,
+      notes: notes && notes.trim() !== '' ? notes : undefined,
       videoLink: videoLink || undefined,
       protocolLink: protocolLink || undefined,
-      endGameTime: endGameTime || undefined,
-      organizer: organizer || undefined
+      endGameTime: endGameTime && endGameTime.trim() !== '' ? endGameTime : undefined,
+      organizer: organizer && organizer.trim() !== '' ? organizer : undefined
     };
   }
 
@@ -113,21 +113,41 @@ export class GameDetailsService {
 
     const text = element.textContent?.trim() || '';
 
+    // Wenn leer, return leer
+    if (!text) return '';
+
     // Wenn Text "Uhr" enthält, ist es ein Datumsfeld - nicht splitten
     if (text.includes('Uhr')) {
       return text;
     }
 
     // Wenn Text einen Doppelpunkt enthält, prüfe ob es ein Label-Prefix ist
-    // Label-Prefixe haben ein Leerzeichen NACH dem Doppelpunkt
+    // Label-Prefixe haben ein Leerzeichen NACH dem Doppelpunkt ODER enden mit Doppelpunkt
     // Zeiten/Spielstände haben KEINE Leerzeichen nach dem Doppelpunkt
     if (text.includes(':')) {
       const colonIndex = text.indexOf(':');
+
+      // Prüfe ob der Text mit Doppelpunkt endet (z.B. "Betreuer:")
+      if (colonIndex === text.length - 1) {
+        // Es ist ein leeres Label ohne Wert
+        return '';
+      }
+
       // Prüfe ob nach dem Doppelpunkt ein Leerzeichen kommt
       if (colonIndex < text.length - 1 && text[colonIndex + 1] === ' ') {
         // Es ist ein Label-Prefix wie "Spielnummer: 12345"
-        return text.split(':')[1]?.trim() || '';
+        const label = text.substring(0, colonIndex).trim();
+        const value = text.substring(colonIndex + 1).trim();
+
+        // Wenn der Wert leer ist ODER das Label nochmal enthält, gebe leeren String zurück
+        // Dies behandelt Fälle wie "Betreuer: " oder "Betreuer: Betreuer"
+        if (!value || value === label || value.endsWith(label + ':')) {
+          return '';
+        }
+
+        return value;
       }
+
       // Es ist eine Zeit oder Spielstand wie "7:35" oder "12:5"
       return text;
     }
@@ -154,39 +174,46 @@ export class GameDetailsService {
 
     const headerElement = doc.getElementById('ContentSection__headerLabel');
     if (headerElement) {
-      const images = headerElement.querySelectorAll('img');
-      const fullHeaderText = headerElement.textContent?.trim() || '';
-
       // Extrahiere Namen aus dem Text-Content
+      const fullHeaderText = headerElement.textContent?.trim() || '';
       if (fullHeaderText.includes(':')) {
         const parts = fullHeaderText.split(':');
         homeName = parts[0]?.trim() || '';
         guestName = parts[1]?.trim() || '';
       }
 
-      // Erstes Bild = Heim-Team, Zweites Bild = Gast-Team
-      if (images.length >= 1) {
-        const homeSrc = images[0].getAttribute('src');
-        if (homeSrc) {
-          if (homeSrc.startsWith('data:')) {
-            homeLogoUrl = homeSrc;
-          } else if (homeSrc.startsWith('http')) {
-            homeLogoUrl = homeSrc;
-          } else {
-            homeLogoUrl = 'https://dsvdaten.dsv.de' + (homeSrc.startsWith('/') ? '' : '/') + homeSrc;
-          }
-        }
-      }
+      // Durchsuche alle Kindknoten, um Bilder richtig zuzuordnen
+      const childNodes = Array.from(headerElement.childNodes);
+      let foundColon = false;
 
-      if (images.length >= 2) {
-        const guestSrc = images[1].getAttribute('src');
-        if (guestSrc) {
-          if (guestSrc.startsWith('data:')) {
-            guestLogoUrl = guestSrc;
-          } else if (guestSrc.startsWith('http')) {
-            guestLogoUrl = guestSrc;
+      for (const node of childNodes) {
+        const childNode = node as ChildNode;
+
+        // Prüfe auf Doppelpunkt im Text
+        if (childNode.nodeType === Node.TEXT_NODE && childNode.textContent?.includes(':')) {
+          foundColon = true;
+          continue;
+        }
+
+        // Wenn es ein img-Element ist
+        if (childNode.nodeType === Node.ELEMENT_NODE && (childNode as Element).tagName === 'IMG') {
+          const imgSrc = (childNode as Element).getAttribute('src');
+          if (!imgSrc) continue;
+
+          let logoUrl = '';
+          if (imgSrc.startsWith('data:')) {
+            logoUrl = imgSrc;
+          } else if (imgSrc.startsWith('http')) {
+            logoUrl = imgSrc;
           } else {
-            guestLogoUrl = 'https://dsvdaten.dsv.de' + (guestSrc.startsWith('/') ? '' : '/') + guestSrc;
+            logoUrl = 'https://dsvdaten.dsv.de' + (imgSrc.startsWith('/') ? '' : '/') + imgSrc;
+          }
+
+          // Vor dem Doppelpunkt = Heim-Team, nach dem Doppelpunkt = Gast-Team
+          if (!foundColon) {
+            homeLogoUrl = logoUrl;
+          } else {
+            guestLogoUrl = logoUrl;
           }
         }
       }
@@ -249,14 +276,22 @@ export class GameDetailsService {
     const name = this.getTextContent(doc, `ContentSection__${prefix}Label`) || fallbackName;
     const players = this.parsePlayerStatistics(doc, prefix);
 
+    const coach = this.getTextContent(doc, `ContentSection__${prefix}coachLabel`);
+    const captain = this.getTextContent(doc, `ContentSection__${prefix}captainLabel`);
+    const teamLeader = this.getTextContent(doc, `ContentSection__${prefix}leiterLabel`);
+    const companionLeader = this.getTextContent(doc, `ContentSection__${prefix}begleiterLabel`);
+    const assistant = this.getTextContent(doc, `ContentSection__${prefix}betreuerLabel`);
+    const bestPlayer = this.getTextContent(doc, `ContentSection__${prefix}bestLabel`);
+
     return {
       name,
       logoUrl,
-      coach: this.getTextContent(doc, `ContentSection__${prefix}coachLabel`) || undefined,
-      captain: this.getTextContent(doc, `ContentSection__${prefix}captainLabel`) || undefined,
-      teamLeader: this.getTextContent(doc, `ContentSection__${prefix}leiterLabel`) || undefined,
-      assistant: this.getTextContent(doc, `ContentSection__${prefix}betreuerLabel`) || undefined,
-      bestPlayer: this.getTextContent(doc, `ContentSection__${prefix}bestLabel`) || undefined,
+      coach: coach && coach.trim() !== '' ? coach : undefined,
+      captain: captain && captain.trim() !== '' ? captain : undefined,
+      teamLeader: teamLeader && teamLeader.trim() !== '' ? teamLeader : undefined,
+      companionLeader: companionLeader && companionLeader.trim() !== '' ? companionLeader : undefined,
+      assistant: assistant && assistant.trim() !== '' ? assistant : undefined,
+      bestPlayer: bestPlayer && bestPlayer.trim() !== '' ? bestPlayer : undefined,
       players: players.length > 0 ? players : undefined
     };
   }
@@ -440,17 +475,28 @@ export class GameDetailsService {
    * Parst Offizielle (Schiedsrichter, Zeitnehmer, etc.)
    */
   private parseOfficials(doc: any): Officials {
+    const referee1 = this.getTextContent(doc, 'ContentSection__schiedsrichter1Label');
+    const referee2 = this.getTextContent(doc, 'ContentSection__schiedsrichter2Label');
+    const timekeeper1 = this.getTextContent(doc, 'ContentSection__zeitnehmer1Label');
+    const timekeeper2 = this.getTextContent(doc, 'ContentSection__zeitnehmer2Label');
+    const secretary1 = this.getTextContent(doc, 'ContentSection__sekretaer1Label');
+    const secretary2 = this.getTextContent(doc, 'ContentSection__sekretaer2Label');
+    const goalJudge1 = this.getTextContent(doc, 'ContentSection__torrichter1Label');
+    const goalJudge2 = this.getTextContent(doc, 'ContentSection__torrichter2Label');
+    const observer1 = this.getTextContent(doc, 'ContentSection__observer1Label');
+    const observer2 = this.getTextContent(doc, 'ContentSection__observer2Label');
+
     return {
-      referee1: this.getTextContent(doc, 'ContentSection__schiedsrichter1Label') || undefined,
-      referee2: this.getTextContent(doc, 'ContentSection__schiedsrichter2Label') || undefined,
-      timekeeper1: this.getTextContent(doc, 'ContentSection__zeitnehmer1Label') || undefined,
-      timekeeper2: this.getTextContent(doc, 'ContentSection__zeitnehmer2Label') || undefined,
-      secretary1: this.getTextContent(doc, 'ContentSection__sekretaer1Label') || undefined,
-      secretary2: this.getTextContent(doc, 'ContentSection__sekretaer2Label') || undefined,
-      goalJudge1: this.getTextContent(doc, 'ContentSection__torrichter1Label') || undefined,
-      goalJudge2: this.getTextContent(doc, 'ContentSection__torrichter2Label') || undefined,
-      observer1: this.getTextContent(doc, 'ContentSection__observer1Label') || undefined,
-      observer2: this.getTextContent(doc, 'ContentSection__observer2Label') || undefined
+      referee1: referee1 && referee1.trim() !== '' ? referee1 : undefined,
+      referee2: referee2 && referee2.trim() !== '' ? referee2 : undefined,
+      timekeeper1: timekeeper1 && timekeeper1.trim() !== '' ? timekeeper1 : undefined,
+      timekeeper2: timekeeper2 && timekeeper2.trim() !== '' ? timekeeper2 : undefined,
+      secretary1: secretary1 && secretary1.trim() !== '' ? secretary1 : undefined,
+      secretary2: secretary2 && secretary2.trim() !== '' ? secretary2 : undefined,
+      goalJudge1: goalJudge1 && goalJudge1.trim() !== '' ? goalJudge1 : undefined,
+      goalJudge2: goalJudge2 && goalJudge2.trim() !== '' ? goalJudge2 : undefined,
+      observer1: observer1 && observer1.trim() !== '' ? observer1 : undefined,
+      observer2: observer2 && observer2.trim() !== '' ? observer2 : undefined
     };
   }
 
