@@ -1,6 +1,6 @@
 import { Component, OnInit, AfterViewInit, ElementRef, inject, viewChild } from '@angular/core';
 import {ActivatedRoute, Router, RouterLink} from '@angular/router';
-import { CommonModule } from '@angular/common';
+
 import { FormsModule } from '@angular/forms';
 import {
   MatCell,
@@ -28,7 +28,6 @@ import {MatButton, MatIconButton} from "@angular/material/button";
 @Component({
     selector: 'app-liga',
     imports: [
-    CommonModule,
     FormsModule,
     MatTable,
     MatColumnDef,
