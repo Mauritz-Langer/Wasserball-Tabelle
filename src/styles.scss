@@ -1,6 +1,7 @@
 /* You can add global styles to this file, and also import other style files */
 
-html, body {
+html,
+body {
   height: 100%;
   transition: background-color 0.3s ease, color 0.3s ease;
 }
@@ -88,7 +89,12 @@ body.dark-theme {
   // ====================================
 
   // Alle Überschriften
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     color: var(--text-primary) !important;
   }
 
@@ -117,7 +123,8 @@ body.dark-theme {
   }
 
   // Strong und Bold
-  strong, b {
+  strong,
+  b {
     color: var(--text-primary) !important;
   }
 
@@ -152,7 +159,7 @@ body.dark-theme {
     color: var(--text-primary) !important;
 
     // Alle direkten Kinder in Card-Content
-    & > * {
+    &>* {
       color: var(--text-primary);
     }
   }
@@ -199,7 +206,8 @@ body.dark-theme {
   table {
     color: var(--text-primary) !important;
 
-    th, td {
+    th,
+    td {
       color: var(--text-primary) !important;
     }
   }
@@ -352,10 +360,7 @@ body.dark-theme {
   }
 
   // Button mit primary/accent/warn sollten ihre Farbe behalten
-  .mat-mdc-button.mat-primary,
-  .mat-mdc-raised-button.mat-primary {
-    // Primärfarbe bleibt
-  }
+
 
   // Toolbar
   .mat-toolbar:not(.app-header) {
@@ -466,16 +471,31 @@ body.dark-theme {
 
 
 // Smooth transitions for theme changes
-* {
-  transition-property: background-color, color, border-color;
-  transition-duration: 0.3s;
-  transition-timing-function: ease;
+// Smooth transitions for theme changes
+body,
+mat-sidenav-container,
+mat-sidenav-content,
+.mat-drawer-container,
+.mat-drawer-content {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+// Apply transitions to common surface elements
+.mat-mdc-card,
+.mat-toolbar,
+.mat-mdc-dialog-container,
+.mat-mdc-menu-panel,
+.mat-mdc-table,
+th,
+td {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
 }
 
 // ====================================
 // MOBILE OPTIMIERUNGEN
 // ====================================
 @media (max-width: 768px) {
+
   // Verhindere ungewolltes Zoomen bei Input-Fokus (mindestens 16px)
   input[type="text"],
   input[type="search"],
@@ -544,6 +564,7 @@ body.dark-theme {
   // Tabs: Kompakteres Layout
   .mat-mdc-tab-labels,
   .mat-tab-labels {
+
     .mat-mdc-tab,
     .mat-tab-label {
       min-width: 90px;
@@ -639,6 +660,7 @@ body.dark-theme {
 
 // Sehr kleine Bildschirme (z.B. iPhone SE)
 @media (max-width: 380px) {
+
   // Noch kompaktere Schriftgrößen
   body {
     font-size: 14px;
@@ -667,4 +689,3 @@ body.dark-theme {
     display: block !important;
   }
 }
-

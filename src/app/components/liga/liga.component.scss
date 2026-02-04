@@ -33,8 +33,15 @@
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
 }
 
 // Header
@@ -592,10 +599,13 @@
   }
 
   @keyframes pulse-hint {
-    0%, 100% {
+
+    0%,
+    100% {
       opacity: 1;
       transform: scale(1);
     }
+
     50% {
       opacity: 0.85;
       transform: scale(0.98);
@@ -603,9 +613,12 @@
   }
 
   @keyframes swipe-hint {
-    0%, 100% {
+
+    0%,
+    100% {
       transform: translateX(0);
     }
+
     50% {
       transform: translateX(6px);
     }
@@ -651,10 +664,10 @@
 
       // Verbesserte Scroll-Schatten mit mehr Kontrast
       background:
-        linear-gradient(90deg, white 25%, rgba(255,255,255,0.9) 40%, rgba(255,255,255,0)),
-        linear-gradient(90deg, rgba(255,255,255,0), rgba(255,255,255,0.9) 60%, white 75%) 100% 0,
-        radial-gradient(farthest-side at 0 50%, rgba(0,0,0,.25), rgba(0,0,0,0)),
-        radial-gradient(farthest-side at 100% 50%, rgba(0,0,0,.25), rgba(0,0,0,0)) 100% 0;
+        linear-gradient(90deg, white 25%, rgba(255, 255, 255, 0.9) 40%, rgba(255, 255, 255, 0)),
+        linear-gradient(90deg, rgba(255, 255, 255, 0), rgba(255, 255, 255, 0.9) 60%, white 75%) 100% 0,
+        radial-gradient(farthest-side at 0 50%, rgba(0, 0, 0, .25), rgba(0, 0, 0, 0)),
+        radial-gradient(farthest-side at 100% 50%, rgba(0, 0, 0, .25), rgba(0, 0, 0, 0)) 100% 0;
       background-repeat: no-repeat;
       background-size: 60px 100%, 60px 100%, 25px 100%, 25px 100%;
       background-attachment: local, local, scroll, scroll;
@@ -1410,8 +1423,15 @@
 }
 
 @keyframes trophy-bounce {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-10px); }
+
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+
+  50% {
+    transform: translateY(-10px);
+  }
 }
 
 // Scorers Card
@@ -1652,8 +1672,14 @@
 
 // Dark Mode Styles
 :host-context(body.dark-theme) {
+
   // Generische Elemente explizit stylen
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     color: var(--text-primary);
   }
 
@@ -2003,6 +2029,68 @@
   .filter-section {
     background-color: var(--surface-color);
     border: 1px solid var(--border-color);
+  }
+
+  // No Data
+  .no-data-message,
+  .no-games-message {
+    color: var(--text-secondary);
+
+    mat-icon {
+      color: var(--text-secondary);
+    }
+  }
+
+
+  // Subitems
+  .subitems-container {
+    background: var(--background-color);
+
+    .subitem-card {
+      background: var(--surface-color);
+      border: 1px solid var(--divider-color);
+
+      &:hover {
+        border-left-color: #64b5f6;
+        background: var(--surface-elevated);
+      }
+
+      .subitem-content {
+        .subitem-name {
+          color: var(--text-primary);
+        }
+
+        .subitem-gender {
+          background: rgba(66, 165, 245, 0.15);
+          color: var(--text-secondary);
+        }
+
+        .open-icon {
+          color: #64b5f6;
+        }
+      }
+
+      .subitem-action button {
+        &.favorite-active mat-icon {
+          color: #e91e63;
+        }
+
+        mat-icon {
+          color: var(--text-secondary);
+        }
+      }
+    }
+  }
+
+  // Filter Card
+  .filter-card,
+  .filter-section {
+    background-color: var(--surface-color);
+    border: 1px solid var(--border-color);
+
+    .search-field ::ng-deep .mat-mdc-text-field-wrapper {
+      background-color: var(--surface-elevated);
+    }
   }
 
   // No Data

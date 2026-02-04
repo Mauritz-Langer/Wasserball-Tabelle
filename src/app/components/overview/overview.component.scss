@@ -27,8 +27,15 @@
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.5; }
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
 }
 
 // Content
@@ -41,6 +48,7 @@
     opacity: 0;
     transform: translateY(10px);
   }
+
   to {
     opacity: 1;
     transform: translateY(0);
@@ -115,7 +123,7 @@
 
     ::ng-deep {
       .mat-mdc-text-field-wrapper {
-        background-color: white;
+        background-color: var(--surface-elevated);
       }
 
       .mat-mdc-form-field-focus-overlay {
@@ -647,16 +655,35 @@
 }
 
 @keyframes heartbeat {
-  0%, 100% { transform: scale(1); }
-  25% { transform: scale(1.2); }
-  50% { transform: scale(1); }
-  75% { transform: scale(1.1); }
+
+  0%,
+  100% {
+    transform: scale(1);
+  }
+
+  25% {
+    transform: scale(1.2);
+  }
+
+  50% {
+    transform: scale(1);
+  }
+
+  75% {
+    transform: scale(1.1);
+  }
 }
 
 // Dark Mode Styles
 :host-context(body.dark-theme) {
+
   // Generische Elemente
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     color: var(--text-primary);
   }
 
