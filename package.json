@@ -10,7 +10,7 @@
   },
   "private": true,
   "dependencies": {
-    "@amplitude/unified": "^1.0.0-beta.32",
+    "@amplitude/unified": "^1.0.0-beta.33",
     "@angular/animations": "^20.3.12",
     "@angular/cdk": "^20.2.13",
     "@angular/common": "^20.3.12",
