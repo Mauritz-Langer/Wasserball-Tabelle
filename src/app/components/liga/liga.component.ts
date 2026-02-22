@@ -1,5 +1,5 @@
 import { Component, OnInit, AfterViewInit, ElementRef, inject, viewChild } from '@angular/core';
-import {ActivatedRoute, Router, RouterLink} from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import {
@@ -11,23 +11,23 @@ import {
   MatRow, MatRowDef,
   MatTable, MatTableDataSource
 } from "@angular/material/table";
-import {Games} from "../../models/games";
-import {LigaService} from "../../services/liga/liga.service";
-import {MatTab, MatTabGroup, MatTabLabel} from "@angular/material/tabs";
-import {Table} from "../../models/table";
+import { Games } from "../../models/games";
+import { LigaService } from "../../services/liga/liga.service";
+import { MatTab, MatTabGroup, MatTabLabel } from "@angular/material/tabs";
+import { Table } from "../../models/table";
 
-import {Scorer} from "../../models/scorer";
-import {animate, state, style, transition, trigger} from "@angular/animations";
-import {MatFormField, MatLabel, MatPrefix} from "@angular/material/form-field";
-import {MatInput} from "@angular/material/input";
-import {MatProgressSpinner} from "@angular/material/progress-spinner";
-import {MatIcon} from "@angular/material/icon";
-import {MatCard, MatCardContent} from "@angular/material/card";
-import {MatButton, MatIconButton} from "@angular/material/button";
+import { Scorer } from "../../models/scorer";
+import { animate, state, style, transition, trigger } from "@angular/animations";
+import { MatFormField, MatLabel, MatPrefix } from "@angular/material/form-field";
+import { MatInput } from "@angular/material/input";
+import { MatProgressSpinner } from "@angular/material/progress-spinner";
+import { MatIcon } from "@angular/material/icon";
+import { MatCard, MatCardContent } from "@angular/material/card";
+import { MatButton, MatIconButton } from "@angular/material/button";
 
 @Component({
-    selector: 'app-liga',
-    imports: [
+  selector: 'app-liga',
+  imports: [
     CommonModule,
     FormsModule,
     MatTable,
@@ -54,16 +54,16 @@ import {MatButton, MatIconButton} from "@angular/material/button";
     MatIconButton,
     MatButton,
     MatPrefix
-],
-    animations: [
-        trigger('detailExpand', [
-            state('collapsed,void', style({ height: '0px', minHeight: '0' })),
-            state('expanded', style({ height: '*' })),
-            transition('expanded <=> collapsed', animate('225ms cubic-bezier(0.4, 0.0, 0.2, 1)')),
-        ]),
-    ],
-    templateUrl: './liga.component.html',
-    styleUrl: './liga.component.scss'
+  ],
+  animations: [
+    trigger('detailExpand', [
+      state('collapsed,void', style({ height: '0px', minHeight: '0' })),
+      state('expanded', style({ height: '*' })),
+      transition('expanded <=> collapsed', animate('225ms cubic-bezier(0.4, 0.0, 0.2, 1)')),
+    ]),
+  ],
+  templateUrl: './liga.component.html',
+  styleUrl: './liga.component.scss'
 })
 export class LigaComponent implements OnInit, AfterViewInit {
   private route = inject(ActivatedRoute);
@@ -98,12 +98,12 @@ export class LigaComponent implements OnInit, AfterViewInit {
   ngOnInit(): void {
     this.route.queryParams.subscribe(params => {
       let param = params['param'];
-      this.ligaService.getItems(param).subscribe(
-        (html: string) => {
-          this.ligaName = this.ligaService.getLigaName(html);
-          this.dataSourceGames.data = this.ligaService.parseHtmlToGames(html)
-          this.dataSourceTable.data = this.ligaService.parseHtmlToTable(html)
-          this.dataSourceScorer.data = this.ligaService.parseHtmlToScorer(html)
+      this.ligaService.fetchLeagueData(param).subscribe(
+        (data) => {
+          this.ligaName = data.name;
+          this.dataSourceGames.data = data.games;
+          this.dataSourceTable.data = data.table;
+          this.dataSourceScorer.data = data.scorers;
 
           // Gruppiere Spiele nach Spieltagen
           this.groupGamesByMatchday();

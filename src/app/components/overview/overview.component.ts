@@ -1,6 +1,8 @@
 import { Component, OnInit, inject } from '@angular/core';
-import {Router} from '@angular/router';
-import {MatIcon} from "@angular/material/icon";
+import { toObservable } from '@angular/core/rxjs-interop';
+import { switchMap } from 'rxjs';
+import { Router } from '@angular/router';
+import { MatIcon } from "@angular/material/icon";
 import {
   MatAccordion,
   MatExpansionPanel,
@@ -8,28 +10,32 @@ import {
   MatExpansionPanelTitle,
   MatExpansionPanelDescription
 } from "@angular/material/expansion";
-import {MatIconButton} from "@angular/material/button";
+import { MatIconButton } from "@angular/material/button";
 import * as amplitude from '@amplitude/unified';
 
-import {MatCard, MatCardContent} from "@angular/material/card";
-import {OverviewService} from "../../services/overview/overview.service";
-import {FavoritesService} from "../../services/favorites/favorites.service";
-import {Item} from "../../models/item";
-import {SubItem} from "../../models/subItem";
-import {MatProgressSpinner} from "@angular/material/progress-spinner";
-import {MatTooltip} from "@angular/material/tooltip";
-import {MatFormField, MatLabel, MatPrefix, MatSuffix} from "@angular/material/form-field";
-import {MatInput} from "@angular/material/input";
-import {FormsModule} from "@angular/forms";
+import { MatCard, MatCardContent } from "@angular/material/card";
+import { OverviewService } from "../../services/overview/overview.service";
+import { SeasonService } from "../../services/season/season.service";
+import { FavoritesService } from "../../services/favorites/favorites.service";
+import { MatSelectModule } from "@angular/material/select";
+import { MatOptionModule } from "@angular/material/core";
+import { Item } from "../../models/item";
+import { SubItem } from "../../models/subItem";
+import { MatProgressSpinner } from "@angular/material/progress-spinner";
+import { MatTooltip } from "@angular/material/tooltip";
+import { MatFormField, MatLabel, MatPrefix, MatSuffix } from "@angular/material/form-field";
+import { MatInput } from "@angular/material/input";
+import { FormsModule } from "@angular/forms";
 
 @Component({
-    selector: 'app-overview',
-    imports: [MatIcon, MatAccordion, MatExpansionPanel, MatIconButton, MatExpansionPanelTitle, MatExpansionPanelDescription, MatExpansionPanelHeader, MatCard, MatCardContent, MatProgressSpinner, MatTooltip, MatFormField, MatInput, MatLabel, MatPrefix, MatSuffix, FormsModule],
-    templateUrl: './overview.component.html',
-    styleUrl: './overview.component.scss'
+  selector: 'app-overview',
+  imports: [MatIcon, MatAccordion, MatExpansionPanel, MatIconButton, MatExpansionPanelTitle, MatExpansionPanelDescription, MatExpansionPanelHeader, MatCard, MatCardContent, MatProgressSpinner, MatTooltip, MatFormField, MatInput, MatLabel, MatPrefix, MatSuffix, FormsModule, MatSelectModule, MatOptionModule],
+  templateUrl: './overview.component.html',
+  styleUrl: './overview.component.scss'
 })
 export class OverviewComponent implements OnInit {
   private overviewService = inject(OverviewService);
+  public seasonService = inject(SeasonService);
   private favoritesService = inject(FavoritesService);
   private router = inject(Router);
 
@@ -42,18 +48,27 @@ export class OverviewComponent implements OnInit {
   /** Inserted by Angular inject() migration for backwards compatibility */
   constructor(...args: unknown[]);
 
-  constructor() {}
-
-  ngOnInit(): void {
-    this.overviewService.getItems().subscribe(
-      (html: string) => {
-        // Process the HTML content to extract items
-        this.items = this.overviewService.parseHtmlToItems(html);
+  constructor() {
+    toObservable(this.seasonService.currentSeason).pipe(
+      switchMap(() => {
+        this.isLoading = true;
+        return this.overviewService.getItems();
+      })
+    ).subscribe(
+      (items: Item[]) => {
+        this.items = items;
         this.filteredItems = [...this.items];
         this.loadFavorites();
         this.isLoading = false;
+      },
+      (error) => {
+        console.error('Error loading items:', error);
+        this.isLoading = false;
       }
     );
+  }
+
+  ngOnInit(): void {
   }
 
   get favorites(): SubItem[] {
@@ -132,6 +147,10 @@ export class OverviewComponent implements OnInit {
   navigateToLiga(subItem: SubItem) {
     amplitude.track('League Selected', { leagueName: subItem.name });
     let param = subItem.link;
-    this.router.navigate(['/liga'], {queryParams: {param}});
+    this.router.navigate(['/liga'], { queryParams: { param } });
+  }
+
+  navigateToAnalytics() {
+    this.router.navigate(['/analytics']);
   }
 }

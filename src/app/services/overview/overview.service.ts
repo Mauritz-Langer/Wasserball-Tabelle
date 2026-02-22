@@ -1,10 +1,12 @@
 import { Injectable, inject } from '@angular/core';
-import {HttpClient} from '@angular/common/http';
-import {Observable} from 'rxjs';
+import { HttpClient } from '@angular/common/http';
+import { Observable, map, from } from 'rxjs';
 import * as DOMParser from 'dom-parser';
-import {Item} from "../../models/item";
-import {Dom} from "dom-parser";
-import {ApiProxyService} from "../api-proxy/api-proxy.service";
+import { Item } from "../../models/item";
+import { Dom } from "dom-parser";
+import { ApiProxyService } from "../api-proxy/api-proxy.service";
+import { SeasonService } from "../season/season.service";
+import { HistoryService } from "../history/history.service";
 
 @Injectable({
   providedIn: 'root'
@@ -12,6 +14,8 @@ import {ApiProxyService} from "../api-proxy/api-proxy.service";
 export class OverviewService {
   private http = inject(HttpClient);
   private apiProxy = inject(ApiProxyService);
+  private seasonService = inject(SeasonService);
+  private historyService = inject(HistoryService);
 
   /** Inserted by Angular inject() migration for backwards compatibility */
   constructor(...args: unknown[]);
@@ -20,9 +24,15 @@ export class OverviewService {
   constructor() {
   }
 
-  getItems(): Observable<string> {
-    const url = this.apiProxy.getApiUrl('/Modules/WB/Index.aspx?Season=2025');
-    return this.http.get(url, {responseType: 'text'})
+  getItems(): Observable<Item[]> {
+    if (this.seasonService.isCurrentSeason) {
+      const url = this.apiProxy.getApiUrl('/Modules/WB/Index.aspx?Season=2025');
+      return this.http.get(url, { responseType: 'text' }).pipe(
+        map(html => this.parseHtmlToItems(html))
+      );
+    } else {
+      return from(this.historyService.getOverviewItems(this.seasonService.currentSeason()));
+    }
   }
 
   parseHtmlToItems(html: string): Item[] {
@@ -59,11 +69,11 @@ export class OverviewService {
           if (subItemName === 'keine aktuellen Spiele vorhanden') {
             continue;
           }
-          subItems.push({name: subItemName, gender: subItemGender, link: subItemLink, isFavorite: false});
+          subItems.push({ name: subItemName, gender: subItemGender, link: subItemLink, isFavorite: false });
         }
 
         if (subItems.length !== 0) {
-          items.push({name: itemName, subItems: subItems});
+          items.push({ name: itemName, subItems: subItems });
         }
       }
     } // Log the items

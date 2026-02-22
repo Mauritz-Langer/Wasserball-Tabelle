@@ -1,11 +1,14 @@
 import { Injectable, inject } from '@angular/core';
 // entferne externes dom-parser Paket, nutze nativen DOMParser
-import {lastValueFrom, Observable} from "rxjs";
-import {HttpClient} from "@angular/common/http";
-import {Games} from "../../models/games";
-import {Table} from "../../models/table";
-import {Scorer} from "../../models/scorer";
-import {ApiProxyService} from "../api-proxy/api-proxy.service";
+import { lastValueFrom, Observable } from "rxjs";
+import { HttpClient } from "@angular/common/http";
+import { Games } from "../../models/games";
+import { Table } from "../../models/table";
+import { Scorer } from "../../models/scorer";
+import { ApiProxyService } from "../api-proxy/api-proxy.service";
+import { SeasonService } from "../season/season.service";
+import { HistoryService } from "../history/history.service";
+import { map, from } from "rxjs";
 
 @Injectable({
   providedIn: 'root'
@@ -13,6 +16,8 @@ import {ApiProxyService} from "../api-proxy/api-proxy.service";
 export class LigaService {
   private http = inject(HttpClient);
   private apiProxy = inject(ApiProxyService);
+  private seasonService = inject(SeasonService);
+  private historyService = inject(HistoryService);
 
   /** Inserted by Angular inject() migration for backwards compatibility */
   constructor(...args: unknown[]);
@@ -23,7 +28,33 @@ export class LigaService {
 
   getItems(link: string): Observable<string> {
     const url = this.apiProxy.getApiUrl('/Modules/WB/' + link);
-    return this.http.get(url, {responseType: 'text'})
+    return this.http.get(url, { responseType: 'text' })
+  }
+
+  fetchLeagueData(link: string): Observable<{ name: string, games: Games[], table: Table[], scorers: Scorer[] }> {
+    if (this.seasonService.isCurrentSeason) {
+      return this.getItems(link).pipe(
+        map(html => ({
+          name: this.getLigaName(html),
+          games: this.parseHtmlToGames(html),
+          table: this.parseHtmlToTable(html),
+          scorers: this.parseHtmlToScorer(html)
+        }))
+      );
+    } else {
+      return from(Promise.all([
+        this.historyService.getGames(link),
+        this.historyService.getTable(link),
+        this.historyService.getScorer(link)
+      ])).pipe(
+        map(([games, table, scorers]) => ({
+          name: 'Historische Liga', // TODO: Fetch real name from DB if possible
+          games,
+          table,
+          scorers
+        }))
+      );
+    }
   }
 
   getLigaName(html: string): string {
