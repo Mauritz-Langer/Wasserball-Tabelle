@@ -1,5 +1,39 @@
 /* You can add global styles to this file, and also import other style files */
 
+/* ============================================================
+   "Deep Pool" design system — refined aquatic sports identity.
+   Display: Sora · Body: Mulish · Brand: ocean blue + aqua accent.
+   ============================================================ */
+:root {
+  --font-display: 'Sora', 'Segoe UI', sans-serif;
+  --font-body: 'Mulish', 'Segoe UI', system-ui, sans-serif;
+
+  // Brand palette (ocean -> aqua)
+  --brand-50: #e8f1fe;
+  --brand-100: #cfe2fd;
+  --brand-300: #7fb0f5;
+  --brand-500: #1565d8;
+  --brand-600: #0e54bd;
+  --brand-700: #0b449b;
+  --accent-400: #22d3ee;
+  --accent-500: #06b6d4;
+  --accent-600: #0891b2;
+  --live-500: #e5383b;
+
+  // Radii & shadows
+  --radius-sm: 10px;
+  --radius-md: 16px;
+  --radius-lg: 22px;
+  --shadow-1: 0 1px 2px rgba(13, 38, 76, 0.06), 0 2px 8px rgba(13, 38, 76, 0.06);
+  --shadow-2: 0 4px 12px rgba(13, 38, 76, 0.08), 0 8px 28px rgba(13, 38, 76, 0.10);
+  --shadow-3: 0 12px 40px rgba(13, 38, 76, 0.18);
+
+  // Make Material components adopt the brand identity.
+  --mat-sys-primary: var(--brand-600);
+  --mat-sys-corner-medium: var(--radius-md);
+  --mat-sys-corner-large: var(--radius-lg);
+}
+
 html, body {
   height: 100%;
   transition: background-color 0.3s ease, color 0.3s ease;
@@ -7,9 +41,14 @@ html, body {
 
 body {
   margin: 0;
-  font-family: Roboto, "Helvetica Neue", sans-serif;
-  background-color: var(--background-color, #fafafa);
-  color: var(--text-primary, rgba(0, 0, 0, 0.87));
+  font-family: var(--font-body);
+  font-optical-sizing: auto;
+  background-color: var(--background-color, #f4f7fb);
+  color: var(--text-primary, #0d2247);
+  background-image:
+    radial-gradient(1100px 520px at 88% -8%, rgba(34, 211, 238, 0.07), transparent 60%),
+    radial-gradient(900px 480px at -5% 0%, rgba(21, 101, 216, 0.06), transparent 55%);
+  background-attachment: fixed;
 
   // Mobile-spezifische Optimierungen
   @media (max-width: 768px) {
@@ -41,14 +80,16 @@ body {
 // Light Theme Variables (Default)
 body.light-theme,
 body:not(.dark-theme) {
-  --background-color: #fafafa;
+  --background-color: #f4f7fb;
   --surface-color: #ffffff;
   --surface-elevated: #ffffff;
-  --text-primary: rgba(0, 0, 0, 0.87);
-  --text-secondary: rgba(0, 0, 0, 0.60);
-  --text-disabled: rgba(0, 0, 0, 0.38);
-  --divider-color: rgba(0, 0, 0, 0.12);
-  --border-color: rgba(0, 0, 0, 0.12);
+  --surface-muted: #eef3fa;
+  --text-primary: #0d2247;
+  --text-secondary: #4a5b76;
+  --text-disabled: #9aa7bd;
+  --divider-color: rgba(13, 38, 76, 0.10);
+  --border-color: rgba(13, 38, 76, 0.10);
+  --shadow-color: rgba(13, 38, 76, 0.10);
 
   // Game Result Colors (Light Mode)
   --game-won-bg: #f1f8f4;
@@ -62,14 +103,17 @@ body:not(.dark-theme) {
 
 // Dark Theme Variables
 body.dark-theme {
-  --background-color: #0a0a0a;
-  --surface-color: #1a1a1a;
-  --surface-elevated: #2d2d2d;
-  --text-primary: rgba(255, 255, 255, 0.95);
-  --text-secondary: rgba(255, 255, 255, 0.70);
-  --text-disabled: rgba(255, 255, 255, 0.40);
-  --divider-color: rgba(255, 255, 255, 0.15);
-  --border-color: rgba(255, 255, 255, 0.20);
+  --background-color: #080d18;
+  --surface-color: #111a2b;
+  --surface-elevated: #18233a;
+  --surface-muted: #0e1626;
+  --text-primary: rgba(236, 243, 255, 0.95);
+  --text-secondary: rgba(178, 196, 224, 0.78);
+  --text-disabled: rgba(178, 196, 224, 0.40);
+  --divider-color: rgba(150, 180, 230, 0.16);
+  --border-color: rgba(150, 180, 230, 0.18);
+  --shadow-color: rgba(0, 0, 0, 0.5);
+  --brand-600: #3b82f6;
 
   // Game Result Colors (Dark Mode)
   --game-won-bg: rgba(76, 175, 80, 0.20);
@@ -668,3 +712,129 @@ body.dark-theme {
   }
 }
 
+
+/* ============================================================
+   Skeleton loaders (perceived performance)
+   ============================================================ */
+.skeleton {
+  position: relative;
+  overflow: hidden;
+  background: rgba(0, 0, 0, 0.08);
+  border-radius: 8px;
+}
+.skeleton::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  transform: translateX(-100%);
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+  animation: skeletonShimmer 1.3s infinite;
+}
+body.dark-theme .skeleton { background: rgba(255, 255, 255, 0.08); }
+body.dark-theme .skeleton::after {
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.08), transparent);
+}
+@keyframes skeletonShimmer {
+  100% { transform: translateX(100%); }
+}
+.skeleton-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 8px 0;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+.skeleton-line { height: 56px; width: 100%; }
+.skeleton-line.title { height: 32px; width: 240px; max-width: 60%; }
+
+/* Prevent iOS auto-zoom on focus: inputs must be >= 16px on small screens. */
+@media (max-width: 768px) {
+  .mat-mdc-form-field input.mat-mdc-input-element {
+    font-size: 16px;
+  }
+}
+
+/* ============================================================
+   Typography identity (Sora display + Mulish body)
+   ============================================================ */
+h1, h2, h3, h4, h5, h6,
+.page-title, .brand-title, .mat-mdc-card-title {
+  font-family: var(--font-display);
+  letter-spacing: -0.02em;
+  font-weight: 700;
+}
+body { letter-spacing: 0.005em; }
+
+/* Stats should always use tabular figures for clean column alignment. */
+.standings-table, .scorer-table, .kpi-row, .kpi-card,
+table td, table th, .score, .goals, .vs, .p-goals, .info-text {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* Material primary buttons -> brand gradient with depth */
+.mat-mdc-raised-button.mat-primary,
+.mat-mdc-unelevated-button.mat-primary,
+.mat-mdc-flat-button.mat-primary {
+  background: linear-gradient(135deg, var(--brand-500), var(--brand-700)) !important;
+  color: #fff !important;
+  border-radius: 999px !important;
+  box-shadow: 0 6px 18px rgba(11, 68, 155, 0.28) !important;
+  letter-spacing: 0.01em;
+}
+.mat-mdc-outlined-button {
+  border-radius: 999px !important;
+}
+
+/* Cohesive card surface + depth */
+.mat-mdc-card {
+  border-radius: var(--radius-md) !important;
+  box-shadow: var(--shadow-1) !important;
+  border: 1px solid var(--border-color);
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+/* Refined link accent */
+a { color: var(--brand-600); text-underline-offset: 2px; }
+
+/* Custom scrollbars (cool-toned) */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--border-color) transparent;
+}
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb {
+  background: var(--border-color);
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+*::-webkit-scrollbar-thumb:hover { background: var(--text-disabled); background-clip: padding-box; }
+
+/* Brand-tinted text selection */
+::selection { background: rgba(34, 211, 238, 0.28); }
+
+/* Accessible focus ring for keyboard users */
+:focus-visible {
+  outline: 2px solid var(--accent-500);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Shared page-header pattern (used across screens) */
+.page-title {
+  background: linear-gradient(120deg, var(--brand-700), var(--brand-500) 70%, var(--accent-600));
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+body.dark-theme .page-title {
+  background: linear-gradient(120deg, #7fb0f5, #22d3ee);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Skeleton uses brand tint */
+.skeleton { background: var(--surface-muted); border-radius: var(--radius-sm); }

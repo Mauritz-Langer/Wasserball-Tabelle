@@ -2,6 +2,8 @@ import { TestBed } from '@angular/core/testing';
 import { HttpClientTestingModule, HttpTestingController } from '@angular/common/http/testing';
 import { OverviewService } from './overview.service';
 import { ApiProxyService } from '../api-proxy/api-proxy.service';
+import { SeasonService } from '../season/season.service';
+import { signal } from '@angular/core';
 
 describe('OverviewService', () => {
   let service: OverviewService;
@@ -9,9 +11,21 @@ describe('OverviewService', () => {
   let apiProxyService: ApiProxyService;
 
   beforeEach(() => {
+    const seasonServiceMock = {
+      currentSeason: signal('2025'),
+      isCurrentSeason: true,
+      getSeasonLabel: () => '2025/2026',
+      isLive: () => true,
+      setSeason: jasmine.createSpy('setSeason')
+    };
+
     TestBed.configureTestingModule({
       imports: [HttpClientTestingModule],
-      providers: [OverviewService, ApiProxyService]
+      providers: [
+        OverviewService,
+        ApiProxyService,
+        { provide: SeasonService, useValue: seasonServiceMock }
+      ]
     });
     service = TestBed.inject(OverviewService);
     httpMock = TestBed.inject(HttpTestingController);
@@ -27,11 +41,12 @@ describe('OverviewService', () => {
   });
 
   describe('getItems', () => {
-    it('should fetch items via HTTP', () => {
-      const mockHtml = '<html><body>Overview Data</body></html>';
+    it('should fetch items via HTTP and return parsed items', () => {
+      const mockHtml = '<html><body></body></html>';
 
       service.getItems().subscribe(data => {
-        expect(data).toBe(mockHtml);
+        // getItems now returns Item[], not raw HTML
+        expect(Array.isArray(data)).toBeTrue();
       });
 
       const expectedUrl = apiProxyService.getApiUrl('/Modules/WB/Index.aspx?Season=2025');
@@ -43,183 +58,71 @@ describe('OverviewService', () => {
   });
 
   describe('parseHtmlToItems', () => {
-    it('should parse HTML to items array', () => {
-      // Since dom-parser has specific requirements, we just test it doesn't throw
-      const html = `
-        <html><body>
-          <div id="active">
-            <div class="card">
-              <div>Bundesliga</div>
-              <div>
-                <ul>
-                  <li>
-                    <a href="WBGameList.aspx?V=DMOL1&S=2025">
-                      <span>Bundesliga Männer</span>
-                    </a>
-                    <span>Männer</span>
-                  </li>
-                </ul>
-              </div>
+    // Mirrors the real DSV markup:
+    //   #active > .card (.card-header = category) > .card-body table
+    //     tr > td>a[League.aspx] (name+link) | td (gender) | td (next game / Live link)
+    const realHtml = `
+      <html><body>
+        <div id="active">
+          <div class="card">
+            <div class="card-header">aktuelle Woche</div>
+            <div class="card-body">
+              <select><option>* alle Ligen *</option></select>
             </div>
           </div>
-        </body></html>
-      `;
-
-      expect(() => {
-        const items = service.parseHtmlToItems(html);
-        expect(items).toBeDefined();
-      }).not.toThrow();
-    });
-
-    it('should handle empty HTML', () => {
-      const html = '<html><body></body></html>';
-      const items = service.parseHtmlToItems(html);
-
-      expect(items).toEqual([]);
-    });
-
-    it('should filter out "keine aktuellen Spiele vorhanden"', () => {
-      const html = `
-        <html><body>
-          <div id="active">
-            <div class="card">
-              <div>Test Liga</div>
-              <div>
-                <ul>
-                  <li>
-                    <a href="#">
-                      <span>keine aktuellen Spiele vorhanden</span>
-                    </a>
-                    <span></span>
-                  </li>
-                </ul>
-              </div>
+          <div class="card">
+            <div class="card-header">National Jugend</div>
+            <div class="card-body table-responsive">
+              <table class="table table-sm">
+                <tr>
+                  <td><a href="League.aspx?Season=2025&LeagueID=341&Group=1&LeagueKind=E">DM U14 Endrunde 1</a></td>
+                  <td>männlich</td>
+                  <td><a href="https://lizenz.dsv.de/Live.aspx" target="_blank">in 4h LIVE!</a></td>
+                </tr>
+                <tr>
+                  <td><a href="League.aspx?Season=2025&LeagueID=342&Group=&LeagueKind=E">DM U14 weiblich</a></td>
+                  <td>weiblich</td>
+                  <td>in 20 Tagen</td>
+                </tr>
+              </table>
             </div>
           </div>
-        </body></html>
-      `;
+        </div>
+      </body></html>
+    `;
 
-      const items = service.parseHtmlToItems(html);
-
-      // Should filter out the "keine aktuellen Spiele" item
-      expect(items.length).toBe(0);
+    it('parses categories and leagues from the real DSV structure', () => {
+      const items = service.parseHtmlToItems(realHtml);
+      // The "aktuelle Woche" card has no League.aspx links -> skipped.
+      expect(items.length).toBe(1);
+      expect(items[0].name).toBe('National Jugend');
+      expect(items[0].subItems.length).toBe(2);
     });
 
-    it('should handle malformed HTML gracefully', () => {
-      const html = '<html><body><div>invalid</div></body></html>';
-
-      expect(() => {
-        const items = service.parseHtmlToItems(html);
-        expect(items).toBeDefined();
-      }).not.toThrow();
+    it('extracts name, link and gender; ignores the Live.aspx link', () => {
+      const sub = service.parseHtmlToItems(realHtml)[0].subItems;
+      expect(sub[0].name).toBe('DM U14 Endrunde 1');
+      expect(sub[0].link).toContain('League.aspx?Season=2025&LeagueID=341');
+      expect(sub[0].link).not.toContain('Live.aspx');
+      expect(sub[0].gender).toBe('männlich');
+      expect(sub[1].gender).toBe('weiblich');
+      expect(sub[0].isFavorite).toBeFalse();
     });
 
-    it('should remove nobr tags and target attributes', () => {
+    it('returns [] for empty or active-less HTML', () => {
+      expect(service.parseHtmlToItems('<html><body></body></html>')).toEqual([]);
+      expect(service.parseHtmlToItems('<div>nope</div>')).toEqual([]);
+    });
+
+    it('filters out "keine aktuellen Spiele vorhanden"', () => {
       const html = `
-        <html><body>
-          <div id="active">
-            <div class="card">
-              <div><nobr>Bundesliga</nobr></div>
-              <div>
-                <ul>
-                  <li>
-                    <a href="link.aspx" target=_blank>
-                      <span>Liga Name</span>
-                    </a>
-                    <span>Männer</span>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </body></html>
-      `;
-
-      expect(() => {
-        service.parseHtmlToItems(html);
-      }).not.toThrow();
-    });
-
-    it('should extract link from subItem', () => {
-      const html = `
-        <html><body>
-          <div id="active">
-            <div class="card">
-              <div>Test</div>
-              <div>
-                <ul>
-                  <li>
-                    <a href="WBGameList.aspx?V=TEST&S=2025">
-                      <span>Test Liga</span>
-                    </a>
-                    <span>Männer</span>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </body></html>
-      `;
-
-      const items = service.parseHtmlToItems(html);
-
-      // Just verify parsing doesn't throw
-      expect(items).toBeDefined();
-      expect(Array.isArray(items)).toBe(true);
-    });
-
-    it('should extract gender information', () => {
-      const html = `
-        <html><body>
-          <div id="active">
-            <div class="card">
-              <div>Test</div>
-              <div>
-                <ul>
-                  <li>
-                    <a href="link.aspx">
-                      <span>Test Liga</span>
-                    </a>
-                    <span>Frauen</span>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </body></html>
-      `;
-
-      const items = service.parseHtmlToItems(html);
-
-      expect(items).toBeDefined();
-      expect(Array.isArray(items)).toBe(true);
-    });
-
-    it('should set isFavorite to false by default', () => {
-      const html = `
-        <html><body>
-          <div id="active">
-            <div class="card">
-              <div>Test</div>
-              <div>
-                <ul>
-                  <li>
-                    <a href="link.aspx">
-                      <span>Test Liga</span>
-                    </a>
-                    <span>Männer</span>
-                  </li>
-                </ul>
-              </div>
-            </div>
-          </div>
-        </body></html>
-      `;
-
-      const items = service.parseHtmlToItems(html);
-
-      expect(items).toBeDefined();
-      expect(Array.isArray(items)).toBe(true);
+        <div id="active"><div class="card">
+          <div class="card-header">Leer</div>
+          <div class="card-body"><table><tr>
+            <td><a href="League.aspx?x">keine aktuellen Spiele vorhanden</a></td><td></td>
+          </tr></table></div>
+        </div></div>`;
+      expect(service.parseHtmlToItems(html)).toEqual([]);
     });
   });
 });

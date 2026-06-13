@@ -2,8 +2,40 @@ export const config = {
   runtime: 'edge',
 };
 
+// Cross-origin callers are restricted to an allowlist so the proxy can't be
+// abused by arbitrary third-party sites to scrape DSV through us. Same-origin
+// requests (the app itself) send no Origin header and are always allowed.
+// Configure extra origins via the ALLOWED_ORIGINS env var (comma-separated).
+const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '')
+  .split(',')
+  .map(s => s.trim())
+  .filter(Boolean);
+
+function allowedOrigin(request: Request): string | null {
+  const origin = request.headers.get('Origin');
+  if (!origin) return null; // same-origin: no CORS header required
+  if (ALLOWED_ORIGINS.includes(origin)) return origin;
+  if (/^https?:\/\/localhost(:\d+)?$/.test(origin)) return origin;
+  return null;
+}
+
+function corsHeaders(request: Request): Record<string, string> {
+  const origin = allowedOrigin(request);
+  if (!origin) return {};
+  return {
+    'Access-Control-Allow-Origin': origin,
+    'Access-Control-Allow-Methods': 'GET, OPTIONS',
+    'Access-Control-Allow-Headers': 'Content-Type',
+    'Vary': 'Origin',
+  };
+}
+
 export default async function handler(request: Request) {
   const url = new URL(request.url);
+
+  if (request.method === 'OPTIONS') {
+    return new Response(null, { status: 204, headers: corsHeaders(request) });
+  }
 
   // Extract the path from the URL pathname
   // The path comes after /api/proxy in the format /api/proxy/Modules/WB/...
@@ -18,6 +50,11 @@ export default async function handler(request: Request) {
   // If no path is found, return error
   if (!targetPath || targetPath === '/') {
     return new Response('Missing path parameter', { status: 400 });
+  }
+
+  // Only allow proxying DSV module pages — not an open relay.
+  if (!targetPath.startsWith('/Modules/')) {
+    return new Response('Forbidden path', { status: 403 });
   }
 
   try {
@@ -44,18 +81,14 @@ export default async function handler(request: Request) {
       status: response.status,
       headers: {
         'Content-Type': response.headers.get('Content-Type') || 'text/html; charset=utf-8',
-        'Access-Control-Allow-Origin': '*',
-        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
-        'Access-Control-Allow-Headers': 'Content-Type',
+        ...corsHeaders(request),
       },
     });
   } catch (error) {
     console.error('Proxy error:', error);
     return new Response('Proxy error: ' + (error as Error).message, {
       status: 500,
-      headers: {
-        'Access-Control-Allow-Origin': '*',
-      },
+      headers: corsHeaders(request),
     });
   }
 }

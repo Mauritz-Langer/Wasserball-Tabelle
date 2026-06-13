@@ -1,5 +1,4 @@
 import { Injectable, inject } from '@angular/core';
-// entferne externes dom-parser Paket, nutze nativen DOMParser
 import { lastValueFrom, Observable } from "rxjs";
 import { HttpClient } from "@angular/common/http";
 import { Games } from "../../models/games";
@@ -8,7 +7,9 @@ import { Scorer } from "../../models/scorer";
 import { ApiProxyService } from "../api-proxy/api-proxy.service";
 import { SeasonService } from "../season/season.service";
 import { HistoryService } from "../history/history.service";
-import { map, from } from "rxjs";
+import { map, from, shareReplay } from "rxjs";
+
+interface LeagueData { name: string; games: Games[]; table: Table[]; scorers: Scorer[]; }
 
 @Injectable({
   providedIn: 'root'
@@ -31,7 +32,24 @@ export class LigaService {
     return this.http.get(url, { responseType: 'text' })
   }
 
-  fetchLeagueData(link: string): Observable<{ name: string, games: Games[], table: Table[], scorers: Scorer[] }> {
+  // Short-lived session cache so navigating back to a league doesn't re-fetch
+  // and re-parse. TTL keeps live scores reasonably fresh.
+  private cache = new Map<string, { ts: number, data$: Observable<LeagueData> }>();
+  private readonly cacheTtlMs = 60_000;
+
+  fetchLeagueData(link: string, forceRefresh = false): Observable<LeagueData> {
+    const key = this.seasonService.currentSeason() + '|' + link;
+    const cached = this.cache.get(key);
+    if (!forceRefresh && cached && Date.now() - cached.ts < this.cacheTtlMs) {
+      return cached.data$;
+    }
+
+    const data$ = this.buildLeagueData(link).pipe(shareReplay(1));
+    this.cache.set(key, { ts: Date.now(), data$ });
+    return data$;
+  }
+
+  private buildLeagueData(link: string): Observable<LeagueData> {
     if (this.seasonService.isCurrentSeason) {
       return this.getItems(link).pipe(
         map(html => ({
@@ -43,16 +61,12 @@ export class LigaService {
       );
     } else {
       return from(Promise.all([
+        this.historyService.getLeagueName(link),
         this.historyService.getGames(link),
         this.historyService.getTable(link),
         this.historyService.getScorer(link)
       ])).pipe(
-        map(([games, table, scorers]) => ({
-          name: 'Historische Liga', // TODO: Fetch real name from DB if possible
-          games,
-          table,
-          scorers
-        }))
+        map(([name, games, table, scorers]) => ({ name, games, table, scorers }))
       );
     }
   }

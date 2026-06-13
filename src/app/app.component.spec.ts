@@ -1,4 +1,5 @@
 import { TestBed } from '@angular/core/testing';
+import { signal } from '@angular/core';
 import { AppComponent } from './app.component';
 import { Router, NavigationEnd } from '@angular/router';
 import { FavoritesService } from './services/favorites/favorites.service';
@@ -6,6 +7,8 @@ import { ThemeService } from './services/theme/theme.service';
 import { Subject, BehaviorSubject } from 'rxjs';
 import { provideRouter } from '@angular/router';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
+import { SeasonService } from './services/season/season.service';
+import { DatabaseService } from './services/database/database.service';
 
 describe('AppComponent', () => {
   let component: AppComponent;
@@ -29,12 +32,24 @@ describe('AppComponent', () => {
       effectiveTheme: jasmine.createSpy().and.returnValue('light')
     });
 
+    const seasonServiceSpy = jasmine.createSpyObj('SeasonService', ['getSeasonLabel', 'isLive', 'loadAvailableSeasons', 'setSeason'], {
+      currentSeason: jasmine.createSpy().and.returnValue('2025'),
+      availableSeasons: jasmine.createSpy().and.returnValue(['2025']),
+      seasonsLoaded: jasmine.createSpy().and.returnValue(false),
+      isCurrentSeason: true
+    });
+    seasonServiceSpy.getSeasonLabel.and.returnValue('2025/2026');
+    seasonServiceSpy.isLive.and.returnValue(true);
+    seasonServiceSpy.loadAvailableSeasons.and.returnValue(Promise.resolve());
+
     await TestBed.configureTestingModule({
       imports: [AppComponent, BrowserAnimationsModule],
       providers: [
         provideRouter([]),
         { provide: FavoritesService, useValue: favoritesServiceSpy },
-        { provide: ThemeService, useValue: themeServiceSpy }
+        { provide: ThemeService, useValue: themeServiceSpy },
+        { provide: SeasonService, useValue: seasonServiceSpy },
+        { provide: DatabaseService, useValue: { loading: signal(false), progress: signal(0) } }
       ]
     }).compileComponents();
 
@@ -79,11 +94,10 @@ describe('AppComponent', () => {
       expect(component.favoritesCount).toBe(10);
     });
 
-    it('should set current year', () => {
+    it('should have seasonService injected', () => {
       fixture.detectChanges();
 
-      const currentYear = new Date().getFullYear();
-      expect(component.currentYear).toBe(currentYear);
+      expect(component.seasonService).toBeTruthy();
     });
   });
 

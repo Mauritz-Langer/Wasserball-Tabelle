@@ -1,9 +1,11 @@
 <div class="liga-container">
   <!-- Loading Spinner -->
   @if (isLoading) {
-    <div class="spinner-container">
-      <mat-spinner diameter="60" />
-      <p class="loading-text">Lade Liga-Daten...</p>
+    <div class="skeleton-list" aria-busy="true" aria-label="Lade Liga-Daten">
+      <div class="skeleton skeleton-line title"></div>
+      @for (i of [1,2,3,4,5,6,7,8]; track i) {
+        <div class="skeleton skeleton-line"></div>
+      }
     </div>
   }
 
@@ -12,14 +14,47 @@
     <div class="content">
       <!-- Header with Back Button -->
       <div class="header-actions">
-        <button mat-icon-button routerLink="/" class="back-button">
+        <button mat-icon-button routerLink="/" class="back-button" aria-label="Zurück zur Übersicht">
           <mat-icon>arrow_back</mat-icon>
         </button>
-        <h1 class="page-title">{{ ligaName }}</h1>
+        <div class="header-title-group">
+          <h1 class="page-title">{{ ligaName }}</h1>
+          <span class="season-subtitle">
+            Saison {{ seasonService.getSeasonLabel() }}
+            @if (seasonService.isLive()) {
+              <span class="live-indicator">● LIVE</span>
+            } @else {
+              <span class="archive-indicator">ARCHIV</span>
+            }
+          </span>
+        </div>
+        @if (seasonService.isLive()) {
+          <button mat-icon-button class="refresh-button" (click)="refresh()"
+            [disabled]="isRefreshing"
+            matTooltip="Aktualisieren" aria-label="Live-Daten aktualisieren">
+            <mat-icon [class.spinning]="isRefreshing">refresh</mat-icon>
+          </button>
+        }
       </div>
+      <!-- Archive Banner for historical data -->
+      @if (!seasonService.isLive()) {
+        <div class="archive-banner">
+          <mat-icon>history</mat-icon>
+          <span>Historische Daten – Spiellinks und Kalender-Export sind für Archiv-Saisons nicht verfügbar.</span>
+        </div>
+      }
+      <!-- Live banner: games of this league currently being played -->
+      @if (liveCount > 0) {
+        <button class="live-banner" routerLink="/live" aria-label="Zum Liveticker">
+          <span class="pulse"></span>
+          <mat-icon>bolt</mat-icon>
+          <span>{{ liveCount }} {{ liveCount === 1 ? 'Spiel läuft' : 'Spiele laufen' }} gerade live</span>
+          <mat-icon class="chev">chevron_right</mat-icon>
+        </button>
+      }
       <!-- Tabs -->
       @if (dataSourceGames.data.length > 0 || dataSourceTable.data.length > 0 || dataSourceScorer.data.length > 0) {
-        <mat-tab-group class="liga-tabs">
+        <mat-tab-group class="liga-tabs" [selectedIndex]="activeTabIndex" (selectedIndexChange)="onTabChange($event)">
           <!-- Spiele Tab -->
           @if (dataSourceGames.data.length > 0) {
             <mat-tab>
@@ -28,7 +63,22 @@
                 Spiele
               </ng-template>
               <div class="tab-content">
-                <!-- Calendar Export Button -->
+                <!-- Next game of a favourite team -->
+                @if (nextFavoriteGame; as ng) {
+                <mat-card class="next-favorite-card" (click)="navigateToGameDetails(ng)">
+                  <mat-card-content>
+                    <mat-icon class="next-fav-icon">star</mat-icon>
+                    <div class="next-fav-text">
+                      <span class="next-fav-label">Nächstes Spiel deines Teams</span>
+                      <span class="next-fav-teams">{{ ng.home }} – {{ ng.guest }}</span>
+                      <span class="next-fav-when">{{ ng.start }}</span>
+                    </div>
+                    <mat-icon>chevron_right</mat-icon>
+                  </mat-card-content>
+                </mat-card>
+                }
+                <!-- Calendar Export Button (nur für Live-Saison) -->
+                @if (seasonService.isLive()) {
                 <mat-card class="export-card">
                   <mat-card-content>
                     <button mat-raised-button color="primary" (click)="downloadCalendar()">
@@ -38,13 +88,19 @@
                     <span class="export-hint">Exportiere alle zukünftigen Spiele in deinen Kalender</span>
                   </mat-card-content>
                 </mat-card>
+                }
                 <!-- Filter -->
                 <mat-card class="filter-card">
                   <mat-card-content>
                     <mat-form-field appearance="outline" class="search-field">
                       <mat-label>Spiele durchsuchen</mat-label>
-                      <input matInput (keyup)="applyGamesFilter($event)" placeholder="Team, Ort...">
+                      <input matInput [(ngModel)]="gamesFilter" (ngModelChange)="onGamesFilterChange()" placeholder="Team, Ort..." autocomplete="off">
                       <mat-icon matPrefix>search</mat-icon>
+                      @if (gamesFilter) {
+                        <button mat-icon-button matSuffix (click)="clearGamesFilter()" aria-label="Suche leeren">
+                          <mat-icon>close</mat-icon>
+                        </button>
+                      }
                     </mat-form-field>
                   </mat-card-content>
                 </mat-card>
@@ -68,6 +124,12 @@
                             class="game-card mat-elevation-z2"
                             [class.past-game]="checkEventInPast(game.start)"
                             [class.clickable]="game.gameLink"
+                            [attr.role]="game.gameLink ? 'button' : null"
+                            [attr.tabindex]="game.gameLink ? 0 : null"
+                            [attr.aria-label]="game.gameLink ? ('Spieldetails: ' + game.home + ' gegen ' + game.guest) : null"
+                            [class.fav-game]="involvesFavorite(game)"
+                            [ngClass]="favResultClass(game)"
+                            (keyup.enter)="navigateToGameDetails(game)"
                             (click)="navigateToGameDetails(game)">
                             <mat-card-content>
                               <!-- Time -->
@@ -76,11 +138,21 @@
                                   <mat-icon>schedule</mat-icon>
                                   <span>{{ game.start.split(',')[1]?.trim() ?? game.start }}</span>
                                 </div>
-                                @if (game.result && game.result.trim() !== '' && game.result !== ' - ' && game.result !== '-') {
-                                  <div class="game-status">
-                                    <span class="badge">Beendet</span>
-                                  </div>
+                                @if (involvesFavorite(game)) {
+                                  <mat-icon class="fav-flag" matTooltip="Lieblingsteam">star</mat-icon>
                                 }
+                                <div class="game-status">
+                                  @if (isGameLive(game)) {
+                                    <button class="badge live-badge" (click)="openLive(game, $event)"
+                                      matTooltip="Im Liveticker verfolgen" aria-label="Im Liveticker verfolgen">
+                                      <span class="pulse"></span>LIVE
+                                    </button>
+                                  } @else if (isPlayed(game)) {
+                                    <span class="badge done">Beendet</span>
+                                  } @else {
+                                    <span class="badge pending">Ausstehend</span>
+                                  }
+                                </div>
                               </div>
                               <!-- Teams -->
                               <div class="game-teams">
@@ -92,11 +164,10 @@
                                   <span class="team-name">{{ game.home }}</span>
                                 </div>
                                 <div class="game-score">
-                                  @if (game.result && game.result.trim() !== '' && game.result !== ' - ' && game.result !== '-') {
+                                  @if (isPlayed(game)) {
                                     <span class="score-display">{{ game.result }}</span>
-                                  }
-                                  @if (!game.result || game.result.trim() === '' || game.result === ' - ' || game.result === '-') {
-                                    <span class="score-display score-pending">-:-</span>
+                                  } @else {
+                                    <span class="score-display score-pending">vs</span>
                                   }
                                 </div>
                                 <div class="team guest-team">
@@ -152,9 +223,9 @@
                     <div class="progress-bar"></div>
                   </div>
                   <div class="table-container" #tableContainer>
-                    <table mat-table [dataSource]="dataSourceTable" multiTemplateDataRows class="standings-table">
+                    <table mat-table [dataSource]="dataSourceTable" matSort multiTemplateDataRows class="standings-table">
                       <ng-container matColumnDef="place">
-                        <th mat-header-cell *matHeaderCellDef>#</th>
+                        <th mat-header-cell *matHeaderCellDef mat-sort-header>#</th>
                         <td mat-cell *matCellDef="let element">
                           <div class="place-badge" [class.place-1]="element.place === 1"
                             [class.place-2]="element.place === 2"
@@ -173,7 +244,7 @@
                         </td>
                       </ng-container>
                       <ng-container matColumnDef="team">
-                        <th mat-header-cell *matHeaderCellDef>Team</th>
+                        <th mat-header-cell *matHeaderCellDef mat-sort-header>Team</th>
                         <td mat-cell *matCellDef="let element" class="team-cell">
                           <div class="team-name-wrapper">
                             <span class="team-name">{{ element.team }}</span>
@@ -184,27 +255,27 @@
                         </td>
                       </ng-container>
                       <ng-container matColumnDef="games">
-                        <th mat-header-cell *matHeaderCellDef>Sp</th>
+                        <th mat-header-cell *matHeaderCellDef mat-sort-header>Sp</th>
                         <td mat-cell *matCellDef="let element">{{ element.games }}</td>
                       </ng-container>
                       <ng-container matColumnDef="wins">
-                        <th mat-header-cell *matHeaderCellDef>S</th>
+                        <th mat-header-cell *matHeaderCellDef mat-sort-header>S</th>
                         <td mat-cell *matCellDef="let element" class="stat-win">{{ element.wins }}</td>
                       </ng-container>
                       <ng-container matColumnDef="draws">
-                        <th mat-header-cell *matHeaderCellDef>U</th>
+                        <th mat-header-cell *matHeaderCellDef mat-sort-header>U</th>
                         <td mat-cell *matCellDef="let element" class="stat-draw">{{ element.draws }}</td>
                       </ng-container>
                       <ng-container matColumnDef="losses">
-                        <th mat-header-cell *matHeaderCellDef>N</th>
+                        <th mat-header-cell *matHeaderCellDef mat-sort-header>N</th>
                         <td mat-cell *matCellDef="let element" class="stat-loss">{{ element.losses }}</td>
                       </ng-container>
                       <ng-container matColumnDef="goals">
-                        <th mat-header-cell *matHeaderCellDef>Tore</th>
+                        <th mat-header-cell *matHeaderCellDef mat-sort-header>Tore</th>
                         <td mat-cell *matCellDef="let element">{{ element.goals }}</td>
                       </ng-container>
                       <ng-container matColumnDef="goalDifference">
-                        <th mat-header-cell *matHeaderCellDef>TD</th>
+                        <th mat-header-cell *matHeaderCellDef mat-sort-header>TD</th>
                         <td mat-cell *matCellDef="let element"
                           [class.positive-diff]="element.goalDifference > 0"
                           [class.negative-diff]="element.goalDifference < 0">
@@ -212,7 +283,7 @@
                         </td>
                       </ng-container>
                       <ng-container matColumnDef="points">
-                        <th mat-header-cell *matHeaderCellDef>Pkt</th>
+                        <th mat-header-cell *matHeaderCellDef mat-sort-header>Pkt</th>
                         <td mat-cell *matCellDef="let element" class="points-cell">
                           <strong>{{ element.points }}</strong>
                         </td>
@@ -233,6 +304,13 @@
                           }
                         </td>
                       </ng-container>
+                      <!-- Expand affordance -->
+                      <ng-container matColumnDef="expand">
+                        <th mat-header-cell *matHeaderCellDef aria-label="Details"></th>
+                        <td mat-cell *matCellDef="let element" class="expand-cell">
+                          <mat-icon class="expand-chevron" [class.open]="expandedElement === element">expand_more</mat-icon>
+                        </td>
+                      </ng-container>
                       <!-- Expanded Detail -->
                       <ng-container matColumnDef="expandedDetail">
                         <td mat-cell *matCellDef="let element" [attr.colspan]="displayedColumnsTable.length">
@@ -249,10 +327,23 @@
                                   <p>{{ element.info }}</p>
                                 }
                               </div>
-                              <button mat-stroked-button color="primary" (click)="downloadCalendar(element.team); $event.stopPropagation()" class="export-team-button">
-                                <mat-icon>calendar_month</mat-icon>
-                                Spielplan exportieren
-                              </button>
+                              <div class="team-detail-actions">
+                                <button mat-icon-button class="team-fav-button"
+                                  [class.active]="teamFavorites.isFavorite(element.team)"
+                                  (click)="toggleTeamFavorite(element.team); $event.stopPropagation()"
+                                  [attr.aria-label]="teamFavorites.isFavorite(element.team) ? 'Team aus Favoriten entfernen' : 'Team zu Favoriten hinzufügen'"
+                                  [matTooltip]="teamFavorites.isFavorite(element.team) ? 'Aus Favoriten entfernen' : 'Als Favorit merken'">
+                                  <mat-icon>{{ teamFavorites.isFavorite(element.team) ? 'star' : 'star_border' }}</mat-icon>
+                                </button>
+                                <button mat-stroked-button color="accent" (click)="navigateToTeamStats(element.team); $event.stopPropagation()" class="team-stats-button">
+                                  <mat-icon>insights</mat-icon>
+                                  Team-Statistik
+                                </button>
+                                <button mat-stroked-button color="primary" (click)="downloadCalendar(element.team); $event.stopPropagation()" class="export-team-button">
+                                  <mat-icon>calendar_month</mat-icon>
+                                  Spielplan exportieren
+                                </button>
+                              </div>
                             </div>
                             @if (expandedGames && expandedGames.length > 0) {
                               <div class="team-games">
@@ -307,6 +398,7 @@
                       </ng-container>
                       <tr mat-header-row *matHeaderRowDef="displayedColumnsTable; sticky: true"></tr>
                       <tr mat-row *matRowDef="let row; columns: displayedColumnsTable;"
+                        [class.fav-row]="teamFavorites.isFavorite(row.team)"
                         class="table-row"
                         [class.expanded-row]="expandedElement === row"
                         [class.top-3]="row.place <= 3"
@@ -332,8 +424,13 @@
                 <div class="filter-section">
                   <mat-form-field appearance="outline" class="search-field">
                     <mat-label>Spieler durchsuchen</mat-label>
-                    <input matInput (keyup)="applyScorerFilter($event)" placeholder="Name, Team...">
+                    <input matInput [(ngModel)]="scorerFilter" (ngModelChange)="onScorerFilterChange()" placeholder="Name, Team..." autocomplete="off">
                     <mat-icon matPrefix>search</mat-icon>
+                    @if (scorerFilter) {
+                      <button mat-icon-button matSuffix (click)="clearScorerFilter()" aria-label="Suche leeren">
+                        <mat-icon>close</mat-icon>
+                      </button>
+                    }
                   </mat-form-field>
                 </div>
               }
@@ -345,6 +442,7 @@
                     <div class="podium-player">{{ dataSourceScorer.filteredData[1].name }}</div>
                     <div class="podium-team">{{ dataSourceScorer.filteredData[1].team }}</div>
                     <div class="podium-goals">{{ dataSourceScorer.filteredData[1].goals }} Tore</div>
+                    <div class="podium-avg">Ø {{ goalAverage(dataSourceScorer.filteredData[1].goals, dataSourceScorer.filteredData[1].games) }}/Spiel</div>
                   </div>
                   <div class="podium-place place-1">
                     <mat-icon class="trophy-icon">emoji_events</mat-icon>
@@ -352,12 +450,14 @@
                     <div class="podium-player">{{ dataSourceScorer.filteredData[0].name }}</div>
                     <div class="podium-team">{{ dataSourceScorer.filteredData[0].team }}</div>
                     <div class="podium-goals">{{ dataSourceScorer.filteredData[0].goals }} Tore</div>
+                    <div class="podium-avg">Ø {{ goalAverage(dataSourceScorer.filteredData[0].goals, dataSourceScorer.filteredData[0].games) }}/Spiel</div>
                   </div>
                   <div class="podium-place place-3">
                     <div class="podium-rank">3</div>
                     <div class="podium-player">{{ dataSourceScorer.filteredData[2].name }}</div>
                     <div class="podium-team">{{ dataSourceScorer.filteredData[2].team }}</div>
                     <div class="podium-goals">{{ dataSourceScorer.filteredData[2].goals }} Tore</div>
+                    <div class="podium-avg">Ø {{ goalAverage(dataSourceScorer.filteredData[2].goals, dataSourceScorer.filteredData[2].games) }}/Spiel</div>
                   </div>
                 </div>
               }
@@ -388,6 +488,10 @@
                             <div class="scorer-games">
                               <span class="games-number">{{ scorer.games }}</span>
                               <span class="games-label">Spiele</span>
+                            </div>
+                            <div class="scorer-avg" matTooltip="Tore pro Spiel">
+                              <span class="avg-number">{{ goalAverage(scorer.goals, scorer.games) }}</span>
+                              <span class="avg-label">Ø</span>
                             </div>
                           </div>
                         </div>

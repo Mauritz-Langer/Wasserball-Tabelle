@@ -2,8 +2,10 @@ import {ComponentFixture, TestBed} from '@angular/core/testing';
 import {OverviewComponent} from './overview.component';
 import {OverviewService} from '../../services/overview/overview.service';
 import {FavoritesService} from '../../services/favorites/favorites.service';
+import {SeasonService} from '../../services/season/season.service';
 import {Router} from '@angular/router';
 import {of} from 'rxjs';
+import {signal} from '@angular/core';
 import {HttpClientTestingModule} from '@angular/common/http/testing';
 import {BrowserAnimationsModule} from '@angular/platform-browser/animations';
 import {Item} from '../../models/item';
@@ -37,6 +39,17 @@ describe('OverviewComponent', () => {
     const favoritesServiceSpy = jasmine.createSpyObj('FavoritesService', ['updateCount']);
     const routerSpy = jasmine.createSpyObj('Router', ['navigate']);
 
+    const seasonServiceMock = {
+      currentSeason: signal('2025'),
+      availableSeasons: signal(['2025']),
+      seasonsLoaded: signal(false),
+      isCurrentSeason: true,
+      getSeasonLabel: () => '2025/2026',
+      isLive: () => true,
+      setSeason: jasmine.createSpy('setSeason'),
+      loadAvailableSeasons: jasmine.createSpy('loadAvailableSeasons').and.returnValue(Promise.resolve())
+    };
+
     await TestBed.configureTestingModule({
       imports: [
         OverviewComponent,
@@ -46,7 +59,8 @@ describe('OverviewComponent', () => {
       providers: [
         {provide: OverviewService, useValue: overviewServiceSpy},
         {provide: FavoritesService, useValue: favoritesServiceSpy},
-        {provide: Router, useValue: routerSpy}
+        {provide: Router, useValue: routerSpy},
+        {provide: SeasonService, useValue: seasonServiceMock}
       ]
     })
       .compileComponents();
@@ -55,9 +69,8 @@ describe('OverviewComponent', () => {
     favoritesService = TestBed.inject(FavoritesService) as jasmine.SpyObj<FavoritesService>;
     router = TestBed.inject(Router) as jasmine.SpyObj<Router>;
 
-    // Setup default mock responses
-    overviewService.getItems.and.returnValue(of('<html></html>'));
-    overviewService.parseHtmlToItems.and.returnValue(mockItems);
+    // Setup default mock responses - getItems now returns Observable<Item[]>
+    overviewService.getItems.and.returnValue(of(mockItems));
 
     // Mock localStorage
     let store: { [key: string]: string } = {};
@@ -79,7 +92,6 @@ describe('OverviewComponent', () => {
       fixture.detectChanges();
 
       expect(overviewService.getItems).toHaveBeenCalled();
-      expect(overviewService.parseHtmlToItems).toHaveBeenCalled();
       expect(component.items.length).toBe(2);
       expect(component.isLoading).toBe(false);
     });
@@ -116,7 +128,7 @@ describe('OverviewComponent', () => {
           ]
         }
       ];
-      overviewService.parseHtmlToItems.and.returnValue(noFavItems);
+      overviewService.getItems.and.returnValue(of(noFavItems));
       fixture.detectChanges();
 
       expect(component.favorites.length).toBe(0);

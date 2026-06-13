@@ -78,8 +78,18 @@ function initDB() {
         goal_diff INTEGER,
         points INTEGER,
         info TEXT,
-        image_url TEXT,
+        image_url TEXT,        -- raw base64 logo as scraped; emptied by dedupe-logos.js
+        logo_hash TEXT,        -- reference into logos(hash) after deduplication
         FOREIGN KEY(league_id) REFERENCES leagues(id)
+    );
+
+    -- Deduplicated team logos. The scraper writes base64 logos into
+    -- table_entries.image_url; scripts/dedupe-logos.js moves the (few) distinct
+    -- images here and references them via table_entries.logo_hash, shrinking the
+    -- shipped database from ~550 MB to ~15 MB.
+    CREATE TABLE IF NOT EXISTS logos (
+        hash TEXT PRIMARY KEY,
+        data TEXT NOT NULL
     );
 
     -- League Scorers (from the League page)
@@ -167,6 +177,7 @@ function initDB() {
 
     CREATE INDEX IF NOT EXISTS idx_table_entries_league_id ON table_entries(league_id);
     CREATE INDEX IF NOT EXISTS idx_table_entries_place ON table_entries(league_id, place);
+    CREATE INDEX IF NOT EXISTS idx_table_entries_logo_hash ON table_entries(logo_hash);
 
     CREATE INDEX IF NOT EXISTS idx_scorers_league_id ON scorers(league_id);
     CREATE INDEX IF NOT EXISTS idx_scorers_goals ON scorers(goals DESC);

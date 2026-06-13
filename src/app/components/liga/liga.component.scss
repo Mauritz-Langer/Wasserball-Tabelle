@@ -74,6 +74,14 @@
     }
   }
 
+  .header-title-group {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
   .page-title {
     margin: 0;
     font-size: 32px;
@@ -85,18 +93,75 @@
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
-    flex: 1;
     min-width: 0;
 
     @media (max-width: 768px) {
       font-size: 20px;
       line-height: 1.3;
-      // Erlaube Umbruch für lange Ligennamen
       white-space: normal;
       display: -webkit-box;
       -webkit-line-clamp: 2;
       -webkit-box-orient: vertical;
     }
+  }
+
+  .season-subtitle {
+    font-size: 13px;
+    color: rgba(0, 0, 0, 0.6);
+    font-weight: 500;
+
+    .live-indicator {
+      color: #4caf50;
+      font-weight: 700;
+      font-size: 11px;
+      margin-left: 4px;
+    }
+
+    .archive-indicator {
+      display: inline-block;
+      font-size: 10px;
+      font-weight: 700;
+      color: #e65100;
+      background: #fff3e0;
+      padding: 1px 6px;
+      border-radius: 6px;
+      margin-left: 4px;
+      letter-spacing: 0.5px;
+    }
+
+    @media (max-width: 768px) {
+      font-size: 12px;
+    }
+  }
+}
+
+// Archive Banner
+.archive-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  margin-bottom: 20px;
+  background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+  border-left: 4px solid #ff9800;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #e65100;
+  font-weight: 500;
+  line-height: 1.5;
+
+  mat-icon {
+    color: #ff9800;
+    font-size: 22px;
+    width: 22px;
+    height: 22px;
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 768px) {
+    padding: 10px 12px;
+    font-size: 12px;
+    gap: 8px;
   }
 }
 
@@ -252,6 +317,15 @@
       border-radius: 8px 8px 0 0;
       box-shadow: 0 2px 8px rgba(25, 118, 210, 0.3);
       margin-bottom: 16px;
+      // Keep the matchday label visible while scrolling its games (below the
+      // sticky app header).
+      position: sticky;
+      top: 60px;
+      z-index: 5;
+
+      @media (max-width: 768px) {
+        top: 52px;
+      }
 
       @media (max-width: 768px) {
         padding: 12px 16px;
@@ -1079,16 +1153,26 @@
       }
     }
 
-    .export-team-button {
+    .team-detail-actions {
       margin-left: auto;
+      display: flex;
+      gap: 8px;
 
       @media (max-width: 768px) {
         width: 100%;
         margin-left: 0;
+        flex-direction: column;
       }
 
-      mat-icon {
-        margin-right: 8px;
+      .export-team-button,
+      .team-stats-button {
+        @media (max-width: 768px) {
+          width: 100%;
+        }
+
+        mat-icon {
+          margin-right: 8px;
+        }
       }
     }
   }
@@ -1676,6 +1760,29 @@
     background-clip: text;
   }
 
+  .header-actions .season-subtitle {
+    color: var(--text-secondary);
+
+    .live-indicator {
+      color: #66bb6a;
+    }
+
+    .archive-indicator {
+      color: #ffcc80;
+      background: rgba(255, 152, 0, 0.15);
+    }
+  }
+
+  .archive-banner {
+    background: linear-gradient(135deg, rgba(255, 152, 0, 0.15) 0%, rgba(255, 152, 0, 0.08) 100%);
+    border-left-color: #ffb74d;
+    color: #ffcc80;
+
+    mat-icon {
+      color: #ffb74d;
+    }
+  }
+
   .liga-tabs ::ng-deep {
     .mat-mdc-tab-labels {
       background: var(--surface-elevated);
@@ -2015,3 +2122,153 @@
     }
   }
 }
+
+/* Team favourites */
+.team-fav-button.active mat-icon {
+  color: #f5b301;
+}
+
+.next-favorite-card {
+  margin-bottom: 16px;
+  cursor: pointer;
+  border-left: 4px solid #f5b301;
+  transition: box-shadow 0.2s ease;
+
+  &:hover {
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  }
+
+  mat-card-content {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+  }
+
+  .next-fav-icon {
+    color: #f5b301;
+    flex-shrink: 0;
+  }
+
+  .next-fav-text {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-width: 0;
+
+    .next-fav-label {
+      font-size: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      opacity: 0.7;
+    }
+
+    .next-fav-teams {
+      font-weight: 600;
+    }
+
+    .next-fav-when {
+      font-size: 0.85rem;
+      opacity: 0.8;
+    }
+  }
+}
+
+/* Refresh button spin while refreshing */
+.refresh-button mat-icon.spinning {
+  animation: refreshSpin 0.8s linear infinite;
+}
+@keyframes refreshSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Expand affordance for standings rows */
+.standings-table {
+  tr.mat-mdc-row:not(.detail-row) {
+    cursor: pointer;
+    transition: background 0.12s ease;
+
+    &:hover { background: rgba(25, 118, 210, 0.06); }
+  }
+
+  .expand-cell { width: 36px; text-align: center; }
+
+  .expand-chevron {
+    color: rgba(0, 0, 0, 0.4);
+    transition: transform 0.2s ease, color 0.2s ease;
+
+    &.open { transform: rotate(180deg); color: #1976d2; }
+  }
+}
+
+:host-context(body.dark-theme) .standings-table {
+  tr.mat-mdc-row:not(.detail-row):hover { background: rgba(100, 181, 246, 0.1); }
+  .expand-chevron { color: rgba(255, 255, 255, 0.5); }
+  .expand-chevron.open { color: #64b5f6; }
+}
+
+/* Scorer goals-per-game average */
+.scorer-avg {
+  display: flex; flex-direction: column; align-items: center; min-width: 44px;
+  .avg-number { font-family: var(--font-display); font-weight: 800; font-size: 1.05rem; color: var(--accent-600); font-variant-numeric: tabular-nums; }
+  .avg-label { font-size: 0.68rem; color: var(--text-secondary); }
+}
+.podium-avg { font-size: 0.72rem; opacity: 0.85; margin-top: 2px; font-variant-numeric: tabular-nums; }
+
+/* Game status badges */
+.game-status .badge {
+  font-size: 0.66rem; font-weight: 800; letter-spacing: 0.04em;
+  padding: 2px 8px; border-radius: 999px;
+  &.done { color: var(--text-secondary); background: var(--surface-muted); }
+  &.pending { color: var(--brand-700); background: var(--brand-50); }
+}
+.game-card .fav-flag {
+  color: #f5b301; font-size: 18px; width: 18px; height: 18px; margin-left: auto; margin-right: 6px;
+}
+.score-display.score-pending { color: var(--text-secondary); font-weight: 700; }
+
+/* Favourite-team result coloring of game cards */
+.game-card.fav-game { border: 1px solid var(--border-color); }
+.game-card.fav-won  { border-left: 4px solid var(--game-won-text); background: var(--game-won-bg); }
+.game-card.fav-lost { border-left: 4px solid var(--game-lost-text); background: var(--game-lost-bg); }
+.game-card.fav-draw { border-left: 4px solid var(--game-draw-text); background: var(--game-draw-bg); }
+
+/* Favourite team row highlight in standings */
+.standings-table tr.fav-row {
+  background: color-mix(in srgb, var(--brand-500) 9%, var(--surface-color));
+  box-shadow: inset 3px 0 0 var(--brand-500);
+}
+:host-context(body.dark-theme) .standings-table tr.fav-row {
+  background: color-mix(in srgb, var(--brand-500) 22%, var(--surface-color));
+}
+
+/* Live cross-linking: LIVE badge on game cards + banner */
+.game-status .badge.live-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  border: none; cursor: pointer;
+  color: #fff; background: var(--live-500);
+  font-size: 0.66rem; font-weight: 800; letter-spacing: 0.04em;
+  padding: 3px 9px; border-radius: 999px;
+}
+.game-status .badge.live-badge .pulse {
+  width: 6px; height: 6px; border-radius: 50%; background: #fff;
+  animation: ligaPulse 1.2s ease-in-out infinite;
+}
+
+.live-banner {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  border: none; cursor: pointer; text-align: left;
+  margin-bottom: 20px; padding: 12px 16px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(135deg, #e5383b 0%, #b11226 100%);
+  color: #fff; font-weight: 700;
+  box-shadow: var(--shadow-2);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+
+  &:hover { transform: translateY(-2px); box-shadow: var(--shadow-3); }
+  .pulse { width: 9px; height: 9px; border-radius: 50%; background: #fff; animation: ligaPulse 1.2s ease-in-out infinite; }
+  .chev { margin-left: auto; }
+}
+
+@keyframes ligaPulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }

@@ -2,8 +2,37 @@
 
     <!-- KPI HEADER -->
     <div class="page-header">
-        <h1 class="page-title">📊 Statistik Dashboard</h1>
-        <p class="page-subtitle">Tiefe Einblicke in 15 Jahre Wasserball-Daten</p>
+        <button mat-icon-button class="back-button" routerLink="/" aria-label="Zurück zur Startseite">
+            <mat-icon>arrow_back</mat-icon>
+        </button>
+        <div>
+            <h1 class="page-title">📊 Statistik Dashboard</h1>
+            <p class="page-subtitle">Tiefe Einblicke in 15 Jahre Wasserball-Daten</p>
+        </div>
+    </div>
+
+    <!-- Season Filter -->
+    <div class="season-filter-row">
+        <mat-form-field appearance="outline" class="season-filter-field">
+            <mat-label>Saison filtern</mat-label>
+            <mat-select [value]="selectedSeason ?? ''" (selectionChange)="onSeasonChange($event.value)">
+                <mat-option value="">Alle Saisons</mat-option>
+                @for (season of availableSeasons; track season) {
+                <mat-option [value]="season">
+                    Saison {{ season }}
+                    @if (seasonService.isLive(season)) {
+                    <span style="color: #4caf50; font-weight: 600; margin-left: 4px;">● LIVE</span>
+                    }
+                </mat-option>
+                }
+            </mat-select>
+        </mat-form-field>
+        @if (selectedSeason) {
+        <span class="season-filter-badge">
+            <mat-icon>filter_list</mat-icon>
+            Saison {{ selectedSeason }}
+        </span>
+        }
     </div>
 
     <div class="kpi-row">
@@ -45,7 +74,7 @@
     </div>
     } @else {
 
-    <mat-tab-group animationDuration="200ms" (selectedTabChange)="onTabChange($event)" class="custom-tabs">
+    <mat-tab-group animationDuration="200ms" [selectedIndex]="currentTabIndex" (selectedTabChange)="onTabChange($event)" class="custom-tabs">
 
         <!-- ═══════════════════════════════════ TAB 1: OVERVIEW ═══════════════════════════════════ -->
         <mat-tab label="Übersicht">
@@ -662,7 +691,7 @@
                                         </thead>
                                         <tbody>
                                             @if (leaderboardType === 'legends') {
-                                            @for (player of topScorers; track player.name; let i = $index) {
+                                            @for (player of topScorers | slice:0:leaderboardLimit; track player.name; let i = $index) {
                                             <tr>
                                                 <td class="rank-col">
                                                     <span class="rank-badge small" [class]="getRankClass(i)">{{
@@ -676,7 +705,7 @@
                                             }
                                             }
                                             @if (leaderboardType === 'young') {
-                                            @for (player of youngTalents; track player.name; let i = $index) {
+                                            @for (player of youngTalents | slice:0:leaderboardLimit; track player.name; let i = $index) {
                                             <tr>
                                                 <td class="rank-col">
                                                     <span class="rank-badge small" [class]="getRankClass(i)">{{
@@ -690,7 +719,7 @@
                                             }
                                             }
                                             @if (leaderboardType === 'journeyman') {
-                                            @for (player of journeymen; track player.name; let i = $index) {
+                                            @for (player of journeymen | slice:0:leaderboardLimit; track player.name; let i = $index) {
                                             <tr>
                                                 <td class="rank-col">
                                                     <span class="rank-badge small" [class]="getRankClass(i)">{{
@@ -704,6 +733,13 @@
                                             }
                                         </tbody>
                                     </table>
+                                    @if (currentLeaderboardCount > leaderboardLimit) {
+                                    <div class="leaderboard-more">
+                                        <button mat-stroked-button (click)="showMoreLeaderboard()">
+                                            Mehr anzeigen
+                                        </button>
+                                    </div>
+                                    }
                                 </div>
                             </mat-card-content>
                         </mat-card>

@@ -1,4 +1,5 @@
 import { Component, OnInit, inject } from '@angular/core';
+import { NgClass } from '@angular/common';
 import { toObservable } from '@angular/core/rxjs-interop';
 import { switchMap } from 'rxjs';
 import { Router } from '@angular/router';
@@ -11,7 +12,8 @@ import {
   MatExpansionPanelDescription
 } from "@angular/material/expansion";
 import { MatIconButton } from "@angular/material/button";
-import * as amplitude from '@amplitude/unified';
+import { MatSnackBar } from "@angular/material/snack-bar";
+import { TrackingService } from "../../services/tracking/tracking.service";
 
 import { MatCard, MatCardContent } from "@angular/material/card";
 import { OverviewService } from "../../services/overview/overview.service";
@@ -21,7 +23,6 @@ import { MatSelectModule } from "@angular/material/select";
 import { MatOptionModule } from "@angular/material/core";
 import { Item } from "../../models/item";
 import { SubItem } from "../../models/subItem";
-import { MatProgressSpinner } from "@angular/material/progress-spinner";
 import { MatTooltip } from "@angular/material/tooltip";
 import { MatFormField, MatLabel, MatPrefix, MatSuffix } from "@angular/material/form-field";
 import { MatInput } from "@angular/material/input";
@@ -29,7 +30,7 @@ import { FormsModule } from "@angular/forms";
 
 @Component({
   selector: 'app-overview',
-  imports: [MatIcon, MatAccordion, MatExpansionPanel, MatIconButton, MatExpansionPanelTitle, MatExpansionPanelDescription, MatExpansionPanelHeader, MatCard, MatCardContent, MatProgressSpinner, MatTooltip, MatFormField, MatInput, MatLabel, MatPrefix, MatSuffix, FormsModule, MatSelectModule, MatOptionModule],
+  imports: [NgClass, MatIcon, MatAccordion, MatExpansionPanel, MatIconButton, MatExpansionPanelTitle, MatExpansionPanelDescription, MatExpansionPanelHeader, MatCard, MatCardContent, MatTooltip, MatFormField, MatInput, MatLabel, MatPrefix, MatSuffix, FormsModule, MatSelectModule, MatOptionModule],
   templateUrl: './overview.component.html',
   styleUrl: './overview.component.scss'
 })
@@ -37,6 +38,8 @@ export class OverviewComponent implements OnInit {
   private overviewService = inject(OverviewService);
   public seasonService = inject(SeasonService);
   private favoritesService = inject(FavoritesService);
+  private tracking = inject(TrackingService);
+  private snackBar = inject(MatSnackBar);
   private router = inject(Router);
 
 
@@ -100,13 +103,14 @@ export class OverviewComponent implements OnInit {
       })
       .filter(item => item.subItems.length > 0);
 
-    amplitude.track('Search Performed', {
+    this.tracking.track('Search Performed', {
       searchTerm: term,
       resultCount: resultCount,
     });
   }
 
-  toggleFavorite(subItem: SubItem): void {
+  toggleFavorite(subItem: SubItem, withFeedback = true): void {
+    let nowFavorite = subItem.isFavorite;
     // Finde das SubItem im originalen items Array und aktualisiere es dort
     this.items.forEach(item => {
       const originalSubItem = item.subItems.find(si => si.link === subItem.link && si.name === subItem.name);
@@ -114,7 +118,8 @@ export class OverviewComponent implements OnInit {
         originalSubItem.isFavorite = !originalSubItem.isFavorite;
         // Synchronisiere mit dem gefilterten Item
         subItem.isFavorite = originalSubItem.isFavorite;
-        amplitude.track(originalSubItem.isFavorite ? 'Favorite Added' : 'Favorite Removed', {
+        nowFavorite = originalSubItem.isFavorite;
+        this.tracking.track(originalSubItem.isFavorite ? 'Favorite Added' : 'Favorite Removed', {
           leagueName: originalSubItem.name,
         });
       }
@@ -122,6 +127,14 @@ export class OverviewComponent implements OnInit {
     this.saveFavorites();
     // Aktualisiere die gefilterten Items, um Änderungen zu reflektieren
     this.filterItems();
+
+    if (withFeedback) {
+      const msg = nowFavorite
+        ? `„${subItem.name}" zu Favoriten hinzugefügt`
+        : `„${subItem.name}" aus Favoriten entfernt`;
+      this.snackBar.open(msg, 'Rückgängig', { duration: 4000 })
+        .onAction().subscribe(() => this.toggleFavorite(subItem, false));
+    }
   }
 
   saveFavorites(): void {
@@ -145,12 +158,37 @@ export class OverviewComponent implements OnInit {
   }
 
   navigateToLiga(subItem: SubItem) {
-    amplitude.track('League Selected', { leagueName: subItem.name });
+    this.tracking.track('League Selected', { leagueName: subItem.name });
     let param = subItem.link;
     this.router.navigate(['/liga'], { queryParams: { param } });
   }
 
   navigateToAnalytics() {
     this.router.navigate(['/analytics']);
+  }
+
+  navigateToLive() {
+    this.tracking.track('Live Ticker Opened');
+    this.router.navigate(['/live']);
+  }
+
+  /** Icon for a league category in the overview accordion. */
+  categoryIcon(name: string): string {
+    const n = (name || '').toLowerCase();
+    if (n.includes('national')) return 'emoji_events';
+    if (n.includes('jugend')) return 'school';
+    if (n.includes('oberliga') || n.includes('verbandsliga') || n.includes('bezirk')) return 'shield';
+    if (n.includes('deutsch')) return 'public';
+    if (n === 'sonstige') return 'more_horiz';
+    return 'place'; // regional associations (Bundesländer)
+  }
+
+  /** CSS modifier for a gender badge. */
+  genderClass(gender: string): string {
+    const g = (gender || '').toLowerCase();
+    if (g.includes('frau') || g.includes('damen') || g.includes('weibl') || g.includes('mädchen')) return 'g-women';
+    if (g.includes('männ') || g.includes('herren') || g.includes('knaben')) return 'g-men';
+    if (g.includes('mixed') || g.includes('gemischt')) return 'g-mixed';
+    return '';
   }
 }

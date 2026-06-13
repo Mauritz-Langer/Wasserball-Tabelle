@@ -175,6 +175,60 @@ waterpolotable/
 4. **Navigate to Maps:**
    Click on the location link to navigate to the map for the game location.
 
+## Data Pipeline (historical seasons)
+
+The current (live) season is fetched directly from the DSV website at runtime.
+Historical seasons are served from a pre-built SQLite database that the browser
+loads **only when a user opens an archive season** (via `sql.js`).
+
+The shipped database is a build artifact and is **not** committed to git
+(see `.gitignore`). Regenerate it with:
+
+```bash
+# 1. Scrape DSV into a full SQLite DB (needs combined-seasons.html as the seed)
+npm run scrape
+
+# 2. Slim + split the DB for the browser:
+#    - deduplicate team logos
+#    - split into a small core seasons.db (~55 MB, ~15 MB gzipped) and a
+#      details.db (~110 MB) holding per-game events/lineups/officials
+#    - emit public/assets/data/seasons.json (lightweight season index)
+npm run slim-db
+
+#    Optional: drop per-game detail tables entirely (no details.db, no historical
+#    game-details) for the smallest footprint:
+#    node scripts/slim-db.js --drop-details
+```
+
+`slim-db` is idempotent and uses the `sqlite3` CLI (no native node module).
+Loading is staged so mobile RAM stays bounded:
+
+- `seasons.json` — fetched at startup to populate the season picker.
+- `seasons.db` (core) — fetched only when a user opens an archive season.
+- `details.db` — fetched only when a user opens a specific historical game.
+
+A download progress overlay covers each fetch, and the service worker caches
+the databases so they are downloaded at most once per release.
+
+## Live ticker (real-time)
+
+Running games are shown in real time on the `/live` page, fed by the official
+DSV Wasserball liveticker — an ASP.NET **SignalR 2.x** hub (`wbhub`) on
+`lizenz.dsv.de`.
+
+- The modern `@microsoft/signalr` client is **not** protocol-compatible with
+  SignalR 2.x, so [`LiveTickerService`](src/app/services/live-ticker/live-ticker.service.ts)
+  implements the SignalR 2.x **longPolling** transport by hand
+  (negotiate → connect → start → send/poll). The `connectionToken` carries all
+  state; no cookies are required.
+- `lizenz.dsv.de` sends no CORS headers, so all calls are routed same-origin
+  through `/live-api/*` ([api/live.ts](api/live.ts) on Vercel,
+  [proxy.conf.js](proxy.conf.js) in dev) to `https://lizenz.dsv.de`.
+- Hub data: `getAllGames`, `getGamePlan`, `getGameStats`, `getLeagueTable`;
+  real-time pushes `gameTime`, `addPlay`, `updatePlay`, `updateGame`.
+
+There is no build step for this — it talks to the live DSV hub directly.
+
 ## CI/CD
 
 This project uses GitHub Actions for continuous integration and automated dependency management.

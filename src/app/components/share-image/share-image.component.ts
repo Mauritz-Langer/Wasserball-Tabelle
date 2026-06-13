@@ -6,7 +6,7 @@ import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { ImageGeneratorService } from '../../services/image-generator/image-generator.service';
 import { MatIcon } from "@angular/material/icon";
 import { ThemeService } from '../../services/theme/theme.service';
-import * as amplitude from '@amplitude/unified';
+import { TrackingService } from '../../services/tracking/tracking.service';
 
 @Component({
   selector: 'app-share-image',
@@ -39,6 +39,7 @@ export class ShareImageComponent implements OnInit, AfterViewInit, OnDestroy {
   constructor(
     private imageGeneratorService: ImageGeneratorService,
     private themeService: ThemeService,
+    private tracking: TrackingService,
     private renderer: Renderer2,
     private el: ElementRef,
     @Inject(MAT_DIALOG_DATA) public data: any
@@ -147,7 +148,7 @@ export class ShareImageComponent implements OnInit, AfterViewInit, OnDestroy {
         })
         .catch(error => {
           console.error('Error generating image:', error);
-          amplitude.track('Error Occurred', {
+          this.tracking.track('Error Occurred', {
             errorMessage: 'Error generating image',
             errorContext: 'generateImage',
           });
@@ -159,7 +160,7 @@ export class ShareImageComponent implements OnInit, AfterViewInit, OnDestroy {
 
   downloadImage(): void {
     if (this.generatedImage) {
-      amplitude.track('Share Image Downloaded', {
+      this.tracking.track('Share Image Downloaded', {
         league: this.league,
         homeTeam: this.homeTeam.name,
         guestTeam: this.guestTeam.name,

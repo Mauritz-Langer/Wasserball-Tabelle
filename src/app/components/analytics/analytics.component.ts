@@ -1,4 +1,5 @@
 import { Component, OnInit, OnDestroy, inject, NgZone } from '@angular/core';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { CommonModule } from '@angular/common';
 import { BaseChartDirective } from 'ng2-charts';
 import { ChartConfiguration, ChartType } from 'chart.js';
@@ -11,6 +12,7 @@ import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatSelectModule } from '@angular/material/select';
 import { map, startWith } from 'rxjs/operators';
 import { Observable } from 'rxjs';
 import {
@@ -19,7 +21,9 @@ import {
 } from '../../services/analytics/analytics.service';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { MatButtonModule } from '@angular/material/button';
 import { ThemeService } from '../../services/theme/theme.service';
+import { SeasonService } from '../../services/season/season.service';
 
 @Component({
     selector: 'app-analytics',
@@ -35,9 +39,12 @@ import { ThemeService } from '../../services/theme/theme.service';
         ReactiveFormsModule,
         MatIconModule,
         MatButtonToggleModule,
+        MatButtonModule,
+        RouterLink,
         MatProgressSpinnerModule,
         MatTooltipModule,
-        MatChipsModule
+        MatChipsModule,
+        MatSelectModule
     ],
     templateUrl: './analytics.component.html',
     styleUrls: ['./analytics.component.scss']
@@ -46,10 +53,20 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
     private analyticsService = inject(AnalyticsService);
     private themeService = inject(ThemeService);
     private ngZone = inject(NgZone);
+    private route = inject(ActivatedRoute);
+    seasonService = inject(SeasonService);
+
+    // Entity name to auto-select once its tab's entity list has loaded
+    // (used by deep links like /analytics?tab=teams&q=Wfr.%20Spandau%2004).
+    private pendingEntityName: string | null = null;
 
     // Loading States
     isLoading = true;
     isLoadingEntity = false;
+
+    // Season filter
+    availableSeasons: string[] = [];
+    selectedSeason: string | undefined = undefined; // undefined = all seasons
 
     // Search Controls
     searchControl = new FormControl('');
@@ -119,6 +136,8 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
     journeymen: Journeyman[] = [];
     youngTalents: TopScorer[] = [];
     leaderboardType: 'legends' | 'young' | 'journeyman' = 'legends';
+    readonly leaderboardPageSize = 10;
+    leaderboardLimit = 10;
     playerEfficiencyData: ChartConfiguration['data'] = { labels: [], datasets: [] };
     careerPath: any[] = [];
     playerPersonalBest: any = null;
@@ -128,6 +147,9 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
         this.isLoading = true;
 
         try {
+            // Load available seasons
+            this.availableSeasons = await this.analyticsService.getAllSeasons();
+
             await Promise.all([
                 this.loadTotalStats(),
                 this.loadTopTeams(),
@@ -143,10 +165,60 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
         }
 
         this.setupSearch();
+        this.applyDeepLink();
+    }
+
+    /**
+     * Support deep links such as ?tab=teams&q=<name> (also &tab=players /
+     * &tab=leagues). Switches to the requested tab and pre-selects the entity.
+     */
+    private applyDeepLink() {
+        const params = this.route.snapshot.queryParams;
+        const tab = (params['tab'] || '').toLowerCase();
+        const q = params['q'] || params['team'] || params['player'] || params['league'];
+        const tabIndex = tab === 'teams' || params['team'] ? 1
+            : tab === 'leagues' || params['league'] ? 2
+            : tab === 'players' || params['player'] ? 3
+            : 0;
+        if (tabIndex === 0) return;
+
+        this.pendingEntityName = q ? String(q) : null;
+        this.currentTabIndex = tabIndex; // [selectedIndex] binding fires onTabChange
     }
 
     ngOnDestroy() {
         this.animationFrameIds.forEach(id => cancelAnimationFrame(id));
+    }
+
+    /** Handle season filter change */
+    async onSeasonChange(season: string) {
+        this.selectedSeason = season === '' ? undefined : season;
+        this.isLoading = true;
+        try {
+            await Promise.all([
+                this.loadTotalStats(),
+                this.loadTopTeams(),
+                this.loadTrends(),
+                this.loadHomeAdvantage(),
+                this.loadRecords(),
+                this.loadGrowth(),
+                this.loadWinningStreaks(),
+                this.loadGoalDistribution()
+            ]);
+
+            // Reload entity data if one is selected
+            if (this.selectedEntity) {
+                if (this.currentTabIndex === 1) {
+                    await this.loadTeamStats(this.selectedEntity.id);
+                } else if (this.currentTabIndex === 2) {
+                    await this.loadLeagueStats(this.selectedEntity.id);
+                } else if (this.currentTabIndex === 3) {
+                    await this.loadPlayerStats(this.selectedEntity.id);
+                }
+            }
+        } finally {
+            this.isLoading = false;
+        }
     }
 
     // --- Chart Options Builder (Theme-aware) ---
@@ -268,6 +340,20 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
         }
 
         this.searchControl.setValue('');
+        await this.applyPendingSelection();
+    }
+
+    /** Select the deep-linked entity once its list is loaded (see applyDeepLink). */
+    private async applyPendingSelection() {
+        if (!this.pendingEntityName) return;
+        const name = this.pendingEntityName.trim().toLowerCase();
+        this.pendingEntityName = null;
+        const entity = this.allEntities.find(e => e.name.trim().toLowerCase() === name)
+            || this.allEntities.find(e => e.name.toLowerCase().includes(name));
+        if (entity) {
+            this.searchControl.setValue(entity as any);
+            await this.selectEntity(entity);
+        }
     }
 
     resetCharts() {
@@ -286,7 +372,10 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
     }
 
     async onOptionSelected(event: MatAutocompleteSelectedEvent) {
-        const entity: Entity = event.option.value;
+        await this.selectEntity(event.option.value);
+    }
+
+    private async selectEntity(entity: Entity) {
         this.selectedEntity = entity;
         this.isLoadingEntity = true;
 
@@ -306,7 +395,7 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
     // --- Loading: Overview ---
 
     private async loadTotalStats() {
-        this.totalStats = await this.analyticsService.getTotalStats();
+        this.totalStats = await this.analyticsService.getTotalStats(this.selectedSeason);
         this.animateValue(this.totalStats.totalGames, 'animatedGames');
         this.animateValue(this.totalStats.totalTeams, 'animatedTeams');
         this.animateValue(this.totalStats.totalGoals, 'animatedGoals');
@@ -314,7 +403,7 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
     }
 
     private async loadTopTeams() {
-        const teams = await this.analyticsService.getTopTeams(20);
+        const teams = await this.analyticsService.getTopTeams(20, this.selectedSeason);
         const colors = teams.map(t => {
             const v = t.winRate;
             if (v < 50) return `rgba(255, ${Math.round(5.1 * v)}, 0, 0.8)`;
@@ -353,7 +442,7 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
     }
 
     private async loadHomeAdvantage() {
-        const stats = await this.analyticsService.getHomeAdvantage();
+        const stats = await this.analyticsService.getHomeAdvantage(this.selectedSeason);
         const order = ['Heimsieg', 'Auswärtssieg', 'Unentschieden'];
         const sorted = order.map(label => stats.find(s => s.result === label) || { result: label, count: 0 });
         const total = sorted.reduce((acc, curr) => acc + curr.count, 0);
@@ -371,7 +460,7 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
     }
 
     private async loadRecords() {
-        this.highestScoringGames = await this.analyticsService.getHighestScoringGames(5);
+        this.highestScoringGames = await this.analyticsService.getHighestScoringGames(5, this.selectedSeason);
     }
 
     private async loadGrowth() {
@@ -398,7 +487,7 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
     }
 
     private async loadGoalDistribution() {
-        const dist = await this.analyticsService.getGoalDistribution();
+        const dist = await this.analyticsService.getGoalDistribution(this.selectedSeason);
         const colors = [
             'rgba(59, 130, 246, 0.7)', 'rgba(34, 197, 94, 0.7)', 'rgba(245, 158, 11, 0.7)',
             'rgba(239, 68, 68, 0.7)', 'rgba(139, 92, 246, 0.7)', 'rgba(236, 72, 153, 0.7)',
@@ -489,7 +578,7 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
             this.analyticsService.getPlayerStatsHistory(playerId),
             this.analyticsService.getPlayerEfficiency(playerId),
             this.analyticsService.getPlayerTeams(playerId),
-            this.analyticsService.getPlayerFavoriteOpponent(playerId)
+            this.analyticsService.getPlayerPersonalBest(playerId)
         ]);
 
         this.entityChartTitle = 'Tore pro Saison';
@@ -558,16 +647,17 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
             }]
         };
 
-        this.tightestLeagues = await this.analyticsService.getClutchPlayers(10);
+        this.tightestLeagues = await this.analyticsService.getTightestLeagues(10);
     }
 
     // --- Loading: Leaderboard ---
 
     async loadLeaderboardData() {
+        this.leaderboardLimit = this.leaderboardPageSize;
         const [scorers, journeymen, young] = await Promise.all([
-            this.analyticsService.getTopScorersAllTime(20),
-            this.analyticsService.getPlayerJourneymen(10),
-            this.analyticsService.getYoungTalents(10)
+            this.analyticsService.getTopScorersAllTime(50),
+            this.analyticsService.getPlayerJourneymen(50),
+            this.analyticsService.getYoungTalents(50)
         ]);
         this.topScorers = scorers;
         this.journeymen = journeymen;
@@ -576,6 +666,18 @@ export class AnalyticsComponent implements OnInit, OnDestroy {
 
     setLeaderboardType(type: 'legends' | 'young' | 'journeyman') {
         this.leaderboardType = type;
+        this.leaderboardLimit = this.leaderboardPageSize; // reset paging on switch
+    }
+
+    /** Number of leaderboard rows in the active list (for the "show more" button). */
+    get currentLeaderboardCount(): number {
+        if (this.leaderboardType === 'young') return this.youngTalents.length;
+        if (this.leaderboardType === 'journeyman') return this.journeymen.length;
+        return this.topScorers.length;
+    }
+
+    showMoreLeaderboard(): void {
+        this.leaderboardLimit += this.leaderboardPageSize;
     }
 
     // --- Helpers ---

@@ -1,0 +1,56 @@
+<div class="privacy-container">
+  <div class="privacy-header">
+    <button mat-icon-button (click)="goBack()" aria-label="Zurück">
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+    <h1>Datenschutz</h1>
+  </div>
+
+  <section>
+    <h2>Überblick</h2>
+    <p>
+      Wasserball Live zeigt Tabellen, Spiele und Statistiken aus den frei
+      verfügbaren Daten des Deutschen Schwimm-Verbands (DSV). Die App speichert
+      keine personenbezogenen Konten und benötigt keinen Login.
+    </p>
+  </section>
+
+  <section>
+    <h2>Lokale Speicherung</h2>
+    <p>
+      Favoriten, Theme-Einstellung und deine Cookie-Entscheidung werden
+      ausschließlich lokal in deinem Browser (localStorage) gespeichert und
+      nicht an uns übertragen.
+    </p>
+  </section>
+
+  <section>
+    <h2>Analyse (Amplitude)</h2>
+    <p>
+      Mit deiner Einwilligung nutzen wir Amplitude, um anonymisiert
+      Nutzungsverhalten zu analysieren und die App zu verbessern. Es werden
+      Interaktionen (z.&nbsp;B. aufgerufene Seiten, Klicks) sowie eine
+      stichprobenartige Sitzungsaufzeichnung erfasst. Ohne deine Einwilligung
+      wird Amplitude nicht geladen und es werden keine Analysedaten gesendet.
+    </p>
+    <p>Du kannst deine Entscheidung jederzeit hier ändern:</p>
+    <div class="consent-controls">
+      @if (consentService.decision() === 'granted') {
+        <p class="status">Aktueller Status: <strong>Analyse erlaubt</strong></p>
+        <button mat-stroked-button (click)="revoke()">Analyse deaktivieren</button>
+      } @else {
+        <p class="status">Aktueller Status: <strong>Analyse deaktiviert</strong></p>
+        <button mat-flat-button color="primary" (click)="allow()">Analyse erlauben</button>
+      }
+    </div>
+  </section>
+
+  <section>
+    <h2>Datenquelle</h2>
+    <p>
+      Live-Daten werden bei Bedarf direkt von der DSV-Website abgerufen.
+      Historische Saisons werden aus einer lokal im Browser geladenen Datenbank
+      angezeigt.
+    </p>
+  </section>
+</div>

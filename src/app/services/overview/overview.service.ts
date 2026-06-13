@@ -1,11 +1,9 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, map, from } from 'rxjs';
-import * as DOMParser from 'dom-parser';
 import { Item } from "../../models/item";
-import { Dom } from "dom-parser";
 import { ApiProxyService } from "../api-proxy/api-proxy.service";
-import { SeasonService } from "../season/season.service";
+import { SeasonService, LIVE_SEASON } from "../season/season.service";
 import { HistoryService } from "../history/history.service";
 
 @Injectable({
@@ -26,7 +24,7 @@ export class OverviewService {
 
   getItems(): Observable<Item[]> {
     if (this.seasonService.isCurrentSeason) {
-      const url = this.apiProxy.getApiUrl('/Modules/WB/Index.aspx?Season=2025');
+      const url = this.apiProxy.getApiUrl(`/Modules/WB/Index.aspx?Season=${LIVE_SEASON}`);
       return this.http.get(url, { responseType: 'text' }).pipe(
         map(html => this.parseHtmlToItems(html))
       );
@@ -35,48 +33,52 @@ export class OverviewService {
     }
   }
 
+  /**
+   * Parse the DSV overview page into league categories.
+   *
+   * Robust, selector-based parsing of the live DSV markup:
+   *   #active > .card           → a category (".card-header" = category name)
+   *     .card-body table tr     → one league row
+   *       td:first a[League.aspx]  → league name + link
+   *       (that cell's next td)     → gender ("männlich"/"weiblich"/"mixed")
+   * The trailing time cell may contain a "Live.aspx" countdown link, which is
+   * ignored because we only match anchors pointing at League.aspx.
+   */
   parseHtmlToItems(html: string): Item[] {
-    html = html.replace(/<nobr>/g, '')
-      .replace(/<\/nobr>/g, '')
-      .replace(/target=_blank/g, '');
-
-    let doc: Dom;
-
+    let doc: Document;
     try {
-      doc = DOMParser.parseFromString(html);
+      doc = new DOMParser().parseFromString(html, 'text/html');
     } catch (error) {
-      console.error('Error parsing HTML:', error);
+      console.error('Error parsing overview HTML:', error);
       return [];
     }
-    const activeTab = doc.getElementById('active');
+
+    const active = doc.getElementById('active');
+    if (!active) return [];
+
     const items: Item[] = [];
 
-    if (activeTab) {
-      const card = activeTab.getElementsByClassName('card');
+    for (const card of Array.from(active.querySelectorAll('.card'))) {
+      const name = card.querySelector('.card-header')?.textContent?.trim();
+      if (!name) continue;
 
-      for (let i = 0; i < card.length; i++) {
-        const itemName = card[i].childNodes[0].textContent;
-        if (!itemName) {
+      const subItems = [];
+      for (const row of Array.from(card.querySelectorAll('.card-body table tr'))) {
+        const link = row.querySelector<HTMLAnchorElement>('a[href*="League.aspx"]');
+        const subName = link?.textContent?.trim();
+        const href = link?.getAttribute('href');
+        if (!link || !subName || !href || subName === 'keine aktuellen Spiele vorhanden') {
           continue;
         }
-
-        const subItems = [];
-
-        for (let j = 0; j < card[i].childNodes[1].childNodes[0].childNodes.length; j++) {
-          const subItemName = card[i].childNodes[1].childNodes[0].childNodes[j].childNodes[0].childNodes[0].textContent;
-          const subItemGender = card[i].childNodes[1].childNodes[0].childNodes[j].childNodes[1].textContent;
-          const subItemLink = card[i].childNodes[1].childNodes[0].childNodes[j].childNodes[0].childNodes[0].getAttribute('href');
-          if (subItemName === 'keine aktuellen Spiele vorhanden') {
-            continue;
-          }
-          subItems.push({ name: subItemName, gender: subItemGender, link: subItemLink, isFavorite: false });
-        }
-
-        if (subItems.length !== 0) {
-          items.push({ name: itemName, subItems: subItems });
-        }
+        // Gender lives in the cell after the one holding the league link.
+        const gender = link.closest('td')?.nextElementSibling?.textContent?.trim() ?? '';
+        subItems.push({ name: subName, gender, link: href, isFavorite: false });
       }
-    } // Log the items
+
+      if (subItems.length) {
+        items.push({ name, subItems });
+      }
+    }
 
     return items;
   }

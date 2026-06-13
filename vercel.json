@@ -2,9 +2,16 @@
   "functions": {
     "api/proxy.ts": {
       "maxDuration": 10
+    },
+    "api/live.ts": {
+      "maxDuration": 30
     }
   },
   "rewrites": [
+    {
+      "source": "/live-api/:path*",
+      "destination": "/api/live?path=/:path*"
+    },
     {
       "source": "/api/:path*",
       "destination": "/api/proxy?path=/:path*"

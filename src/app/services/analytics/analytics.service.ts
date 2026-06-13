@@ -138,10 +138,50 @@ export interface TeamSeasonGoals {
 export class AnalyticsService {
     private db = inject(DatabaseService);
 
+    // --- SEASONS ---
+
+    async getAllSeasons(): Promise<string[]> {
+        await this.db.ensureDbLoaded();
+        const query = `SELECT DISTINCT season_id FROM leagues ORDER BY season_id DESC`;
+        const res = await this.db.query(query);
+        return res.map((r: any) => r.season_id);
+    }
+
     // --- KPI / OVERVIEW STATS ---
 
-    async getTotalStats(): Promise<TotalStats> {
+    /** Builds a SQL clause + params for optional season filtering via leagues table */
+    private seasonFilter(seasonId: string | undefined, leagueAlias = 'l'): { clause: string, params: any[] } {
+        if (!seasonId) return { clause: '', params: [] };
+        return { clause: ` AND ${leagueAlias}.season_id = ?`, params: [seasonId] };
+    }
+
+    /** Builds a season filter for queries that JOIN games->leagues */
+    private seasonFilterGames(seasonId: string | undefined): { join: string, clause: string, params: any[] } {
+        if (!seasonId) return { join: '', clause: '', params: [] };
+        return {
+            join: '',  // assume leagues join already exists
+            clause: ` AND l.season_id = ?`,
+            params: [seasonId]
+        };
+    }
+
+    async getTotalStats(seasonId?: string): Promise<TotalStats> {
         await this.db.ensureDbLoaded();
+        if (seasonId) {
+            const query = `
+                SELECT
+                    COUNT(*) as totalGames,
+                    COUNT(DISTINCT CASE WHEN g.home_team_id IS NOT NULL THEN g.home_team_id END) +
+                    COUNT(DISTINCT CASE WHEN g.guest_team_id IS NOT NULL THEN g.guest_team_id END) as totalTeams,
+                    COALESCE(SUM(g.total_goals), 0) as totalGoals,
+                    1 as seasonsCount
+                FROM games g
+                JOIN leagues l ON g.league_id = l.id
+                WHERE g.home_score IS NOT NULL AND l.season_id = ?
+            `;
+            const res = await this.db.query(query, [seasonId]);
+            return res[0] || { totalGames: 0, totalTeams: 0, totalGoals: 0, seasonsCount: 1 };
+        }
         const query = `
             SELECT
                 COUNT(*) as totalGames,
@@ -155,26 +195,28 @@ export class AnalyticsService {
         return res[0] || { totalGames: 0, totalTeams: 0, totalGoals: 0, seasonsCount: 0 };
     }
 
-    async getGoalDistribution(): Promise<GoalDistribution[]> {
+    async getGoalDistribution(seasonId?: string): Promise<GoalDistribution[]> {
         await this.db.ensureDbLoaded();
+        const sf = this.seasonFilter(seasonId);
         const query = `
             SELECT
                 CASE
-                    WHEN total_goals BETWEEN 0 AND 5 THEN '0–5'
-                    WHEN total_goals BETWEEN 6 AND 10 THEN '6–10'
-                    WHEN total_goals BETWEEN 11 AND 15 THEN '11–15'
-                    WHEN total_goals BETWEEN 16 AND 20 THEN '16–20'
-                    WHEN total_goals BETWEEN 21 AND 25 THEN '21–25'
-                    WHEN total_goals BETWEEN 26 AND 30 THEN '26–30'
+                    WHEN g.total_goals BETWEEN 0 AND 5 THEN '0–5'
+                    WHEN g.total_goals BETWEEN 6 AND 10 THEN '6–10'
+                    WHEN g.total_goals BETWEEN 11 AND 15 THEN '11–15'
+                    WHEN g.total_goals BETWEEN 16 AND 20 THEN '16–20'
+                    WHEN g.total_goals BETWEEN 21 AND 25 THEN '21–25'
+                    WHEN g.total_goals BETWEEN 26 AND 30 THEN '26–30'
                     ELSE '31+'
                 END as bucket,
                 COUNT(*) as count
-            FROM games
-            WHERE total_goals IS NOT NULL
+            FROM games g
+            ${seasonId ? 'JOIN leagues l ON g.league_id = l.id' : ''}
+            WHERE g.total_goals IS NOT NULL${sf.clause}
             GROUP BY bucket
-            ORDER BY MIN(total_goals)
+            ORDER BY MIN(g.total_goals)
         `;
-        return await this.db.query(query);
+        return await this.db.query(query, sf.params);
     }
 
     async getTeamGoalsPerSeason(teamId: string): Promise<TeamSeasonGoals[]> {
@@ -198,23 +240,25 @@ export class AnalyticsService {
     // --- DEEP DIVE ANALYTICS ---
 
     // 1. Team Home/Away Split
-    async getTeamHomeAwayStats(teamId: string): Promise<{ home: { w: number, d: number, l: number }, away: { w: number, d: number, l: number } }> {
+    async getTeamHomeAwayStats(teamId: string, seasonId?: string): Promise<{ home: { w: number, d: number, l: number }, away: { w: number, d: number, l: number } }> {
         await this.db.ensureDbLoaded();
+        const sf = this.seasonFilter(seasonId);
         const query = `
             SELECT
-                CASE WHEN home_team_id = ? THEN 'HOME' ELSE 'AWAY' END as type,
+                CASE WHEN g.home_team_id = ? THEN 'HOME' ELSE 'AWAY' END as type,
                 SUM(CASE
-                    WHEN (home_team_id = ? AND home_score > guest_score) OR (guest_team_id = ? AND guest_score > home_score) THEN 1
+                    WHEN (g.home_team_id = ? AND g.home_score > g.guest_score) OR (g.guest_team_id = ? AND g.guest_score > g.home_score) THEN 1
                     ELSE 0 END) as wins,
-                SUM(CASE WHEN home_score = guest_score THEN 1 ELSE 0 END) as draws,
+                SUM(CASE WHEN g.home_score = g.guest_score THEN 1 ELSE 0 END) as draws,
                 SUM(CASE
-                    WHEN (home_team_id = ? AND home_score < guest_score) OR (guest_team_id = ? AND guest_score < home_score) THEN 1
+                    WHEN (g.home_team_id = ? AND g.home_score < g.guest_score) OR (g.guest_team_id = ? AND g.guest_score < g.home_score) THEN 1
                     ELSE 0 END) as losses
-            FROM games
-            WHERE (home_team_id = ? OR guest_team_id = ?) AND home_score IS NOT NULL
+            FROM games g
+            JOIN leagues l ON g.league_id = l.id
+            WHERE (g.home_team_id = ? OR g.guest_team_id = ?) AND g.home_score IS NOT NULL${sf.clause}
             GROUP BY type
         `;
-        const res = await this.db.query(query, [teamId, teamId, teamId, teamId, teamId, teamId, teamId]);
+        const res = await this.db.query(query, [teamId, teamId, teamId, teamId, teamId, teamId, teamId, ...sf.params]);
 
         const home = res.find(r => r.type === 'HOME') || { wins: 0, draws: 0, losses: 0 };
         const away = res.find(r => r.type === 'AWAY') || { wins: 0, draws: 0, losses: 0 };
@@ -226,28 +270,32 @@ export class AnalyticsService {
     }
 
     // 2. Defensive Grit (Clean Sheets)
-    async getTeamCleanSheets(teamId: string): Promise<number> {
+    async getTeamCleanSheets(teamId: string, seasonId?: string): Promise<number> {
         await this.db.ensureDbLoaded();
+        const sf = this.seasonFilter(seasonId);
         const query = `
             SELECT COUNT(*) as count
-            FROM games
-            WHERE ((home_team_id = ? AND guest_score = 0) OR (guest_team_id = ? AND home_score = 0))
-              AND home_score IS NOT NULL
+            FROM games g
+            JOIN leagues l ON g.league_id = l.id
+            WHERE ((g.home_team_id = ? AND g.guest_score = 0) OR (g.guest_team_id = ? AND g.home_score = 0))
+              AND g.home_score IS NOT NULL${sf.clause}
         `;
-        const res = await this.db.query(query, [teamId, teamId]);
+        const res = await this.db.query(query, [teamId, teamId, ...sf.params]);
         return res[0]?.count || 0;
     }
 
     // 3. Offensive Struggles (Failed to Score)
-    async getTeamScoringFailures(teamId: string): Promise<number> {
+    async getTeamScoringFailures(teamId: string, seasonId?: string): Promise<number> {
         await this.db.ensureDbLoaded();
+        const sf = this.seasonFilter(seasonId);
         const query = `
             SELECT COUNT(*) as count
-            FROM games
-            WHERE ((home_team_id = ? AND home_score = 0) OR (guest_team_id = ? AND guest_score = 0))
-              AND home_score IS NOT NULL
+            FROM games g
+            JOIN leagues l ON g.league_id = l.id
+            WHERE ((g.home_team_id = ? AND g.home_score = 0) OR (g.guest_team_id = ? AND g.guest_score = 0))
+              AND g.home_score IS NOT NULL${sf.clause}
         `;
-        const res = await this.db.query(query, [teamId, teamId]);
+        const res = await this.db.query(query, [teamId, teamId, ...sf.params]);
         return res[0]?.count || 0;
     }
 
@@ -528,9 +576,9 @@ export class AnalyticsService {
         return await this.db.query(query, [limit]);
     }
 
-    async getClutchPlayers(limit: number = 10): Promise<LeagueCompetitiveness[]> {
+    /** Leagues with the smallest average goal difference (closest contests). */
+    async getTightestLeagues(limit: number = 10): Promise<LeagueCompetitiveness[]> {
         await this.db.ensureDbLoaded();
-        // Alternative: "Most Competitive Leagues"
         const query = `
              SELECT
                 l.name,
@@ -588,27 +636,12 @@ export class AnalyticsService {
         };
     }
 
-    async getPlayerFavoriteOpponent(playerId: string): Promise<{ opponent: string, goals: number }> {
+    /**
+     * The player's best scoring season. (A true "favorite opponent" is not
+     * possible: the scorers table is aggregated per season, not per match.)
+     */
+    async getPlayerPersonalBest(playerId: string): Promise<{ opponent: string, goals: number }> {
         await this.db.ensureDbLoaded();
-        const query = `
-            SELECT
-                s.team as opponent, -- In scorers table 'team' is seemingly the TEAM the player played FOR? No, wait.
-                -- Let's check schema. scorers table has: id, league_id, place, name, team, birth_year, goals, games, player_id...
-                -- 'team' in scorers is usually the team the player played FOR.
-                -- So we can't easily get 'opponent' from 'scorers' table aggregation.
-                -- BUT we can infer it if we join with games? No, scorers is aggregated per season.
-                -- Use approximation: We can't do this easily with just 'scorers' table if it doesn't store opponent goals.
-                -- Let's check 'games' and try to link if possible?
-                -- Actually, without match-level scorer data, 'Favorite Victim' is impossible to calculate accurately from aggregated season stats.
-                -- ALTERNATIVE: "Most Goals in a Season" (Personal Best)
-                s.goals
-            FROM scorers s
-            WHERE s.player_id = ?
-            ORDER BY s.goals DESC
-            LIMIT 1
-        `;
-        // Correction: We cannot do "Favorite Opponent" for players with current schema (Scorers = Season Aggregates).
-        // Let's implement "Personal Best Season" instead as a valid deep dive.
         const pbQuery = `
             SELECT
                 SUBSTR(league_id, 1, 4) as season,
@@ -642,8 +675,9 @@ export class AnalyticsService {
 
     // --- OVERVIEW ANALYSIS ---
 
-    async getHighestScoringGames(limit: number = 5): Promise<GameRecord[]> {
+    async getHighestScoringGames(limit: number = 5, seasonId?: string): Promise<GameRecord[]> {
         await this.db.ensureDbLoaded();
+        const sf = this.seasonFilter(seasonId);
         const query = `
             SELECT
                 g.date_iso as date,
@@ -656,11 +690,11 @@ export class AnalyticsService {
             JOIN teams t1 ON g.home_team_id = t1.id
             JOIN teams t2 ON g.guest_team_id = t2.id
             JOIN leagues l ON g.league_id = l.id
-            WHERE g.total_goals IS NOT NULL
+            WHERE g.total_goals IS NOT NULL${sf.clause}
             ORDER BY g.total_goals DESC
             LIMIT ?
         `;
-        return await this.db.query(query, [limit]);
+        return await this.db.query(query, [...sf.params, limit]);
     }
 
     async getSeasonGrowth(): Promise<SeasonGrowth[]> {
@@ -738,24 +772,10 @@ export class AnalyticsService {
         return await this.db.query(query, [playerId]);
     }
 
-    async getLeagueStats(leagueId: string): Promise<any> {
+    async getTopTeams(limit: number = 20, seasonId?: string): Promise<TeamStat[]> {
         await this.db.ensureDbLoaded();
-        const query = `
-            SELECT
-                COUNT(*) as games,
-                ROUND(AVG(total_goals), 2) as avgGoals,
-                MAX(total_goals) as maxGoals
-            FROM games
-            WHERE league_id = ? AND total_goals IS NOT NULL
-        `;
-        const result = await this.db.query(query, [leagueId]);
-        return result.length > 0 ? result[0] : null;
-    }
+        const sf = this.seasonFilter(seasonId);
 
-    async getTopTeams(limit: number = 20): Promise<TeamStat[]> {
-        await this.db.ensureDbLoaded();
-
-        // We filter for teams with at least 20 games to get meaningful stats
         const query = `
       SELECT
         t.name,
@@ -769,14 +789,15 @@ export class AnalyticsService {
         ROUND(AVG(CASE WHEN g.home_team_id = t.id THEN g.guest_score ELSE g.home_score END), 2) as avgConceded
       FROM teams t
       JOIN games g ON (g.home_team_id = t.id OR g.guest_team_id = t.id)
-      WHERE g.home_score IS NOT NULL
+      ${seasonId ? 'JOIN leagues l ON g.league_id = l.id' : ''}
+      WHERE g.home_score IS NOT NULL${sf.clause}
       GROUP BY t.id
-      HAVING games >= 20
+      HAVING games >= ${seasonId ? '5' : '20'}
       ORDER BY winRate DESC
       LIMIT ?
     `;
 
-        return await this.db.query(query, [limit]);
+        return await this.db.query(query, [...sf.params, limit]);
     }
 
     async getTrendsOverTime(): Promise<SeasonTrend[]> {
@@ -797,22 +818,24 @@ export class AnalyticsService {
         return await this.db.query(query);
     }
 
-    async getHomeAdvantage(): Promise<HomeAdvantage[]> {
+    async getHomeAdvantage(seasonId?: string): Promise<HomeAdvantage[]> {
         await this.db.ensureDbLoaded();
+        const sf = this.seasonFilter(seasonId);
 
         const query = `
       SELECT
           CASE
-              WHEN home_score > guest_score THEN 'Heimsieg'
-              WHEN home_score < guest_score THEN 'Auswärtssieg'
+              WHEN g.home_score > g.guest_score THEN 'Heimsieg'
+              WHEN g.home_score < g.guest_score THEN 'Auswärtssieg'
               ELSE 'Unentschieden'
           END as result,
           COUNT(*) as count
-      FROM games
-      WHERE home_score IS NOT NULL
+      FROM games g
+      ${seasonId ? 'JOIN leagues l ON g.league_id = l.id' : ''}
+      WHERE g.home_score IS NOT NULL${sf.clause}
       GROUP BY result
     `;
 
-        return await this.db.query(query);
+        return await this.db.query(query, sf.params);
     }
 }

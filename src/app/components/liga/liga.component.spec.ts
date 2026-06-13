@@ -1,8 +1,10 @@
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
 import { LigaComponent } from './liga.component';
 import { LigaService } from '../../services/liga/liga.service';
+import { SeasonService } from '../../services/season/season.service';
 import { ActivatedRoute, Router } from '@angular/router';
 import { of } from 'rxjs';
+import { signal } from '@angular/core';
 import { HttpClientTestingModule } from '@angular/common/http/testing';
 import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
 import { Games } from '../../models/games';
@@ -68,6 +70,7 @@ describe('LigaComponent', () => {
   beforeEach(async () => {
     const ligaServiceSpy = jasmine.createSpyObj('LigaService', [
       'getItems',
+      'fetchLeagueData',
       'getLigaName',
       'parseHtmlToGames',
       'parseHtmlToTable',
@@ -75,6 +78,17 @@ describe('LigaComponent', () => {
       'getLocationLink'
     ]);
     const routerSpy = jasmine.createSpyObj('Router', ['navigate']);
+
+    const seasonServiceMock = {
+      currentSeason: signal('2025'),
+      availableSeasons: signal(['2025']),
+      seasonsLoaded: signal(false),
+      isCurrentSeason: true,
+      getSeasonLabel: () => '2025/2026',
+      isLive: () => true,
+      setSeason: jasmine.createSpy('setSeason'),
+      loadAvailableSeasons: jasmine.createSpy('loadAvailableSeasons').and.returnValue(Promise.resolve())
+    };
 
     activatedRoute = {
       queryParams: of({ param: 'WBGameList.aspx?V=DMOL2B&S=2025' }),
@@ -92,7 +106,8 @@ describe('LigaComponent', () => {
       providers: [
         { provide: LigaService, useValue: ligaServiceSpy },
         { provide: Router, useValue: routerSpy },
-        { provide: ActivatedRoute, useValue: activatedRoute }
+        { provide: ActivatedRoute, useValue: activatedRoute },
+        { provide: SeasonService, useValue: seasonServiceMock }
       ]
     })
     .compileComponents();
@@ -100,7 +115,13 @@ describe('LigaComponent', () => {
     ligaService = TestBed.inject(LigaService) as jasmine.SpyObj<LigaService>;
     router = TestBed.inject(Router) as jasmine.SpyObj<Router>;
 
-    // Setup default mock responses
+    // Setup default mock responses - fetchLeagueData returns combined data
+    ligaService.fetchLeagueData.and.returnValue(of({
+      name: 'Test Liga',
+      games: mockGames,
+      table: mockTable,
+      scorers: mockScorers
+    }));
     ligaService.getItems.and.returnValue(of('<html></html>'));
     ligaService.getLigaName.and.returnValue('Test Liga');
     ligaService.parseHtmlToGames.and.returnValue(mockGames);
@@ -123,7 +144,7 @@ describe('LigaComponent', () => {
     it('should load liga data on initialization', () => {
       fixture.detectChanges();
 
-      expect(ligaService.getItems).toHaveBeenCalled();
+      expect(ligaService.fetchLeagueData).toHaveBeenCalled();
       expect(component.ligaName).toBe('Test Liga');
       expect(component.dataSourceGames.data.length).toBe(2);
       expect(component.dataSourceTable.data.length).toBe(1);
@@ -134,7 +155,7 @@ describe('LigaComponent', () => {
     it('should extract liga parameter from query params', () => {
       fixture.detectChanges();
 
-      expect(ligaService.getItems).toHaveBeenCalledWith('WBGameList.aspx?V=DMOL2B&S=2025');
+      expect(ligaService.fetchLeagueData).toHaveBeenCalledWith('WBGameList.aspx?V=DMOL2B&S=2025', false);
     });
   });
 
@@ -143,19 +164,31 @@ describe('LigaComponent', () => {
       fixture.detectChanges();
     });
 
-    it('should filter games by team name', () => {
-      const event = { target: { value: 'Team A' } } as any;
-      component.applyGamesFilter(event);
+    it('should filter games by team name (debounced)', fakeAsync(() => {
+      component.gamesFilter = 'Team A';
+      component.onGamesFilterChange();
+      tick(300);
 
       expect(component.dataSourceGames.filter).toBe('team a');
-    });
+    }));
 
-    it('should trim whitespace from filter', () => {
-      const event = { target: { value: '  Team A  ' } } as any;
-      component.applyGamesFilter(event);
+    it('should trim whitespace from filter', fakeAsync(() => {
+      component.gamesFilter = '  Team A  ';
+      component.onGamesFilterChange();
+      tick(300);
 
       expect(component.dataSourceGames.filter).toBe('team a');
-    });
+    }));
+
+    it('clear button empties the games filter', fakeAsync(() => {
+      component.gamesFilter = 'Team A';
+      component.onGamesFilterChange();
+      tick(300);
+      component.clearGamesFilter();
+
+      expect(component.gamesFilter).toBe('');
+      expect(component.dataSourceGames.filter).toBe('');
+    }));
   });
 
   describe('applyScorerFilter', () => {
@@ -163,12 +196,13 @@ describe('LigaComponent', () => {
       fixture.detectChanges();
     });
 
-    it('should filter scorers by name', () => {
-      const event = { target: { value: 'Spieler A' } } as any;
-      component.applyScorerFilter(event);
+    it('should filter scorers by name (debounced)', fakeAsync(() => {
+      component.scorerFilter = 'Spieler A';
+      component.onScorerFilterChange();
+      tick(300);
 
       expect(component.dataSourceScorer.filter).toBe('spieler a');
-    });
+    }));
   });
 
   describe('checkEventInPast', () => {

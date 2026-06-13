@@ -10,9 +10,10 @@ import { MatExpansionModule } from '@angular/material/expansion';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { GameDetailsService } from '../../services/game-details/game-details.service';
+import { HistoryService } from '../../services/history/history.service';
 import { GameDetails, GameEvent } from '../../models/game-details';
 import { ShareImageComponent } from '../share-image/share-image.component';
-import * as amplitude from '@amplitude/unified';
+import { TrackingService } from '../../services/tracking/tracking.service';
 
 @Component({
     selector: 'app-game-details',
@@ -41,6 +42,8 @@ export class GameDetailsComponent implements OnInit {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
   private gameDetailsService = inject(GameDetailsService);
+  private historyService = inject(HistoryService);
+  private tracking = inject(TrackingService);
   private dialog = inject(MatDialog);
   private snackBar = inject(MatSnackBar);
 
@@ -73,11 +76,18 @@ export class GameDetailsComponent implements OnInit {
     this.isLoading = true;
     this.error = null;
 
+    // Historical games (id like "2014_6_2") are served from the local database;
+    // live games are scraped from the DSV website.
+    if (HistoryService.isHistoricalGameId(link)) {
+      this.loadHistoricalGameDetails(link);
+      return;
+    }
+
     this.gameDetailsService.getGameData(link).subscribe({
       next: (html: string) => {
         try {
           this.gameDetails = this.gameDetailsService.parseHtmlToGameDetails(html);
-          amplitude.track('Game Details Viewed', {
+          this.tracking.track('Game Details Viewed', {
             gameId: this.gameDetails.gameId,
             league: this.gameDetails.league,
             homeTeam: this.gameDetails.homeTeam.name,
@@ -87,7 +97,7 @@ export class GameDetailsComponent implements OnInit {
         } catch (error) {
           console.error('Error parsing game details:', error);
           this.error = 'Fehler beim Laden der Spieldetails';
-          amplitude.track('Error Occurred', {
+          this.tracking.track('Error Occurred', {
             errorMessage: 'Fehler beim Laden der Spieldetails',
             errorContext: 'loadGameDetails',
           });
@@ -97,7 +107,7 @@ export class GameDetailsComponent implements OnInit {
       error: (error) => {
         console.error('Error loading game details:', error);
         this.error = 'Fehler beim Laden der Spieldetails';
-        amplitude.track('Error Occurred', {
+        this.tracking.track('Error Occurred', {
           errorMessage: 'Fehler beim Laden der Spieldetails',
           errorContext: 'loadGameDetails',
         });
@@ -106,9 +116,34 @@ export class GameDetailsComponent implements OnInit {
     });
   }
 
+  /** Load a historical game's details from the local database. */
+  private async loadHistoricalGameDetails(gameId: string): Promise<void> {
+    try {
+      const details = await this.historyService.getGameDetails(gameId);
+      if (!details) {
+        this.error = 'Für dieses Archiv-Spiel sind keine Details verfügbar.';
+        this.isLoading = false;
+        return;
+      }
+      this.gameDetails = details;
+      this.tracking.track('Game Details Viewed', {
+        gameId: details.gameId,
+        league: details.league,
+        homeTeam: details.homeTeam.name,
+        guestTeam: details.guestTeam.name,
+        source: 'archive',
+      });
+    } catch (error) {
+      console.error('Error loading historical game details:', error);
+      this.error = 'Fehler beim Laden der Spieldetails';
+    } finally {
+      this.isLoading = false;
+    }
+  }
+
   trackTabChange(event: any): void {
     const tabLabel = event.tab.textLabel;
-    amplitude.track('Tab Viewed', {
+    this.tracking.track('Tab Viewed', {
       tabName: tabLabel,
       gameId: this.gameDetails?.gameId,
     });
@@ -137,7 +172,7 @@ export class GameDetailsComponent implements OnInit {
    */
   openGoogleMaps(): void {
     if (this.gameDetails?.venue.googleMapsLink) {
-      amplitude.track('External Link Clicked', { destination: 'Google Maps' });
+      this.tracking.track('External Link Clicked', { destination: 'Google Maps' });
       window.open(this.gameDetails.venue.googleMapsLink, '_blank');
     }
   }
@@ -147,7 +182,7 @@ export class GameDetailsComponent implements OnInit {
    */
   openVideoLink(): void {
     if (this.gameDetails?.videoLink) {
-      amplitude.track('External Link Clicked', { destination: 'Video' });
+      this.tracking.track('External Link Clicked', { destination: 'Video' });
       window.open(this.gameDetails.videoLink, '_blank');
     }
   }
@@ -210,7 +245,7 @@ export class GameDetailsComponent implements OnInit {
       return;
     }
 
-    amplitude.track('Share Image Generated', {
+    this.tracking.track('Share Image Generated', {
       gameId: this.gameDetails.gameId,
       league: this.gameDetails.league,
       homeTeam: this.gameDetails.homeTeam.name,
@@ -247,7 +282,7 @@ export class GameDetailsComponent implements OnInit {
   shareGame(): void {
     if (!this.gameDetails) return;
 
-    amplitude.track('Game Shared', {
+    this.tracking.track('Game Shared', {
       gameId: this.gameDetails.gameId,
       league: this.gameDetails.league,
       homeTeam: this.gameDetails.homeTeam.name,
@@ -308,7 +343,7 @@ export class GameDetailsComponent implements OnInit {
    */
   downloadProtocol(): void {
     if (this.gameDetails?.protocolLink) {
-      amplitude.track('Protocol Downloaded', {
+      this.tracking.track('Protocol Downloaded', {
         gameId: this.gameDetails.gameId,
         league: this.gameDetails.league,
       });
@@ -333,13 +368,17 @@ export class GameDetailsComponent implements OnInit {
     const typeMap: { [key: string]: string } = {
       'T': 'Tor',
       'A': 'Ausschluss',
-      'AU': 'Auszeit',
       'AmE': 'Ausschluss mit Ersatz',
+      'AmE+4': 'Ausschluss mit Ersatz',
+      'AU': 'Auszeit',
+      'S': 'Strafwurf',
       'P': 'Penalty',
-      'S': 'Strafe',
       'TO': 'Timeout',
+      'KT': 'Kapitän',
+      'GK': 'Torwart',
+      'RK': 'Rote Karte',
       'E': 'Einwechslung',
-      'X': 'Pause',
+      'X': 'Sonstiges',
       '5m': '5m-Wurf',
       'Penalty': 'Penalty',
       'Goal': 'Tor',

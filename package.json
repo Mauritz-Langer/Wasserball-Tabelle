@@ -6,7 +6,9 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "scrape": "node scripts/scrape-seasons.js",
+    "slim-db": "node scripts/slim-db.js"
   },
   "private": true,
   "browser": {
@@ -28,7 +30,6 @@
     "@angular/router": "^20.3.12",
     "@angular/service-worker": "^20.3.12",
     "chart.js": "^4.5.1",
-    "dom-parser": "^1.1.5",
     "html2canvas": "^1.4.1",
     "ng2-charts": "^8.0.0",
     "rxjs": "~7.8.0",

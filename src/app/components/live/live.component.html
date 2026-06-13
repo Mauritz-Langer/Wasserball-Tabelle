@@ -1,0 +1,170 @@
+<div class="live-container">
+  <div class="live-header">
+    <button mat-icon-button (click)="goBack()" aria-label="Zurück">
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+    <h1>
+      <span class="live-dot" [class.on]="live.state() === 'connected'"></span>
+      Liveticker
+    </h1>
+  </div>
+
+  <!-- Connection states -->
+  @if (live.state() === 'connecting') {
+    <div class="live-status">
+      <mat-spinner diameter="36" />
+      <span>Verbinde mit dem Liveticker…</span>
+    </div>
+  } @else if (live.state() === 'error') {
+    <div class="live-status error">
+      <mat-icon>cloud_off</mat-icon>
+      <span>Verbindung fehlgeschlagen.</span>
+      <button mat-stroked-button (click)="retry()">Erneut versuchen</button>
+    </div>
+  }
+
+  <!-- ===================== DETAIL: a watched game ===================== -->
+  @if (live.currentGame(); as game) {
+    <div class="game-detail">
+      <div class="scoreboard" [class.is-live]="statusOf(game) === 'live'">
+        <div class="team home">{{ game.HomeClubname || game.HomeClubnameRaw }}</div>
+        <div class="score-center">
+          <div class="score">{{ score(game) }}</div>
+          @switch (statusOf(game)) {
+            @case ('live') {
+              <div class="status-pill live"><span class="pulse"></span>{{ live.clock() || 'läuft' }}</div>
+            }
+            @case ('finished') {
+              <div class="status-pill done">Beendet</div>
+            }
+            @default {
+              <div class="status-pill soon">{{ kickoff(game) }}</div>
+            }
+          }
+        </div>
+        <div class="team guest">{{ game.GuestClubname || game.GuestClubnameRaw }}</div>
+      </div>
+
+      <!-- quarter breakdown -->
+      @if (quarters(game).length) {
+        <div class="quarters">
+          @for (q of quarters(game); track $index) {
+            <div class="q"><span class="q-label">Q{{ $index + 1 }}</span><span class="q-score">{{ q }}</span></div>
+          }
+        </div>
+      }
+
+      <div class="meta">{{ game.LeagueNameLive || game.LeagueName }}@if (game.PoolName) { · {{ game.PoolName }} }</div>
+
+      <!-- Cross-links into the rest of the app -->
+      <div class="cross-links">
+        <button mat-stroked-button (click)="openLeague(game)">
+          <mat-icon>table_chart</mat-icon> Tabelle & Liga
+        </button>
+        <button mat-stroked-button (click)="openReport(game)">
+          <mat-icon>description</mat-icon> Spielbericht
+        </button>
+      </div>
+
+      <h2 class="plays-title">Spielverlauf</h2>
+      @if (live.plays().length === 0) {
+        <p class="empty">Noch keine Aktionen erfasst.</p>
+      } @else {
+        <div class="feed">
+          @for (play of live.plays(); track trackPlay($index, play)) {
+            <div class="play side-{{ playSide(play) }}"
+              [class.goal]="isGoal(play)" [class.retracted]="play.Active === false">
+              <div class="play-time">
+                <span class="q">Q{{ play.Period }}</span>
+                <span class="t">{{ eventTime(play) }}</span>
+              </div>
+              <div class="play-icon" [class.goal]="isGoal(play)">
+                <mat-icon>{{ eventIcon(play) }}</mat-icon>
+              </div>
+              <div class="play-body">
+                <span class="player">
+                  @if (playCap(play)) { <span class="cap">#{{ playCap(play) }}</span> }
+                  {{ play.GamePlanPlayer }}
+                </span>
+                <span class="event">{{ eventLabel(play) }}</span>
+              </div>
+              @if (isGoal(play) && play.LiveGoals) {
+                <div class="play-score">{{ play.LiveGoals }}</div>
+              }
+            </div>
+          }
+        </div>
+      }
+    </div>
+  }
+
+  <!-- ===================== LIST: all games ===================== -->
+  @else if (live.state() === 'connected') {
+    @if (liveNow().length === 0 && upcoming().length === 0 && finished().length === 0) {
+      <div class="live-status">
+        <mat-icon>sports</mat-icon>
+        <span>Aktuell keine Spiele im Liveticker.</span>
+      </div>
+    }
+
+    @if (liveNow().length) {
+      <h2 class="section"><span class="sec-dot live"></span>Jetzt live <span class="count">{{ liveNow().length }}</span></h2>
+      <div class="games">
+        @for (game of liveNow(); track trackGame($index, game)) {
+          <button class="game-row live" (click)="select(game)"
+            [attr.aria-label]="'Live: ' + game.HomeClubname + ' gegen ' + game.GuestClubname">
+            <div class="g-main">
+              <span class="g-team home">{{ game.HomeClubname || game.HomeClubnameRaw }}</span>
+              <span class="g-score">{{ score(game) }}</span>
+              <span class="g-team guest">{{ game.GuestClubname || game.GuestClubnameRaw }}</span>
+            </div>
+            <div class="g-meta">
+              <span class="badge-live"><span class="pulse"></span>LIVE</span>
+              <span class="g-league">{{ game.LeagueNameLive || game.LeagueName }}</span>
+            </div>
+          </button>
+        }
+      </div>
+    }
+
+    @if (upcoming().length) {
+      <h2 class="section">Geplant <span class="count">{{ upcoming().length }}</span></h2>
+      <div class="games">
+        @for (game of upcoming(); track trackGame($index, game)) {
+          <button class="game-row" (click)="select(game)"
+            [attr.aria-label]="game.HomeClubname + ' gegen ' + game.GuestClubname">
+            <div class="g-main">
+              <span class="g-team home">{{ game.HomeClubname || game.HomeClubnameRaw }}</span>
+              <span class="g-kick">{{ kickoff(game) }}</span>
+              <span class="g-team guest">{{ game.GuestClubname || game.GuestClubnameRaw }}</span>
+            </div>
+            <div class="g-meta">
+              <span class="badge-soon">Anpfiff</span>
+              <span class="g-league">{{ game.LeagueNameLive || game.LeagueName }}</span>
+            </div>
+          </button>
+        }
+      </div>
+    }
+
+    @if (finished().length) {
+      <h2 class="section">Beendet <span class="count">{{ finished().length }}</span></h2>
+      <div class="games">
+        @for (game of finished(); track trackGame($index, game)) {
+          <button class="game-row done" (click)="select(game)"
+            [attr.aria-label]="'Ergebnis: ' + game.HomeClubname + ' gegen ' + game.GuestClubname">
+            <div class="g-main">
+              <span class="g-team home">{{ game.HomeClubname || game.HomeClubnameRaw }}</span>
+              <span class="g-score">{{ score(game) }}</span>
+              <span class="g-team guest">{{ game.GuestClubname || game.GuestClubnameRaw }}</span>
+            </div>
+            <div class="g-meta">
+              <span class="badge-done">Beendet</span>
+              <span class="g-league">{{ game.LeagueNameLive || game.LeagueName }}</span>
+            </div>
+          </button>
+        }
+      </div>
+    }
+  }
+</div>

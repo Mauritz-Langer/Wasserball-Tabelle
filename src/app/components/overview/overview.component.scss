@@ -232,6 +232,47 @@
   }
 }
 
+// Archive Banner
+.archive-banner {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 20px;
+  margin-bottom: 20px;
+  background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%);
+  border-left: 4px solid #ff9800;
+  border-radius: 8px;
+  font-size: 14px;
+  color: #e65100;
+  font-weight: 500;
+  line-height: 1.5;
+  animation: fadeIn 0.4s ease-out;
+
+  mat-icon {
+    color: #ff9800;
+    font-size: 24px;
+    width: 24px;
+    height: 24px;
+    flex-shrink: 0;
+  }
+
+  @media (max-width: 768px) {
+    padding: 12px 14px;
+    font-size: 13px;
+    gap: 10px;
+  }
+}
+
+:host-context(body.dark-theme) .archive-banner {
+  background: linear-gradient(135deg, rgba(255, 152, 0, 0.15) 0%, rgba(255, 152, 0, 0.08) 100%);
+  border-left-color: #ffb74d;
+  color: #ffcc80;
+
+  mat-icon {
+    color: #ffb74d;
+  }
+}
+
 // Favorites Section
 .favorites-section {
   margin-bottom: 32px;
@@ -826,4 +867,98 @@
       }
     }
   }
+}
+
+/* ============================================================
+   Quick action tiles (Live / Statistik) — Deep Pool style
+   ============================================================ */
+.season-section { margin-bottom: 1rem; }
+.season-field { width: 100%; }
+.option-live { color: #2e9e5b; font-weight: 700; margin-left: 6px; }
+
+.quick-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  margin-bottom: 24px;
+
+  @media (max-width: 520px) {
+    grid-template-columns: 1fr;
+  }
+}
+
+.action-tile {
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px;
+  border: none;
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  color: #fff;
+  text-align: left;
+  box-shadow: var(--shadow-2);
+  transition: transform 0.18s ease, box-shadow 0.18s ease;
+
+  &.live { background: linear-gradient(135deg, #e5383b 0%, #b11226 100%); }
+  &.stats { background: linear-gradient(135deg, var(--brand-500) 0%, var(--brand-700) 100%); }
+
+  &:hover { transform: translateY(-3px); box-shadow: var(--shadow-3); }
+  &:active { transform: translateY(-1px); }
+
+  .tile-glow {
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(120px 120px at 85% -20%, rgba(255, 255, 255, 0.35), transparent 70%);
+    pointer-events: none;
+  }
+
+  .tile-icon {
+    font-size: 34px;
+    width: 34px;
+    height: 34px;
+    flex-shrink: 0;
+    filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.25));
+  }
+
+  .tile-text { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+  .tile-title { font-family: var(--font-display); font-weight: 700; font-size: 1.1rem; line-height: 1.1; }
+  .tile-sub { font-size: 0.82rem; opacity: 0.9; }
+  .tile-arrow { opacity: 0.9; transition: transform 0.18s ease; }
+
+  &:hover .tile-arrow { transform: translateX(4px); }
+
+  &.live .tile-icon { animation: tileBolt 2.4s ease-in-out infinite; }
+}
+
+@keyframes tileBolt {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.65; }
+}
+
+/* Category icon + count in accordion header */
+.panel-title {
+  display: flex; align-items: center; gap: 10px;
+  .cat-icon { color: var(--brand-600); font-size: 22px; width: 22px; height: 22px; }
+}
+.panel-description .cat-count {
+  font-weight: 800; font-size: 0.78rem;
+  background: var(--surface-muted); color: var(--text-secondary);
+  border-radius: 999px; padding: 2px 10px; font-variant-numeric: tabular-nums;
+}
+
+/* Colored gender badges */
+.gender-badge {
+  font-size: 0.68rem !important; font-weight: 800; letter-spacing: 0.02em;
+  padding: 2px 8px !important; border-radius: 999px !important;
+  &.g-women { background: rgba(236, 72, 153, 0.16); color: #be185d; }
+  &.g-men   { background: rgba(21, 101, 216, 0.14); color: var(--brand-700); }
+  &.g-mixed { background: rgba(139, 92, 246, 0.16); color: #6d28d9; }
+}
+:host-context(body.dark-theme) .gender-badge {
+  &.g-women { color: #f9a8d4; }
+  &.g-men   { color: #93c5fd; }
+  &.g-mixed { color: #c4b5fd; }
 }

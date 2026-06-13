@@ -1,11 +1,12 @@
 // App Header
 .app-header {
-  background: linear-gradient(135deg, #1976d2 0%, #2196f3 50%, #42a5f5 100%);
+  background: linear-gradient(120deg, #0a2a5e 0%, #0e54bd 55%, #1565d8 100%);
   color: white;
   height: auto;
   min-height: 64px;
   padding: 0 24px;
-  box-shadow: 0 4px 12px rgba(25, 118, 210, 0.3);
+  box-shadow: 0 6px 20px rgba(10, 42, 94, 0.35);
+  border-bottom: 2px solid rgba(34, 211, 238, 0.55);
   position: sticky;
   top: 0;
   z-index: 1000;
@@ -44,8 +45,9 @@
 
 // Dark Mode Header
 :host-context(body.dark-theme) .app-header {
-  background: linear-gradient(135deg, #1565c0 0%, #1976d2 50%, #1e88e5 100%);
-  box-shadow: 0 4px 12px rgba(21, 101, 192, 0.4);
+  background: linear-gradient(120deg, #06122a 0%, #0b357e 60%, #0e54bd 100%);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.5);
+  border-bottom-color: rgba(34, 211, 238, 0.4);
 }
 
 // Header Content
@@ -60,12 +62,23 @@
   }
 }
 
-// Brand Section
+// Brand Section (now a button -> home)
 .brand-section {
   display: flex;
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
+  background: none;
+  border: none;
+  padding: 4px 6px;
+  margin-left: -6px;
+  border-radius: 10px;
+  cursor: pointer;
+  color: inherit;
+  transition: background 0.15s ease;
+
+  &:hover { background: rgba(255, 255, 255, 0.12); }
+  &:active { background: rgba(255, 255, 255, 0.2); }
 
   .home-button {
     mat-icon {
@@ -260,6 +273,39 @@
         display: none;
       }
     }
+
+    .live-badge {
+      font-size: 10px;
+      font-weight: 700;
+      color: #fff;
+      background: #4caf50;
+      padding: 2px 6px;
+      border-radius: 8px;
+      letter-spacing: 0.5px;
+      line-height: 1;
+      animation: livePulse 2s ease-in-out infinite;
+
+      @media (max-width: 480px) {
+        font-size: 9px;
+        padding: 1px 4px;
+      }
+    }
+
+    .archive-badge {
+      font-size: 10px;
+      font-weight: 700;
+      color: #fff;
+      background: rgba(255, 255, 255, 0.35);
+      padding: 2px 6px;
+      border-radius: 8px;
+      letter-spacing: 0.5px;
+      line-height: 1;
+
+      @media (max-width: 480px) {
+        font-size: 9px;
+        padding: 1px 4px;
+      }
+    }
   }
 
   .dsv-button {
@@ -305,4 +351,237 @@
 
 .header-content {
   animation: slideIn 0.3s ease-out;
+}
+
+@keyframes livePulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+
+/* ============================================================
+   Archive database download overlay
+   ============================================================ */
+.db-loading-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(3px);
+}
+
+.db-loading-card {
+  width: min(90vw, 360px);
+  padding: 2rem 1.75rem;
+  border-radius: 16px;
+  background: var(--mat-sys-surface, #fff);
+  color: var(--mat-sys-on-surface, #1a1a1a);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+  text-align: center;
+}
+
+.db-loading-icon {
+  font-size: 48px;
+  height: 48px;
+  width: 48px;
+  color: #2a5298;
+  animation: livePulse 1.6s ease-in-out infinite;
+}
+
+.db-loading-title {
+  margin: 0.75rem 0 0.25rem;
+  font-size: 1.2rem;
+  font-weight: 600;
+}
+
+.db-loading-text {
+  margin: 0 0 1.25rem;
+  font-size: 0.9rem;
+  opacity: 0.75;
+}
+
+.db-loading-percent {
+  display: inline-block;
+  margin-top: 0.5rem;
+  font-size: 0.85rem;
+  font-weight: 600;
+  opacity: 0.8;
+}
+
+/* ============================================================
+   Analytics consent banner (GDPR)
+   ============================================================ */
+.consent-banner {
+  position: fixed;
+  left: 50%;
+  bottom: 16px;
+  transform: translateX(-50%);
+  z-index: 1100;
+  width: min(94vw, 640px);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 16px;
+  padding: 16px 20px;
+  border-radius: 14px;
+  background: var(--mat-sys-surface, #fff);
+  color: var(--mat-sys-on-surface, #1a1a1a);
+  box-shadow: 0 10px 36px rgba(0, 0, 0, 0.28);
+}
+
+.consent-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1 1 320px;
+}
+
+.consent-icon {
+  color: #2a5298;
+  flex-shrink: 0;
+}
+
+.consent-text {
+  margin: 0;
+  font-size: 0.88rem;
+  line-height: 1.4;
+}
+
+.consent-actions {
+  display: flex;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   Primary navigation (desktop header)
+   ============================================================ */
+.header-nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+
+  a {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: 10px;
+    color: rgba(255, 255, 255, 0.85);
+    text-decoration: none;
+    font-weight: 600;
+    font-size: 0.9rem;
+    transition: background 0.15s ease, color 0.15s ease;
+
+    mat-icon { font-size: 20px; width: 20px; height: 20px; }
+
+    &:hover { background: rgba(255, 255, 255, 0.12); color: #fff; }
+    &.active { background: rgba(255, 255, 255, 0.22); color: #fff; }
+  }
+
+  // Desktop only — mobile uses the bottom nav.
+  @media (max-width: 768px) { display: none; }
+}
+
+/* ============================================================
+   Season selector button (header)
+   ============================================================ */
+.season-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.12);
+  border: none;
+  color: #fff;
+  padding: 6px 8px 6px 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  font: inherit;
+  transition: background 0.15s ease;
+
+  &:hover { background: rgba(255, 255, 255, 0.22); }
+
+  .info-icon { font-size: 18px; width: 18px; height: 18px; }
+  .info-text { font-weight: 600; font-size: 0.85rem; }
+  .caret { font-size: 20px; width: 20px; height: 20px; margin-left: -2px; }
+
+  .live-badge, .archive-badge {
+    font-size: 0.6rem;
+    font-weight: 800;
+    letter-spacing: 0.5px;
+    padding: 1px 5px;
+    border-radius: 5px;
+  }
+  .live-badge { background: #4caf50; color: #fff; }
+  .archive-badge { background: #ff9800; color: #fff; }
+
+  @media (max-width: 480px) {
+    .info-text { display: none; }
+  }
+}
+
+.active-season { font-weight: 700; }
+.menu-live {
+  margin-left: 8px;
+  font-size: 0.65rem;
+  font-weight: 800;
+  color: #4caf50;
+}
+
+/* ============================================================
+   Page content + bottom navigation (mobile)
+   ============================================================ */
+.app-content {
+  display: block;
+}
+
+.bottom-nav {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .app-content {
+    // Leave room for the fixed bottom nav (+ iOS safe area).
+    padding-bottom: calc(64px + env(safe-area-inset-bottom));
+  }
+
+  .bottom-nav {
+    display: flex;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 1000;
+    background: var(--mat-sys-surface, #fff);
+    border-top: 1px solid var(--mat-sys-outline-variant, #e0e0e0);
+    padding-bottom: env(safe-area-inset-bottom);
+    box-shadow: 0 -2px 12px rgba(0, 0, 0, 0.08);
+
+    a {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      padding: 8px 0 6px;
+      text-decoration: none;
+      color: var(--mat-sys-on-surface-variant, #666);
+      font-size: 0.7rem;
+      font-weight: 600;
+
+      mat-icon { font-size: 24px; width: 24px; height: 24px; }
+
+      &.active { color: #1976d2; }
+    }
+  }
+}
+
+:host-context(body.dark-theme) .bottom-nav {
+  background: #1e1e1e;
+  a.active { color: #64b5f6; }
 }

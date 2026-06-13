@@ -136,6 +136,18 @@
               <mat-icon>place</mat-icon>
               <span>{{ gameDetails.venue.poolName }}, {{ gameDetails.venue.poolCity }}</span>
             </div>
+            @if (gameDetails.endGameTime && gameDetails.endGameTime.trim() !== '') {
+              <div class="info-chip">
+                <mat-icon>schedule</mat-icon>
+                <span>Ende: {{ gameDetails.endGameTime }}</span>
+              </div>
+            }
+            @if (gameDetails.organizer && gameDetails.organizer.trim() !== '') {
+              <div class="info-chip">
+                <mat-icon>groups</mat-icon>
+                <span>{{ gameDetails.organizer }}</span>
+              </div>
+            }
           </div>
         </mat-card-content>
       </mat-card>
@@ -321,6 +333,10 @@
                       </mat-card-content>
                     </mat-card>
                   }
+                </div>
+                <div class="foul-legend">
+                  <span class="foul-badge">S</span> Strafwurf
+                  <span class="foul-badge">A</span> Ausschluss
                 </div>
               </div>
             </mat-tab>

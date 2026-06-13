@@ -3217,3 +3217,10 @@
     }
   }
 }
+
+/* Foul legend under player stats */
+.foul-legend {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  margin-top: 14px; font-size: 0.8rem; color: var(--text-secondary);
+  .foul-badge { margin-left: 4px; }
+}
