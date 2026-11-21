@@ -21,7 +21,7 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v6
       with:
-        node-version: '20.x'
+        node-version: '24.x'
         cache: 'npm'
 
     - name: Install dependencies
@@ -31,7 +31,7 @@ jobs:
       run: npm run build -- --configuration production
 
     - name: Run tests
-      run: npm run test -- --watch=false --browsers=ChromeHeadless
+      run: npm run test -- --watch=false
 
   # Wenn Tests erfolgreich, dann auto-merge
   auto-merge:

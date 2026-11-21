@@ -1,194 +1,186 @@
-import { Component, OnInit, inject } from '@angular/core';
-import { NgClass } from '@angular/common';
-import { toObservable } from '@angular/core/rxjs-interop';
-import { switchMap } from 'rxjs';
-import { Router } from '@angular/router';
-import { MatIcon } from "@angular/material/icon";
-import {
-  MatAccordion,
-  MatExpansionPanel,
-  MatExpansionPanelHeader,
-  MatExpansionPanelTitle,
-  MatExpansionPanelDescription
-} from "@angular/material/expansion";
-import { MatIconButton } from "@angular/material/button";
-import { MatSnackBar } from "@angular/material/snack-bar";
-import { TrackingService } from "../../services/tracking/tracking.service";
+import { ChangeDetectionStrategy, Component, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed, toObservable } from '@angular/core/rxjs-interop';
+import { catchError, of, switchMap, tap } from 'rxjs';
+import { RouterLink } from '@angular/router';
+import { FormsModule } from '@angular/forms';
+import { MatIcon } from '@angular/material/icon';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { TrackingService } from '../../services/tracking/tracking.service';
+import { OverviewService } from '../../services/overview/overview.service';
+import { SeasonService } from '../../services/season/season.service';
+import { FavoritesService } from '../../services/favorites/favorites.service';
+import { Item } from '../../models/item';
+import { TeamIndexService, TeamRow, teamRows } from '../../services/team-index/team-index.service';
+import { SubItem } from '../../models/subItem';
+import { LogoFallbackDirective } from '../../directives/logo-fallback.directive';
+import { teamInitial } from '../../models/game-utils';
 
-import { MatCard, MatCardContent } from "@angular/material/card";
-import { OverviewService } from "../../services/overview/overview.service";
-import { SeasonService } from "../../services/season/season.service";
-import { FavoritesService } from "../../services/favorites/favorites.service";
-import { MatSelectModule } from "@angular/material/select";
-import { MatOptionModule } from "@angular/material/core";
-import { Item } from "../../models/item";
-import { SubItem } from "../../models/subItem";
-import { MatTooltip } from "@angular/material/tooltip";
-import { MatFormField, MatLabel, MatPrefix, MatSuffix } from "@angular/material/form-field";
-import { MatInput } from "@angular/material/input";
-import { FormsModule } from "@angular/forms";
+type Gender = 'all' | 'm' | 'w' | 'x';
 
+/** Normalise DSV's gender text ("männlich", "Frauen", "mixed", …). */
+export function genderOf(text: string): Exclude<Gender, 'all'> | '' {
+  const g = (text || '').toLowerCase();
+  if (g.includes('weibl') || g.includes('frau') || g.includes('damen') || g.includes('mädchen')) return 'w';
+  if (g.includes('männ') || g.includes('herren') || g.includes('knaben')) return 'm';
+  if (g.includes('mixed') || g.includes('gemischt')) return 'x';
+  return '';
+}
+
+/**
+ * League browser: every league of the selected season, grouped by association,
+ * searchable, with favourites one tap away.
+ */
 @Component({
   selector: 'app-overview',
-  imports: [NgClass, MatIcon, MatAccordion, MatExpansionPanel, MatIconButton, MatExpansionPanelTitle, MatExpansionPanelDescription, MatExpansionPanelHeader, MatCard, MatCardContent, MatTooltip, MatFormField, MatInput, MatLabel, MatPrefix, MatSuffix, FormsModule, MatSelectModule, MatOptionModule],
+  imports: [RouterLink, FormsModule, MatIcon, LogoFallbackDirective],
   templateUrl: './overview.component.html',
-  styleUrl: './overview.component.scss'
+  styleUrl: './overview.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class OverviewComponent implements OnInit {
+export class OverviewComponent {
   private overviewService = inject(OverviewService);
-  public seasonService = inject(SeasonService);
-  private favoritesService = inject(FavoritesService);
   private tracking = inject(TrackingService);
   private snackBar = inject(MatSnackBar);
-  private router = inject(Router);
+  seasonService = inject(SeasonService);
+  favoritesService = inject(FavoritesService);
+  teamIndex = inject(TeamIndexService);
+  /** Teams matching the search, with the league they probably play in. */
+  readonly teamHits = signal<TeamRow[]>([]);
 
+  readonly items = signal<Item[]>([]);
+  readonly isLoading = signal(true);
+  readonly failed = signal(false);
+  readonly searchTerm = signal('');
+  readonly gender = signal<Gender>('all');
+  /** Categories the user expanded (by name). */
+  readonly opened = signal<Set<string>>(new Set());
 
-  items: Item[] = [];
-  filteredItems: Item[] = [];
-  isLoading = true;
-  searchTerm = '';
+  private readonly reload = signal(0);
 
-  /** Inserted by Angular inject() migration for backwards compatibility */
-  constructor(...args: unknown[]);
+  readonly genders: { id: Gender; label: string }[] = [
+    { id: 'all', label: 'Alle' },
+    { id: 'm', label: 'Männlich' },
+    { id: 'w', label: 'Weiblich' },
+    { id: 'x', label: 'Mixed' }
+  ];
+
+  readonly isFiltering = computed(() => !!this.searchTerm().trim() || this.gender() !== 'all');
+
+  readonly filteredItems = computed<Item[]>(() => {
+    const term = this.searchTerm().toLowerCase().trim();
+    const gender = this.gender();
+    if (!term && gender === 'all') return this.items();
+    return this.items()
+      .map(item => ({
+        ...item,
+        subItems: item.subItems.filter(sub =>
+          (gender === 'all' || genderOf(sub.gender) === gender) &&
+          (!term || sub.name.toLowerCase().includes(term) || item.name.toLowerCase().includes(term)))
+      }))
+      .filter(item => item.subItems.length > 0);
+  });
+
+  readonly totalCount = computed(() => this.items().reduce((n, i) => n + i.subItems.length, 0));
+  readonly resultCount = computed(() => this.filteredItems().reduce((n, i) => n + i.subItems.length, 0));
+
+  /** Favourite leagues that exist in the loaded season. */
+  readonly favorites = computed<SubItem[]>(() => {
+    const names = new Set(this.favoritesService.leagues().map(l => l.name));
+    return this.items().flatMap(i => i.subItems).filter(s => names.has(s.name));
+  });
 
   constructor() {
-    toObservable(this.seasonService.currentSeason).pipe(
-      switchMap(() => {
-        this.isLoading = true;
-        return this.overviewService.getItems();
-      })
-    ).subscribe(
-      (items: Item[]) => {
-        this.items = items;
-        this.filteredItems = [...this.items];
-        this.loadFavorites();
-        this.isLoading = false;
-      },
-      (error) => {
-        console.error('Error loading items:', error);
-        this.isLoading = false;
+    toObservable(computed(() => [this.seasonService.currentSeason(), this.reload()] as const)).pipe(
+      tap(() => { this.isLoading.set(true); this.failed.set(false); }),
+      switchMap(([, attempt]) => this.overviewService.getItems(attempt > 0).pipe(
+        catchError(error => {
+          console.error('Error loading items:', error);
+          this.failed.set(true);
+          return of([] as Item[]);
+        })
+      )),
+      takeUntilDestroyed()
+    ).subscribe(items => {
+      this.items.set(items);
+      this.isLoading.set(false);
+      if (items.length) {
+        // The first category (national leagues) starts expanded.
+        if (!items.some(i => this.opened().has(i.name))) this.opened.set(new Set([items[0].name]));
+        if (this.seasonService.isCurrentSeason) {
+          this.favoritesService.reconcile(items.flatMap(i => i.subItems));
+        }
       }
-    );
-  }
-
-  ngOnInit(): void {
-  }
-
-  get favorites(): SubItem[] {
-    return this.items.flatMap(item => item.subItems.filter(subItem => subItem.isFavorite));
-  }
-
-  filterItems(): void {
-    const term = this.searchTerm.toLowerCase().trim();
-
-    if (!term) {
-      this.filteredItems = [...this.items];
-      return;
-    }
-
-    let resultCount = 0;
-    this.filteredItems = this.items
-      .map(item => {
-        const filteredSubItems = item.subItems.filter(subItem =>
-          subItem.name.toLowerCase().includes(term) ||
-          (subItem.gender?.toLowerCase().includes(term) ?? false)
-        );
-
-        resultCount += filteredSubItems.length;
-
-        return {
-          ...item,
-          subItems: filteredSubItems
-        };
-      })
-      .filter(item => item.subItems.length > 0);
-
-    this.tracking.track('Search Performed', {
-      searchTerm: term,
-      resultCount: resultCount,
     });
+  }
+
+  retry(): void {
+    this.reload.update(n => n + 1);
+  }
+
+  isOpen(item: Item): boolean {
+    return this.isFiltering() || this.opened().has(item.name);
+  }
+
+  toggleCategory(item: Item): void {
+    if (this.isFiltering()) return;
+    const next = new Set(this.opened());
+    next.has(item.name) ? next.delete(item.name) : next.add(item.name);
+    this.opened.set(next);
+  }
+
+  setGender(gender: Gender): void {
+    this.gender.set(gender);
+  }
+
+  private searchTimer?: ReturnType<typeof setTimeout>;
+
+  private teamTimer?: ReturnType<typeof setTimeout>;
+
+  onSearch(term: string): void {
+    this.searchTerm.set(term);
+    clearTimeout(this.teamTimer);
+    if (term.trim().length < 2 || !this.seasonService.isLive()) this.teamHits.set([]);
+    else this.teamTimer = setTimeout(async () => {
+      const hits = await this.teamIndex.search(term, this.items().flatMap(i => i.subItems), 4);
+      if (this.searchTerm() === term) this.teamHits.set(teamRows(hits.filter(h => h.leagues.length), 6));
+    }, 200);
+    clearTimeout(this.searchTimer);
+    if (term.trim().length >= 3) {
+      this.searchTimer = setTimeout(() => this.tracking.track('Search Performed', {
+        searchTerm: term.trim().toLowerCase(),
+        resultCount: this.resultCount()
+      }), 1200);
+    }
   }
 
   toggleFavorite(subItem: SubItem, withFeedback = true): void {
-    let nowFavorite = subItem.isFavorite;
-    // Finde das SubItem im originalen items Array und aktualisiere es dort
-    this.items.forEach(item => {
-      const originalSubItem = item.subItems.find(si => si.link === subItem.link && si.name === subItem.name);
-      if (originalSubItem) {
-        originalSubItem.isFavorite = !originalSubItem.isFavorite;
-        // Synchronisiere mit dem gefilterten Item
-        subItem.isFavorite = originalSubItem.isFavorite;
-        nowFavorite = originalSubItem.isFavorite;
-        this.tracking.track(originalSubItem.isFavorite ? 'Favorite Added' : 'Favorite Removed', {
-          leagueName: originalSubItem.name,
-        });
-      }
-    });
-    this.saveFavorites();
-    // Aktualisiere die gefilterten Items, um Änderungen zu reflektieren
-    this.filterItems();
-
+    const nowFavorite = this.favoritesService.toggle(subItem);
+    this.tracking.track(nowFavorite ? 'Favorite Added' : 'Favorite Removed', { leagueName: subItem.name });
     if (withFeedback) {
-      const msg = nowFavorite
-        ? `„${subItem.name}" zu Favoriten hinzugefügt`
-        : `„${subItem.name}" aus Favoriten entfernt`;
-      this.snackBar.open(msg, 'Rückgängig', { duration: 4000 })
+      this.snackBar.open(nowFavorite ? 'Liga gemerkt' : 'Liga entfernt', 'Rückgängig')
         .onAction().subscribe(() => this.toggleFavorite(subItem, false));
     }
   }
 
-  saveFavorites(): void {
-    const favorites = this.items.flatMap(item => item.subItems.filter(subItem => subItem.isFavorite));
-    localStorage.setItem('favorites', JSON.stringify(favorites));
-    // Notify the service about the change
-    this.favoritesService.updateCount();
-  }
-
-  loadFavorites(): void {
-    const favorites = JSON.parse(localStorage.getItem('favorites') || '[]');
-    this.items.forEach(item => {
-      item.subItems.forEach(subItem => {
-        subItem.isFavorite = favorites.some((fav: SubItem) => fav.name === subItem.name);
-      });
-    });
-    // Update filtered items to reflect favorites
-    this.filterItems();
-    // Update the count after loading
-    this.favoritesService.updateCount();
-  }
-
-  navigateToLiga(subItem: SubItem) {
+  trackOpen(subItem: SubItem): void {
     this.tracking.track('League Selected', { leagueName: subItem.name });
-    let param = subItem.link;
-    this.router.navigate(['/liga'], { queryParams: { param } });
   }
 
-  navigateToAnalytics() {
-    this.router.navigate(['/analytics']);
+  genderLabel(text: string): string {
+    switch (genderOf(text)) {
+      case 'm': return 'männlich';
+      case 'w': return 'weiblich';
+      case 'x': return 'mixed';
+      default: return '';
+    }
   }
 
-  navigateToLive() {
-    this.tracking.track('Live Ticker Opened');
-    this.router.navigate(['/live']);
+  /** A league whose next game is today or already running. */
+  isHot(status: string | undefined): boolean {
+    return !!status && /heute|live|läuft|min|std/i.test(status);
   }
 
-  /** Icon for a league category in the overview accordion. */
-  categoryIcon(name: string): string {
-    const n = (name || '').toLowerCase();
-    if (n.includes('national')) return 'emoji_events';
-    if (n.includes('jugend')) return 'school';
-    if (n.includes('oberliga') || n.includes('verbandsliga') || n.includes('bezirk')) return 'shield';
-    if (n.includes('deutsch')) return 'public';
-    if (n === 'sonstige') return 'more_horiz';
-    return 'place'; // regional associations (Bundesländer)
-  }
-
-  /** CSS modifier for a gender badge. */
-  genderClass(gender: string): string {
-    const g = (gender || '').toLowerCase();
-    if (g.includes('frau') || g.includes('damen') || g.includes('weibl') || g.includes('mädchen')) return 'g-women';
-    if (g.includes('männ') || g.includes('herren') || g.includes('knaben')) return 'g-men';
-    if (g.includes('mixed') || g.includes('gemischt')) return 'g-mixed';
-    return '';
+  initial(name: string): string {
+    return teamInitial(name);
   }
 }

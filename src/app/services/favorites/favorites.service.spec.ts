@@ -2,129 +2,66 @@ import { TestBed } from '@angular/core/testing';
 import { FavoritesService } from './favorites.service';
 
 describe('FavoritesService', () => {
-  let service: FavoritesService;
+    const league = { name: 'Bundesliga Männer', gender: 'männlich', link: 'League.aspx?Season=2026&LeagueID=1' };
+    let service: FavoritesService;
 
-  beforeEach(() => {
-    // Mock localStorage
-    let store: { [key: string]: string } = {};
-    const mockLocalStorage = {
-      getItem: (key: string): string | null => {
-        return key in store ? store[key] : null;
-      },
-      setItem: (key: string, value: string) => {
-        store[key] = value;
-      },
-      removeItem: (key: string) => {
-        delete store[key];
-      },
-      clear: () => {
-        store = {};
-      }
-    };
-
-    spyOn(localStorage, 'getItem').and.callFake(mockLocalStorage.getItem);
-    spyOn(localStorage, 'setItem').and.callFake(mockLocalStorage.setItem);
-    spyOn(localStorage, 'removeItem').and.callFake(mockLocalStorage.removeItem);
-    spyOn(localStorage, 'clear').and.callFake(mockLocalStorage.clear);
-
-    TestBed.configureTestingModule({});
-    service = TestBed.inject(FavoritesService);
-  });
-
-  afterEach(() => {
-    localStorage.clear();
-  });
-
-  it('should be created', () => {
-    expect(service).toBeTruthy();
-  });
-
-  describe('updateCount', () => {
-    it('should update count to 0 when no favorites in localStorage', () => {
-      localStorage.setItem('favorites', JSON.stringify([]));
-      service.updateCount();
-      expect(service.getCount()).toBe(0);
+    beforeEach(() => {
+        localStorage.removeItem('favorites');
+        localStorage.removeItem('recent-leagues');
+        TestBed.configureTestingModule({});
+        service = TestBed.inject(FavoritesService);
     });
 
-    it('should update count based on favorites array in localStorage', () => {
-      const favorites = ['liga1', 'liga2', 'liga3'];
-      localStorage.setItem('favorites', JSON.stringify(favorites));
-      service.updateCount();
-      expect(service.getCount()).toBe(3);
+    afterEach(() => {
+        localStorage.removeItem('favorites');
+        localStorage.removeItem('recent-leagues');
     });
 
-    it('should handle missing localStorage entry', () => {
-      localStorage.removeItem('favorites');
-      service.updateCount();
-      expect(service.getCount()).toBe(0);
+    it('starts empty', () => {
+        expect(service.getCount()).toBe(0);
+        expect(service.leagues()).toEqual([]);
     });
 
-    it('should update favoritesCount$ observable', (done) => {
-      const favorites = ['liga1', 'liga2'];
-      localStorage.setItem('favorites', JSON.stringify(favorites));
+    it('toggles a league and persists it', () => {
+        expect(service.toggle(league)).toBe(true);
+        expect(service.isFavorite(league.name)).toBe(true);
+        expect(JSON.parse(localStorage.getItem('favorites')!)).toEqual([league]);
 
-      // Skip the initial emission and only check the updated one
-      let emissionCount = 0;
-      service.favoritesCount$.subscribe(count => {
-        emissionCount++;
-        if (emissionCount === 2) { // Second emission after updateCount
-          expect(count).toBe(2);
-          done();
-        }
-      });
-
-      service.updateCount();
-    });
-  });
-
-  describe('getCount', () => {
-    it('should return current favorites count', () => {
-      const favorites = ['liga1', 'liga2', 'liga3', 'liga4'];
-      localStorage.setItem('favorites', JSON.stringify(favorites));
-      service.updateCount();
-
-      expect(service.getCount()).toBe(4);
+        expect(service.toggle(league)).toBe(false);
+        expect(service.getCount()).toBe(0);
+        expect(JSON.parse(localStorage.getItem('favorites')!)).toEqual([]);
     });
 
-    it('should return 0 for empty favorites', () => {
-      localStorage.setItem('favorites', JSON.stringify([]));
-      service.updateCount();
-
-      expect(service.getCount()).toBe(0);
-    });
-  });
-
-  describe('favoritesCount$ Observable', () => {
-    it('should emit initial count on subscription', (done) => {
-      const favorites = ['liga1'];
-      localStorage.setItem('favorites', JSON.stringify(favorites));
-
-      // Create new service instance to test constructor behavior
-      const newService = new FavoritesService();
-
-      newService.favoritesCount$.subscribe(count => {
-        expect(count).toBe(1);
-        done();
-      });
+    it('reads favourites saved by earlier versions (with isFavorite flag)', () => {
+        localStorage.setItem('favorites', JSON.stringify([{ ...league, isFavorite: true }]));
+        service.updateCount();
+        expect(service.leagues()).toEqual([league]);
     });
 
-    it('should emit new count when updateCount is called', (done) => {
-      let emissionCount = 0;
-      const expectedCounts = [0, 3];
-
-      service.favoritesCount$.subscribe(count => {
-        expect(count).toBe(expectedCounts[emissionCount]);
-        emissionCount++;
-        if (emissionCount === 2) {
-          done();
-        }
-      });
-
-      // First emission is from constructor (0)
-      // Second emission from manual updateCount
-      localStorage.setItem('favorites', JSON.stringify(['liga1', 'liga2', 'liga3']));
-      service.updateCount();
+    it('survives corrupt storage', () => {
+        localStorage.setItem('favorites', '{nope');
+        service.updateCount();
+        expect(service.getCount()).toBe(0);
     });
-  });
+
+    it('keeps the most recent leagues first, without duplicates', () => {
+        service.addRecent(league);
+        service.addRecent({ name: 'Pokal', gender: '', link: 'x' });
+        service.addRecent(league);
+        expect(service.recent().map(l => l.name)).toEqual(['Bundesliga Männer', 'Pokal']);
+    });
+
+    it('moves a favourite to the new season\'s link', () => {
+        service.toggle({ ...league, link: 'League.aspx?Season=2025&LeagueID=1' });
+        service.reconcile([league]);
+        expect(service.leagues()[0].link).toBe(league.link);
+    });
+
+    it('emits the count as an observable', async () => {
+        service.toggle(league);
+        service.favoritesCount$.subscribe(count => {
+            expect(count).toBe(1);
+            ;
+        });
+    });
 });
-

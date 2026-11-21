@@ -38,5 +38,19 @@ describe('ApiProxyService', () => {
       expect(result).toBe('/api/Modules/WB/League.aspx?V=DMOL2B&S=2025');
     });
   });
-});
 
+  describe('assetUrl', () => {
+    it('routes DSV images through the same-origin proxy', () => {
+      expect(service.assetUrl('LogoHandler.ashx?id=7')).toBe('/api/Modules/WB/LogoHandler.ashx?id=7');
+      expect(service.assetUrl('/Modules/WB/LogoHandler.ashx?id=7')).toBe('/api/Modules/WB/LogoHandler.ashx?id=7');
+      expect(service.assetUrl('https://dsvdaten.dsv.de/Modules/WB/LogoHandler.ashx?id=7')).toBe('/api/Modules/WB/LogoHandler.ashx?id=7');
+    });
+
+    it('keeps inline and foreign images', () => {
+      expect(service.assetUrl('data:image/svg+xml;base64,AAA')).toBe('data:image/svg+xml;base64,AAA');
+      expect(service.assetUrl('svg+xml;base64,AAA')).toBe('data:image/svg+xml;base64,AAA');
+      expect(service.assetUrl('https://example.org/x.png')).toBe('https://example.org/x.png');
+      expect(service.assetUrl(null)).toBe('');
+    });
+  });
+});

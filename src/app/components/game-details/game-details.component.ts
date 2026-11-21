@@ -1,664 +1,683 @@
-import { Component, OnInit, inject } from '@angular/core';
-import { ActivatedRoute, Router } from '@angular/router';
-import { CommonModule } from '@angular/common';
-import { MatCard, MatCardContent, MatCardHeader, MatCardTitle } from '@angular/material/card';
-import { MatProgressSpinner } from '@angular/material/progress-spinner';
+import { ChangeDetectionStrategy, Component, DestroyRef, OnDestroy, OnInit, computed, effect, inject, signal, untracked } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { Title } from '@angular/platform-browser';
 import { MatIcon } from '@angular/material/icon';
-import { MatButton, MatIconButton } from '@angular/material/button';
-import { MatTab, MatTabGroup } from '@angular/material/tabs';
-import { MatExpansionModule } from '@angular/material/expansion';
-import { MatDialog, MatDialogModule } from '@angular/material/dialog';
-import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatDialog } from '@angular/material/dialog';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { GameDetailsService } from '../../services/game-details/game-details.service';
 import { HistoryService } from '../../services/history/history.service';
-import { GameDetails, GameEvent } from '../../models/game-details';
-import { ShareImageComponent } from '../share-image/share-image.component';
+import { LigaService, LeagueData } from '../../services/liga/liga.service';
+import { LiveTickerService } from '../../services/live-ticker/live-ticker.service';
+import { SeasonService } from '../../services/season/season.service';
 import { TrackingService } from '../../services/tracking/tracking.service';
+import { NavigationService } from '../../services/navigation/navigation.service';
+import { GameDetails, PlayerStatistics, TeamDetails } from '../../models/game-details';
+import { LiveGame, LivePlay } from '../../models/live';
+import { Games } from '../../models/games';
+import { buildLeagueLink, gameKey, parseGameLink } from '../../models/game-ref';
+import { eventIcon, eventLabel, foulLabel, isGoalEvent } from '../../models/event-format';
+import {
+  Outcome, dayLabel, decimal, formOf, gameTime, hasTime, involves, isPlayed, parseGameDate, parseScore, timeLabel
+} from '../../models/game-utils';
+import { buildIcs } from '../../models/ics';
+import { GameRowComponent } from '../game-row/game-row.component';
+import { LogoFallbackDirective } from '../../directives/logo-fallback.directive';
+import { teamInitial } from '../../models/game-utils';
+import { TeamIndexService } from '../../services/team-index/team-index.service';
 
+type Tab = 'verlauf' | 'aufstellung' | 'vergleich' | 'info';
+type Status = 'upcoming' | 'live' | 'finished';
+type Side = 'home' | 'guest';
+
+interface TimelineEvent {
+  side: Side | null;
+  cap: string;
+  time: string;
+  player: string;
+  label: string;
+  icon: string;
+  goal: boolean;
+  score: string;
+  retracted?: boolean;
+}
+
+interface TimelinePeriod { period: number; label: string; score: string; events: TimelineEvent[]; }
+interface CompareRow { label: string; home: string; guest: string; homeShare: number; }
+interface LeadChart { path: string; width: number; height: number; zero: number; quarters: number[]; maxLead: number; }
+interface TeamContext { name: string; place: number | null; points: number | null; record: string; goals: string; form: Outcome[]; }
+
+const TABS: Tab[] = ['verlauf', 'aufstellung', 'vergleich', 'info'];
+
+/** "1. Viertel", "Verlängerung", "Fünfmeterwerfen" */
+function periodLabel(period: number): string {
+  if (period >= 1 && period <= 4) return `${period}. Viertel`;
+  if (period === 7 || period === 8) return 'Fünfmeterwerfen';
+  return 'Verlängerung';
+}
+
+/**
+ * Game centre: one page for a game in every state. Before kick-off it shows
+ * the date, venue and how the two teams compare; while the game runs it shows
+ * the live ticker; afterwards the full report with timeline, lineups, team
+ * comparison and officials.
+ */
 @Component({
-    selector: 'app-game-details',
-    standalone: true,
-    imports: [
-        CommonModule,
-        MatCard,
-        MatCardContent,
-        MatCardHeader,
-        MatCardTitle,
-        MatProgressSpinner,
-        MatIcon,
-        MatButton,
-        MatIconButton,
-        MatTabGroup,
-        MatTab,
-        MatExpansionModule,
-        MatDialogModule,
-        ShareImageComponent,
-        MatSnackBarModule
-    ],
-    templateUrl: './game-details.component.html',
-    styleUrl: './game-details.component.scss'
+  selector: 'app-game-details',
+  imports: [RouterLink, MatIcon, MatMenuModule, GameRowComponent, LogoFallbackDirective],
+  templateUrl: './game-details.component.html',
+  styleUrl: './game-details.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class GameDetailsComponent implements OnInit {
+export class GameDetailsComponent implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
+  teamIndex = inject(TeamIndexService);
   private router = inject(Router);
+  private title = inject(Title);
   private gameDetailsService = inject(GameDetailsService);
   private historyService = inject(HistoryService);
+  private ligaService = inject(LigaService);
+  private seasonService = inject(SeasonService);
   private tracking = inject(TrackingService);
   private dialog = inject(MatDialog);
   private snackBar = inject(MatSnackBar);
+  private destroyRef = inject(DestroyRef);
+  private navigation = inject(NavigationService);
+  ticker = inject(LiveTickerService);
 
+  readonly param = signal<string | null>(null);
+  readonly ligaParam = signal<string | null>(null);
+  readonly details = signal<GameDetails | null>(null);
+  readonly league = signal<LeagueData | null>(null);
+  readonly isLoading = signal(true);
+  readonly isRefreshing = signal(false);
+  readonly error = signal<string | null>(null);
+  /** The DSV page could not be loaded: the game is shown from the liveticker alone. */
+  readonly tickerOnly = signal(false);
+  readonly tab = signal<Tab | null>(null);
+  /** Which lineup is shown on narrow screens. */
+  readonly lineupSide = signal<Side>('home');
 
-  gameDetails: GameDetails | null = null;
-  isLoading = true;
-  error: string | null = null;
+  private holdsTicker = false;
+  private watching = false;
+  private wasLive = false;
 
-  // Timeline state für Mobile
-  activeEventIndex: number | null = null;
+  // ---- Identity / live state ----------------------------------------------
 
-  constructor() {}
+  private readonly liveKey = computed(() => {
+    const ref = parseGameLink(this.param());
+    return ref ? gameKey(ref) : '';
+  });
+
+  /** The game's ticker entry, if the ticker knows it. */
+  readonly tickerGame = computed(() => {
+    const key = this.liveKey();
+    return key ? this.ticker.byKey().get(key) ?? null : null;
+  });
+
+  readonly isLive = computed(() => {
+    const g = this.tickerGame();
+    return !!g && this.ticker.statusOf(g) === 'live';
+  });
+
+  readonly status = computed<Status>(() => {
+    if (this.isLive()) return 'live';
+    const g = this.tickerGame();
+    if (g && this.ticker.statusOf(g) === 'finished') return 'finished';
+    const d = this.details();
+    if (!d) return 'upcoming';
+    const score = parseScore(d.finalScore);
+    if (d.events.length > 0 || d.endGameTime || (score && score[0] + score[1] > 0)) return 'finished';
+    return 'upcoming';
+  });
+
+  readonly score = computed<[number, number] | null>(() => {
+    const g = this.tickerGame();
+    if (g && this.status() !== 'upcoming' && (this.isLive() || !parseScore(this.details()?.finalScore))) {
+      return parseScore(this.ticker.scoreOf(g));
+    }
+    return this.status() === 'upcoming' ? null : parseScore(this.details()?.finalScore);
+  });
+
+  readonly quarters = computed<string[]>(() => {
+    const d = this.details();
+    if (d?.quarterScores.length && !this.isLive()) return d.quarterScores.map(q => `${q.home}:${q.guest}`);
+    const raw = (this.tickerGame()?.ScorePeriods || '').replace(/[()]/g, '').trim();
+    return raw ? raw.split(',').map(s => s.trim()).filter(Boolean) : [];
+  });
+
+  readonly startDate = computed(() => parseGameDate(this.details()?.startDate));
+
+  readonly whenLabel = computed(() => {
+    const d = this.details();
+    const date = this.startDate();
+    if (!d || !date) return d?.startDate ?? '';
+    return hasTime(d.startDate) ? `${dayLabel(date)}, ${timeLabel(date)} Uhr` : dayLabel(date);
+  });
+
+  /** Short live label: the pushed game clock, a short ticker status, else "läuft".
+   *  Long ticker texts ("Es wurden noch keine Daten eingegeben.") do not fit the board. */
+  readonly clock = computed(() => {
+    const detail = (this.tickerGame()?.LiveDetailText ?? '').trim();
+    return this.ticker.clock() || (detail.length <= 18 ? detail : '') || 'läuft';
+  });
+
+  // ---- Timeline -----------------------------------------------------------
+
+  /** Report events grouped by period, in playing order. */
+  readonly periods = computed<TimelinePeriod[]>(() => {
+    const d = this.details();
+    if (!d) return [];
+    const byPeriod = new Map<number, TimelineEvent[]>();
+    let prev: [number, number] = [0, 0];
+    for (const e of d.events) {
+      // Period-end markers carry no event and no player.
+      if (!e.player && (!e.eventType || e.cap === '0' || e.time === '0:00')) continue;
+      const goal = isGoalEvent(e.eventType);
+      let side: Side | null = e.side ?? null;
+      if (!side && goal) {
+        side = e.homeScore > prev[0] ? 'home' : e.guestScore > prev[1] ? 'guest' : null;
+      }
+      if (goal) prev = [e.homeScore, e.guestScore];
+      const list = byPeriod.get(e.period) ?? [];
+      list.push({
+        side,
+        cap: e.cap ?? '',
+        time: e.time,
+        player: e.player,
+        label: eventLabel(e.eventType),
+        icon: eventIcon(e.eventType),
+        goal,
+        score: goal ? `${e.homeScore}:${e.guestScore}` : ''
+      });
+      byPeriod.set(e.period, list);
+    }
+    return [...byPeriod.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([period, events]) => {
+        const q = d.quarterScores.find(s => s.quarter === period);
+        return { period, label: periodLabel(period), score: q ? `${q.home}:${q.guest}` : '', events };
+      });
+  });
+
+  /** Ticker plays (newest first) while the game is live or has no report yet. */
+  readonly livePlays = computed<(TimelineEvent & { period: string; id: number })[]>(() => {
+    if (!this.watching && !this.isLive()) return [];
+    return this.ticker.plays().map(p => ({
+      id: p.Number,
+      side: p.GamePlanHome ? 'home' : p.GamePlanGuest ? 'guest' : null,
+      cap: String(p.GamePlanHome || p.GamePlanGuest || ''),
+      time: this.playTime(p),
+      period: p.Period >= 1 && p.Period <= 4 ? `${p.Period}. V` : periodLabel(p.Period).slice(0, 2),
+      player: p.GamePlanPlayer || '',
+      label: eventLabel(p.EventKey || '') || (p.EventName || '').replace(/f\.$/, '').trim(),
+      icon: eventIcon(p.EventKey || ''),
+      goal: p.EventKey === 'T',
+      score: p.EventKey === 'T' ? (p.LiveGoals || '') : '',
+      retracted: p.Active === false
+    }));
+  });
+
+  /** Show the ticker feed instead of the (still empty) report. */
+  readonly showLiveFeed = computed(() =>
+    this.livePlays().length > 0 && (this.isLive() || this.periods().length === 0));
+
+  private playTime(p: LivePlay): string {
+    const t = p.EventTime || '';
+    const afterT = t.includes('T') ? t.split('T')[1] : t;
+    const parts = afterT.split(':');
+    return parts.length >= 3 ? `${parseInt(parts[1], 10)}:${parts[2]}` : afterT;
+  }
+
+  /**
+   * Lead over time (home minus guest) as a step line. The DSV clock counts
+   * DOWN within each quarter, so elapsed = quarter length − remaining.
+   */
+  readonly leadChart = computed<LeadChart | null>(() => {
+    const d = this.details();
+    if (!d) return null;
+    const goals = d.events.filter(e => isGoalEvent(e.eventType) && e.period >= 1 && e.period <= 4);
+    if (goals.length < 2) return null;
+
+    const seconds = (time: string) => {
+      const [m, s] = time.split(':').map(n => parseInt(n, 10));
+      return Number.isNaN(m) || Number.isNaN(s) ? null : m * 60 + s;
+    };
+    let quarter = 8 * 60;
+    for (const e of d.events) {
+      const s = seconds(e.time);
+      if (s !== null && s > quarter) quarter = Math.ceil(s / 60) * 60;
+    }
+    const total = quarter * 4;
+    const points = goals
+      .map(e => {
+        const remaining = seconds(e.time);
+        return remaining === null ? null
+          : { t: (e.period - 1) * quarter + (quarter - remaining), lead: e.homeScore - e.guestScore };
+      })
+      .filter((p): p is { t: number; lead: number } => p !== null)
+      .sort((a, b) => a.t - b.t);
+    if (points.length < 2) return null;
+
+    const width = 320, height = 96, pad = 6;
+    const maxLead = Math.max(2, ...points.map(p => Math.abs(p.lead)));
+    const x = (t: number) => +(t / total * width).toFixed(1);
+    const y = (lead: number) => +(height / 2 - lead / maxLead * (height / 2 - pad)).toFixed(1);
+    let path = `M0 ${y(0)}`;
+    let last = 0;
+    for (const p of points) {
+      path += ` L${x(p.t)} ${y(last)} L${x(p.t)} ${y(p.lead)}`;
+      last = p.lead;
+    }
+    path += ` L${width} ${y(last)}`;
+    return { path, width, height, zero: height / 2, quarters: [1, 2, 3].map(q => x(q * quarter)), maxLead };
+  });
+
+  // ---- Lineups / comparison ----------------------------------------------
+
+  readonly hasLineups = computed(() => {
+    const d = this.details();
+    return !!(d?.homeTeam.players?.length || d?.guestTeam.players?.length);
+  });
+
+  readonly topScorers = computed(() => {
+    const d = this.details();
+    if (!d) return [];
+    const of = (team: TeamDetails, side: Side) =>
+      (team.players ?? []).filter(p => p.goals > 0).map(p => ({ ...p, side }));
+    return [...of(d.homeTeam, 'home'), ...of(d.guestTeam, 'guest')]
+      .sort((a, b) => b.goals - a.goals)
+      .slice(0, 5);
+  });
+
+  /** Head-to-head numbers of this game (goals, exclusions, DSV statistics). */
+  readonly compareRows = computed<CompareRow[]>(() => {
+    const d = this.details();
+    if (!d || this.status() === 'upcoming') return [];
+    const rows: CompareRow[] = [];
+    const add = (label: string, home: number | string, guest: number | string) => {
+      const h = parseFloat(String(home)) || 0;
+      const g = parseFloat(String(guest)) || 0;
+      rows.push({ label, home: String(home), guest: String(guest), homeShare: h + g > 0 ? h / (h + g) * 100 : 50 });
+    };
+    const count = (side: Side, test: (type: string) => boolean) =>
+      d.events.filter(e => e.side === side && test(e.eventType)).length;
+
+    const score = this.score();
+    if (score) add('Tore', score[0], score[1]);
+    if (d.events.some(e => e.side)) {
+      const exclusion = (t: string) => t === 'A' || t.startsWith('AmE');
+      add('Ausschlüsse', count('home', exclusion), count('guest', exclusion));
+      add('Strafwürfe gegen', count('home', t => t === 'S'), count('guest', t => t === 'S'));
+      const timeouts = [count('home', t => t === 'AU' || t === 'TO'), count('guest', t => t === 'AU' || t === 'TO')];
+      if (timeouts[0] + timeouts[1] > 0) add('Auszeiten', timeouts[0], timeouts[1]);
+    }
+    const stats = d.statistics;
+    if (stats) {
+      for (const key of Object.keys(stats.home.data)) {
+        if (key in stats.guest.data) add(key, stats.home.data[key], stats.guest.data[key]);
+      }
+    }
+    return rows;
+  });
+
+  /** Where both teams stand in the league (from the league page). */
+  readonly teamContext = computed<{ home: TeamContext; guest: TeamContext } | null>(() => {
+    const d = this.details();
+    const league = this.league();
+    if (!d || !league) return null;
+    const of = (name: string): TeamContext => {
+      const row = league.table.find(t => t.team === name);
+      const played = league.games.filter(g => involves(g, name) && isPlayed(g));
+      let scored = 0;
+      for (const g of played) {
+        const [h, a] = parseScore(g.result)!;
+        scored += g.home === name ? h : a;
+      }
+      return {
+        name,
+        place: row?.place ?? null,
+        points: row?.points ?? null,
+        record: row ? `${row.wins}–${row.draws}–${row.losses}` : '',
+        goals: played.length ? decimal(scored / played.length) : '–',
+        form: formOf(league.games, name)
+      };
+    };
+    const ctx = { home: of(d.homeTeam.name), guest: of(d.guestTeam.name) };
+    const useful = (c: TeamContext) => c.place !== null || c.form.length > 0;
+    return useful(ctx.home) || useful(ctx.guest) ? ctx : null;
+  });
+
+  /** Other games between the two teams in this league. */
+  readonly meetings = computed<Games[]>(() => {
+    const d = this.details();
+    const league = this.league();
+    if (!d || !league) return [];
+    const self = this.param();
+    return league.games
+      .filter(g => involves(g, d.homeTeam.name) && involves(g, d.guestTeam.name) && g.gameLink !== self)
+      .sort((a, b) => gameTime(b) - gameTime(a));
+  });
+
+  readonly officials = computed(() => {
+    const o = this.details()?.officials;
+    if (!o) return [];
+    const roles: [keyof typeof o, string][] = [
+      ['referee1', 'Schiedsrichter'], ['referee2', 'Schiedsrichter'],
+      ['observer1', 'Beobachter'], ['observer2', 'Beobachter'],
+      ['secretary1', 'Sekretär'], ['secretary2', 'Sekretär'],
+      ['timekeeper1', 'Zeitnehmer'], ['timekeeper2', 'Zeitnehmer'],
+      ['goalJudge1', 'Torrichter'], ['goalJudge2', 'Torrichter']
+    ];
+    return roles.filter(([key]) => !!o[key]).map(([key, role]) => ({ role, name: o[key] as string }));
+  });
+
+  // ---- Tabs ---------------------------------------------------------------
+
+  readonly tabs = computed<{ id: Tab; label: string }[]>(() => {
+    const out: { id: Tab; label: string }[] = [];
+    if (this.periods().length > 0 || this.showLiveFeed() || this.isLive()) out.push({ id: 'verlauf', label: 'Verlauf' });
+    if (this.hasLineups()) out.push({ id: 'aufstellung', label: 'Kader' });
+    if (this.compareRows().length > 0 || this.teamContext() || this.meetings().length > 0) {
+      out.push({ id: 'vergleich', label: 'Vergleich' });
+    }
+    out.push({ id: 'info', label: 'Infos' });
+    return out;
+  });
+
+  readonly activeTab = computed<Tab>(() => {
+    const tabs = this.tabs();
+    return tabs.find(t => t.id === this.tab())?.id ?? tabs[0].id;
+  });
+
+  readonly dsvUrl = computed(() => {
+    const param = this.param();
+    return param && /Game\.aspx/i.test(param) ? 'https://dsvdaten.dsv.de/Modules/WB/' + param : null;
+  });
+
+  constructor() {
+    // The DSV page often fails exactly while games are on (it throttles
+    // bursts). The liveticker runs on another server: if it knows the game,
+    // show the game from it instead of an error.
+    effect(() => {
+      const game = this.tickerGame();
+      if (!game || !this.error() || this.details()) return;
+      untracked(() => {
+        this.details.set(detailsFromTicker(game));
+        this.error.set(null);
+        this.tickerOnly.set(true);
+      });
+    });
+
+    // Follow the game in the ticker as soon as (and as long as) it is live.
+    effect(() => {
+      const key = this.liveKey();
+      const live = this.isLive();
+      untracked(() => {
+        if (live && key && !this.watching) {
+          this.watching = true;
+          this.ticker.watchByKey(key);
+        }
+        // Final whistle: load the official report with lineups and statistics.
+        if (!live && this.wasLive) setTimeout(() => this.refresh(), 5000);
+        this.wasLive = live;
+      });
+    });
+  }
 
   ngOnInit(): void {
-    this.route.queryParams.subscribe(params => {
-      const param = params['param'];
+    this.route.queryParams.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(params => {
+      const tab = String(params['tab'] || '').toLowerCase() as Tab;
+      this.tab.set(TABS.includes(tab) ? tab : null);
+
+      const param = params['param'] || null;
+      if (param === this.param()) return;
+      this.param.set(param);
+      this.stopWatching();
+
+      const ref = parseGameLink(param);
+      // Archive game ids end with the game number: the rest is the league id
+      // ("2025_297_P_10" -> "2025_297_P"). Show the game in its own season.
+      const archived = !!param && HistoryService.isHistoricalGameId(param);
+      if (archived) this.seasonService.setSeason(param.slice(0, 4));
+      this.ligaParam.set(params['ligaParam']
+        || (ref ? buildLeagueLink(ref) : archived ? param.replace(/_[^_]+$/, '') : null));
+
       if (param) {
         this.loadGameDetails(param);
       } else {
-        this.error = 'Keine Spiel-ID angegeben';
-        this.isLoading = false;
+        this.error.set('Kein Spiel angegeben.');
+        this.isLoading.set(false);
+      }
+
+      // Only games of the running season can be in the ticker.
+      if (ref && ref.season === this.seasonService.liveSeason() && !this.holdsTicker) {
+        this.holdsTicker = true;
+        this.ticker.retain();
       }
     });
   }
 
-  /**
-   * Lädt die Spieldetails
-   */
-  private loadGameDetails(link: string): void {
-    this.isLoading = true;
-    this.error = null;
+  ngOnDestroy(): void {
+    this.stopWatching();
+    if (this.holdsTicker) this.ticker.release();
+  }
 
-    // Historical games (id like "2014_6_2") are served from the local database;
-    // live games are scraped from the DSV website.
-    if (HistoryService.isHistoricalGameId(link)) {
-      this.loadHistoricalGameDetails(link);
-      return;
+  private stopWatching(): void {
+    if (this.watching) {
+      this.watching = false;
+      this.ticker.unwatch();
     }
-
-    this.gameDetailsService.getGameData(link).subscribe({
-      next: (html: string) => {
-        try {
-          this.gameDetails = this.gameDetailsService.parseHtmlToGameDetails(html);
-          this.tracking.track('Game Details Viewed', {
-            gameId: this.gameDetails.gameId,
-            league: this.gameDetails.league,
-            homeTeam: this.gameDetails.homeTeam.name,
-            guestTeam: this.gameDetails.guestTeam.name,
-          });
-          this.isLoading = false;
-        } catch (error) {
-          console.error('Error parsing game details:', error);
-          this.error = 'Fehler beim Laden der Spieldetails';
-          this.tracking.track('Error Occurred', {
-            errorMessage: 'Fehler beim Laden der Spieldetails',
-            errorContext: 'loadGameDetails',
-          });
-          this.isLoading = false;
-        }
-      },
-      error: (error) => {
-        console.error('Error loading game details:', error);
-        this.error = 'Fehler beim Laden der Spieldetails';
-        this.tracking.track('Error Occurred', {
-          errorMessage: 'Fehler beim Laden der Spieldetails',
-          errorContext: 'loadGameDetails',
-        });
-        this.isLoading = false;
-      }
-    });
   }
 
-  /** Load a historical game's details from the local database. */
-  private async loadHistoricalGameDetails(gameId: string): Promise<void> {
-    try {
-      const details = await this.historyService.getGameDetails(gameId);
+  // ---- Loading ------------------------------------------------------------
+
+  private loadGameDetails(link: string, refresh = false): void {
+    if (refresh) this.isRefreshing.set(true);
+    else { this.isLoading.set(true); this.details.set(null); this.league.set(null); }
+    this.error.set(null);
+
+    const done = (details: GameDetails | null, message?: string) => {
+      if (link !== this.param()) return;
+      this.isLoading.set(false);
+      this.isRefreshing.set(false);
       if (!details) {
-        this.error = 'Für dieses Archiv-Spiel sind keine Details verfügbar.';
-        this.isLoading = false;
+        if (refresh) this.snackBar.open('Aktualisieren fehlgeschlagen');
+        else this.error.set(message ?? 'Das Spiel konnte nicht geladen werden.');
         return;
       }
-      this.gameDetails = details;
-      this.tracking.track('Game Details Viewed', {
-        gameId: details.gameId,
-        league: details.league,
-        homeTeam: details.homeTeam.name,
-        guestTeam: details.guestTeam.name,
-        source: 'archive',
-      });
-    } catch (error) {
-      console.error('Error loading historical game details:', error);
-      this.error = 'Fehler beim Laden der Spieldetails';
-    } finally {
-      this.isLoading = false;
-    }
-  }
-
-  trackTabChange(event: any): void {
-    const tabLabel = event.tab.textLabel;
-    this.tracking.track('Tab Viewed', {
-      tabName: tabLabel,
-      gameId: this.gameDetails?.gameId,
-    });
-  }
-
-  /**
-   * Navigiert zurück zur vorherigen Seite (Liga)
-   */
-  goBack(): void {
-    // Hole den ligaParam aus den Query-Parametern
-    const ligaParam = this.route.snapshot.queryParams['ligaParam'];
-
-    if (ligaParam) {
-      // Navigiere zurück zur Liga mit dem ursprünglichen Parameter
-      this.router.navigate(['/liga'], {
-        queryParams: { param: ligaParam }
-      });
-    } else {
-      // Fallback: Navigiere zur Übersicht, falls kein ligaParam vorhanden
-      this.router.navigate(['/']);
-    }
-  }
-
-  /**
-   * Öffnet Google Maps mit dem Spielort
-   */
-  openGoogleMaps(): void {
-    if (this.gameDetails?.venue.googleMapsLink) {
-      this.tracking.track('External Link Clicked', { destination: 'Google Maps' });
-      window.open(this.gameDetails.venue.googleMapsLink, '_blank');
-    }
-  }
-
-  /**
-   * Öffnet den Video-Link
-   */
-  openVideoLink(): void {
-    if (this.gameDetails?.videoLink) {
-      this.tracking.track('External Link Clicked', { destination: 'Video' });
-      window.open(this.gameDetails.videoLink, '_blank');
-    }
-  }
-
-  /**
-   * Parst den deutschen Datumsstring in ein Date-Objekt
-   */
-  private parseGameDate(dateStr: string): Date | null {
-    try {
-      const cleanedStr = dateStr.replace(' Uhr', '').trim();
-      const parts = cleanedStr.split(' ');
-
-      let datePart: string;
-      let timePart: string;
-
-      if (parts.length > 1 && parts[parts.length - 1].includes(':')) {
-        timePart = parts[parts.length - 1];
-        datePart = parts.slice(0, parts.length - 1).join(' ').replace(',', '').trim();
-      } else {
-        datePart = cleanedStr.replace(',', '').trim();
-        timePart = '00:00';
+      this.details.set(details);
+      this.tickerOnly.set(false);
+      this.title.setTitle(`${details.homeTeam.name} – ${details.guestTeam.name} – Wasserball Live`);
+      if (!refresh) {
+        this.tracking.track('Game Details Viewed', {
+          gameId: details.gameId,
+          league: details.league,
+          homeTeam: details.homeTeam.name,
+          guestTeam: details.guestTeam.name,
+        });
+        this.loadLeagueContext();
       }
+    };
 
-      const dateParts = datePart.split('.');
-      const timeParts = timePart.split(':');
-
-      if (dateParts.length < 3 || timeParts.length < 2) {
-        console.error('Could not parse date or time parts from:', datePart, timePart);
-        return null;
-      }
-
-      const day = parseInt(dateParts[0]);
-      const month = parseInt(dateParts[1]) - 1;
-      let year = parseInt(dateParts[2]);
-
-      if (year < 100) {
-        year += 2000;
-      }
-
-      const hours = parseInt(timeParts[0]);
-      const minutes = parseInt(timeParts[1]);
-
-      if (isNaN(day) || isNaN(month) || isNaN(year) || isNaN(hours) || isNaN(minutes)) {
-        console.error('Invalid number found during date parsing');
-        return null;
-      }
-
-      return new Date(year, month, day, hours, minutes);
-    } catch (error) {
-      console.error('Error parsing game date string:', dateStr, error);
-      return null;
-    }
-  }
-
-  /**
-   * Öffnet den Dialog zur Erstellung des Share-Images
-   */
-  openShareImageDialog(): void {
-    if (!this.gameDetails) {
+    // Historical games (id like "2014_6_2") are served from the local database;
+    // games of the running season are read from the DSV website.
+    if (HistoryService.isHistoricalGameId(link)) {
+      this.historyService.getGameDetails(link)
+        .then(d => done(d, 'Für dieses Archiv-Spiel sind keine Details gespeichert.'))
+        .catch(() => done(null));
       return;
     }
 
-    this.tracking.track('Share Image Generated', {
-      gameId: this.gameDetails.gameId,
-      league: this.gameDetails.league,
-      homeTeam: this.gameDetails.homeTeam.name,
-      guestTeam: this.gameDetails.guestTeam.name,
+    this.gameDetailsService.getGameData(link).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: html => {
+        try {
+          const details = this.gameDetailsService.parseHtmlToGameDetails(html);
+          done(details.homeTeam.name || details.guestTeam.name ? details : null,
+            'Dieses Spiel gibt es beim DSV nicht (mehr).');
+        } catch (error) {
+          console.error('Error parsing game details:', error);
+          done(null);
+        }
+      },
+      error: (e: { status?: number }) => done(null, e?.status === 429
+        ? 'Die DSV-Seite bremst gerade, weil sehr viele Anfragen kommen. In einer Minute klappt es meist wieder.'
+        : undefined)
     });
+  }
 
-    const gameDate = this.parseGameDate(this.gameDetails.startDate);
+  /** League data adds standings, form and earlier meetings (best effort). */
+  private loadLeagueContext(): void {
+    const liga = this.ligaParam();
+    if (!liga) return;
+    this.ligaService.fetchLeagueData(liga).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: data => { if (liga === this.ligaParam()) this.league.set(data); },
+      error: () => { /* the report works without it */ }
+    });
+  }
 
+  retry(): void {
+    const param = this.param();
+    // While the ticker fills in, keep showing it and only swap in the report.
+    if (param) this.loadGameDetails(param, this.tickerOnly());
+  }
+
+  refresh(): void {
+    const param = this.param();
+    if (param && !this.isRefreshing()) this.loadGameDetails(param, true);
+  }
+
+  // ---- Navigation / actions ----------------------------------------------
+
+  selectTab(tab: Tab): void {
+    this.tab.set(tab);
+    this.router.navigate([], {
+      relativeTo: this.route, queryParams: { tab }, queryParamsHandling: 'merge', replaceUrl: true
+    });
+  }
+
+  /** Back to where the user came from; deep links fall back to the league. */
+  goBack(): void {
+    if (this.ligaParam()) this.navigation.back('/liga', { param: this.ligaParam() });
+    else this.navigation.back('/');
+  }
+
+  async shareGame(): Promise<void> {
+    const d = this.details();
+    if (!d) return;
+    this.tracking.track('Game Shared', { gameId: d.gameId, league: d.league });
+    const score = this.score();
+    const title = `${d.homeTeam.name} – ${d.guestTeam.name}`;
+    const text = this.status() === 'upcoming' || !score
+      ? `${title}, ${this.whenLabel()} (${d.league})`
+      : `${title} ${score[0]}:${score[1]} (${d.league})`;
+    const shareData = { title, text, url: window.location.href };
+    try {
+      if (navigator.share) await navigator.share(shareData);
+      else {
+        await navigator.clipboard.writeText(`${text}\n${shareData.url}`);
+        this.snackBar.open('Link kopiert');
+      }
+    } catch (e: any) {
+      if (e?.name !== 'AbortError') this.snackBar.open('Teilen nicht möglich');
+    }
+  }
+
+  /** Result graphic for social media; the generator loads on demand. */
+  async openShareImageDialog(): Promise<void> {
+    const d = this.details();
+    if (!d) return;
+    this.tracking.track('Share Image Generated', { gameId: d.gameId, league: d.league });
+    const { ShareImageComponent } = await import('../share-image/share-image.component');
+    const score = this.score();
     this.dialog.open(ShareImageComponent, {
       width: '90vw',
       maxWidth: '500px',
       data: {
-        homeTeam: {
-          name: this.gameDetails.homeTeam.name,
-          logo: this.gameDetails.homeTeam.logoUrl
-        },
-        guestTeam: {
-          name: this.gameDetails.guestTeam.name,
-          logo: this.gameDetails.guestTeam.logoUrl
-        },
-        finalScore: `${this.getFinalHomeScore()}:${this.getFinalGuestScore()}`,
-        gameDate: gameDate, // Pass Date object
-        gameLocation: `${this.gameDetails.venue.poolName}, ${this.gameDetails.venue.poolCity}`,
-        league: this.gameDetails.league,
-        quarterScores: this.gameDetails.quarterScores,
-        isFutureGame: !this.isGameFinished()
+        homeTeam: { name: d.homeTeam.name, logo: d.homeTeam.logoUrl },
+        guestTeam: { name: d.guestTeam.name, logo: d.guestTeam.logoUrl },
+        finalScore: score ? `${score[0]}:${score[1]}` : '0:0',
+        gameDate: this.startDate(),
+        gameLocation: [d.venue.poolName, d.venue.poolCity].filter(Boolean).join(', '),
+        league: d.league,
+        quarterScores: d.quarterScores,
+        isFutureGame: this.status() === 'upcoming',
+        statusLabel: this.status() === 'live' ? 'Zwischenstand' : 'Endstand'
       }
     });
   }
 
-  /**
-   * Teilt den User via Web Share API oder kopiert den Link
-   */
-  shareGame(): void {
-    if (!this.gameDetails) return;
-
-    this.tracking.track('Game Shared', {
-      gameId: this.gameDetails.gameId,
-      league: this.gameDetails.league,
-      homeTeam: this.gameDetails.homeTeam.name,
-      guestTeam: this.gameDetails.guestTeam.name,
-    });
-
-    const title = `Wasserball: ${this.gameDetails.homeTeam.name} vs ${this.gameDetails.guestTeam.name}`;
-    let text = `${title}\nLiga: ${this.gameDetails.league}\nDatum: ${this.gameDetails.startDate}`;
-    if (this.isGameFinished()) {
-      text += `\nEndergebnis: ${this.getFinalHomeScore()}:${this.getFinalGuestScore()}`;
-    }
-    text += `\n\nDetails zum Spiel findest du hier:`;
-
-    const shareData = {
-      title: title,
-      text: text,
-      url: window.location.href
+  addToCalendar(): void {
+    const d = this.details();
+    if (!d) return;
+    const game: Games = {
+      start: d.startDate, home: d.homeTeam.name, homeImageUrl: '', guest: d.guestTeam.name, guestImageUrl: '',
+      location: [d.venue.poolName, d.venue.poolCity].filter(Boolean).join(', '), gameLink: '', result: ''
     };
-
-    if (navigator.share && navigator.canShare && navigator.canShare(shareData)) {
-      navigator.share(shareData)
-        .then(() => this.showSnackbar('Spiel erfolgreich geteilt!'))
-        .catch((error) => {
-          if (error.name !== 'AbortError') {
-            this.showSnackbar('Fehler beim Teilen: ' + error.message, true);
-          }
-        });
-    } else {
-      this.copyToClipboard(window.location.href);
-    }
+    const blob = new Blob([buildIcs([game], d.league)], { type: 'text/calendar;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${d.homeTeam.name}-${d.guestTeam.name}.ics`.replace(/[^\wäöüÄÖÜß.-]+/g, '_');
+    a.click();
+    URL.revokeObjectURL(url);
+    this.snackBar.open('Termin als Kalenderdatei gespeichert');
   }
 
-  /**
-   * Kopiert den Link in die Zwischenablage und zeigt eine Snackbar
-   */
-  private copyToClipboard(text: string): void {
-    navigator.clipboard.writeText(text).then(() => {
-      this.showSnackbar('Link in die Zwischenablage kopiert!');
-    }).catch(err => {
-      this.showSnackbar('Fehler beim Kopieren des Links.', true);
-      console.error('Could not copy text: ', err);
-    });
+  trackLink(destination: string): void {
+    this.tracking.track('External Link Clicked', { destination });
   }
 
-  /**
-   * Zeigt eine Snackbar-Nachricht an
-   */
-  private showSnackbar(message: string, isError: boolean = false): void {
-    this.snackBar.open(message, 'Schließen', {
-      duration: 3000,
-      panelClass: isError ? ['snackbar-error'] : ['snackbar-success']
-    });
+  // ---- Template helpers ---------------------------------------------------
+
+  /** Caps 1 and 13 are worn by the goalkeepers (red). */
+  isKeeper(number: string): boolean {
+    return number === '1' || number === '13';
   }
 
-
-  /**
-   * Lädt das Protokoll herunter
-   */
-  downloadProtocol(): void {
-    if (this.gameDetails?.protocolLink) {
-      this.tracking.track('Protocol Downloaded', {
-        gameId: this.gameDetails.gameId,
-        league: this.gameDetails.league,
-      });
-      window.open(this.gameDetails.protocolLink, '_blank');
-    }
+  foulText(player: PlayerStatistics): string {
+    return player.fouls.map(f => `${foulLabel(f.foulType)} im ${f.quarter}. Viertel`).join(', ');
   }
 
-  /**
-   * Hilfsfunktion: Prüft ob Officials-Daten vorhanden sind
-   */
-  hasOfficials(): boolean {
-    if (!this.gameDetails?.officials) return false;
-    const officials = this.gameDetails.officials;
-    return !!(officials.referee1 || officials.referee2 || officials.timekeeper1 ||
-              officials.timekeeper2 || officials.secretary1 || officials.secretary2);
+  staff(team: TeamDetails): { role: string; name: string }[] {
+    const rows: [string, string | undefined][] = [
+      ['Trainer', team.coach], ['Kapitän', team.captain], ['Betreuer', team.assistant],
+      ['Mannschaftsbegleiter', team.teamLeader ?? team.companionLeader], ['Beste Spielerin / bester Spieler', team.bestPlayer]
+    ];
+    return rows.filter(([, name]) => !!name).map(([role, name]) => ({ role, name: name as string }));
   }
 
-  /**
-   * Hilfsfunktion: Konvertiert Event-Type-Kürzel in verständlichen Text
-   */
-  getEventTypeName(eventType: string): string {
-    const typeMap: { [key: string]: string } = {
-      'T': 'Tor',
-      'A': 'Ausschluss',
-      'AmE': 'Ausschluss mit Ersatz',
-      'AmE+4': 'Ausschluss mit Ersatz',
-      'AU': 'Auszeit',
-      'S': 'Strafwurf',
-      'P': 'Penalty',
-      'TO': 'Timeout',
-      'KT': 'Kapitän',
-      'GK': 'Torwart',
-      'RK': 'Rote Karte',
-      'E': 'Einwechslung',
-      'X': 'Sonstiges',
-      '5m': '5m-Wurf',
-      'Penalty': 'Penalty',
-      'Goal': 'Tor',
-      'Exclusion': 'Ausschluss',
-      'Timeout': 'Timeout'
-    };
-
-    return typeMap[eventType] || eventType;
+  goalsOf(team: TeamDetails): number {
+    return (team.players ?? []).reduce((sum, p) => sum + (p.goals || 0), 0);
   }
 
-  /**
-   * Hilfsfunktion: Gibt Icon für Event-Typ zurück
-   */
-  getEventIcon(eventType: string): string {
-    const iconMap: { [key: string]: string } = {
-      'T': 'sports_soccer',
-      'A': 'person_off',
-      'AU': 'pause',
-      'AmE': 'person_off',
-      'P': 'flag',
-      'S': 'warning',
-      'TO': 'timer',
-      'E': 'swap_horiz',
-      'X': 'pause',
-      '5m': 'sports_handball',
-      'Goal': 'sports_soccer',
-      'Penalty': 'flag',
-      'Exclusion': 'person_off',
-      'Timeout': 'timer'
-    };
-
-    return iconMap[eventType] || 'info';
+  formLabel(o: Outcome): string {
+    return o === 'W' ? 'S' : o === 'D' ? 'U' : 'N';
   }
 
-  /**
-   * Hilfsfunktion: Gibt das Foul-Zeichen für ein bestimmtes Viertel zurück
-   */
-  getFoulForQuarter(fouls: any[], quarter: number): string {
-    const foul = fouls.find(f => f.quarter === quarter);
-    return foul ? foul.foulType : '';
+  initial(name: string): string {
+    return teamInitial(name);
   }
+}
 
-  /**
-   * Hilfsfunktion: Berechnet die Gesamtanzahl der Tore eines Teams
-   */
-  getTotalGoals(players: any[]): number {
-    return players.reduce((sum, player) => sum + (player.goals || 0), 0);
-  }
-
-  /**
-   * Hilfsfunktion: Findet den Top-Scorer eines Teams
-   */
-  getTopScorer(players: any[]): any {
-    return players.reduce((max, player) =>
-      (player.goals > (max?.goals || 0)) ? player : max, null
-    );
-  }
-
-  /**
-   * Hilfsfunktion: Berechnet die Gesamtanzahl der Fouls eines Teams
-   */
-  getTotalFouls(players: any[]): number {
-    return players.reduce((sum, player) => sum + (player.fouls?.length || 0), 0);
-  }
-
-  /**
-   * Hilfsfunktion: Prüft ob ein Spieler der Top-Scorer ist
-   */
-  isTopScorer(player: any, players: any[]): boolean {
-    const topScorer = this.getTopScorer(players);
-    return topScorer && player.goals > 0 && player.goals === topScorer.goals;
-  }
-
-  /**
-   * Hilfsfunktion: Filtert Events nach Viertel
-   */
-  getEventsByQuarter(events: any[], quarter: number): any[] {
-    return events.filter(event => event.period === quarter);
-  }
-
-  /**
-   * Hilfsfunktion: Gibt Quarter-Score für spezifisches Viertel zurück
-   */
-  getQuarterScoreByNumber(quarter: number): any {
-    return this.gameDetails?.quarterScores.find(q => q.quarter === quarter);
-  }
-
-  /**
-   * Hilfsfunktion: Extrahiert Heim-Team Endergebnis
-   */
-  getFinalHomeScore(): string {
-    if (!this.gameDetails?.finalScore) return '0';
-    const scores = this.gameDetails.finalScore.split(':');
-    return scores[0]?.trim() || '0';
-  }
-
-  /**
-   * Hilfsfunktion: Extrahiert Gast-Team Endergebnis
-   */
-  getFinalGuestScore(): string {
-    if (!this.gameDetails?.finalScore) return '0';
-    const scores = this.gameDetails.finalScore.split(':');
-    return scores[1]?.trim() || '0';
-  }
-
-  /**
-   * Hilfsfunktion: Prüft ob Team-Details vorhanden sind
-   */
-  hasTeamDetails(): boolean {
-    if (!this.gameDetails) return false;
-    const home = this.gameDetails.homeTeam;
-    const guest = this.gameDetails.guestTeam;
-    return !!(home.coach || home.captain || home.teamLeader || home.assistant || home.bestPlayer ||
-              guest.coach || guest.captain || guest.teamLeader || guest.assistant || guest.bestPlayer);
-  }
-
-  /**
-   * Hilfsfunktion: Prüft ob Spielerstatistiken vorhanden sind
-   */
-  hasPlayerStats(): boolean {
-    if (!this.gameDetails) return false;
-    const homePlayers = this.gameDetails.homeTeam?.players;
-    const guestPlayers = this.gameDetails.guestTeam?.players;
-    return !!((homePlayers && homePlayers.length > 0) || (guestPlayers && guestPlayers.length > 0));
-  }
-
-  /**
-   * Hilfsfunktion: Prüft ob Spielverlauf-Events vorhanden sind
-   */
-  hasGameEvents(): boolean {
-    return !!(this.gameDetails?.events && this.gameDetails.events.length > 0);
-  }
-
-  /**
-   * Hilfsfunktion: Prüft ob Statistiken vorhanden sind
-   */
-  hasStatistics(): boolean {
-    return !!this.gameDetails?.statistics;
-  }
-
-  /**
-   * Hilfsfunktion: Prüft ob das Spiel beendet ist
-   */
-  isGameFinished(): boolean {
-    if (!this.gameDetails) return false;
-
-    // 1. Prüfe ob ein gültiges Ergebnis vorliegt (nicht "0:0" oder leer)
-    const finalScore = this.gameDetails.finalScore;
-    if (finalScore && finalScore !== '0:0' && finalScore !== ':' && finalScore.includes(':')) {
-      const scores = finalScore.split(':');
-      const homeScore = parseInt(scores[0]?.trim() || '0');
-      const guestScore = parseInt(scores[1]?.trim() || '0');
-      // Wenn mindestens ein Team Tore hat, ist das Spiel gespielt
-      if (homeScore > 0 || guestScore > 0) {
-        return true;
-      }
-    }
-
-    // 2. Prüfe ob Spielverlauf-Events vorhanden sind (bedeutet Spiel wurde gespielt)
-    if (this.gameDetails.events && this.gameDetails.events.length > 0) {
-      return true;
-    }
-
-    // 3. Prüfe ob das Datum in der Vergangenheit liegt
-    const gameDate = this.parseGameDate(this.gameDetails.startDate);
-    if (gameDate) {
-      const now = new Date();
-      // Spiel ist beendet, wenn es mehr als 2 Stunden in der Vergangenheit liegt
-      const twoHoursAgo = new Date(now.getTime() - (2 * 60 * 60 * 1000));
-      return gameDate < twoHoursAgo;
-    }
-
-    // Wenn nichts davon zutrifft, gilt das Spiel als noch nicht beendet
-    return false;
-  }
-
-  /**
-   * Berechnet die Position eines Events auf der Timeline (0-100%)
-   * @param event Das GameEvent
-   * @returns Position in Prozent (0-100)
-   */
-  getEventTimelinePosition(event: GameEvent): number {
-    // Parse die Spielminute aus dem time-String
-    const minute = this.parseGameMinute(event.time, event.period);
-    if (minute === null) return 0;
-
-    // Wasserball: 4 Viertel à 8 Minuten = 32 Minuten gesamt
-    const totalGameMinutes = 32;
-    const position = (minute / totalGameMinutes) * 100;
-
-    // Begrenze auf 0-100%
-    return Math.max(0, Math.min(100, position));
-  }
-
-  /**
-   * Parst die Spielminute aus dem time-String
-   * @param time Zeit-String (z.B. "5:23" oder "12:34")
-   * @param period Viertel (1-4)
-   * @returns Absolute Spielminute oder null
-   */
-  parseGameMinute(time: string, period: number): number | null {
-    try {
-      // Zeit-Format: "M:SS" (z.B. "5:23" für 5 Minuten 23 Sekunden im Viertel)
-      const parts = time.split(':');
-      if (parts.length !== 2) return null;
-
-      const minutes = parseInt(parts[0]);
-      const seconds = parseInt(parts[1]);
-
-      if (isNaN(minutes) || isNaN(seconds)) return null;
-
-      // Berechne absolute Spielminute
-      // Jedes Viertel hat 8 Minuten
-      const quarterStartMinute = (period - 1) * 8;
-      const minuteInQuarter = minutes + (seconds / 60);
-
-      return quarterStartMinute + minuteInQuarter;
-    } catch {
-      return null;
-    }
-  }
-
-  /**
-   * Gruppiert Events nach Viertel für die Timeline
-   */
-  getEventsByPeriod(period: number): GameEvent[] {
-    if (!this.gameDetails?.events) return [];
-    return this.gameDetails.events.filter(e => e.period === period);
-  }
-
-  /**
-   * Gibt alle Events sortiert nach Zeit zurück
-   */
-  getAllEventsSorted(): GameEvent[] {
-    if (!this.gameDetails?.events) return [];
-    return [...this.gameDetails.events].sort((a, b) => {
-      const minuteA = this.parseGameMinute(a.time, a.period) || 0;
-      const minuteB = this.parseGameMinute(b.time, b.period) || 0;
-      return minuteA - minuteB;
-    });
-  }
-
-  /**
-   * Toggle Event-Popup für Mobile (Touch)
-   * @param index Index des Events in der sortierten Liste
-   * @param event Click/Touch Event
-   */
-  toggleEventPopup(index: number, event: Event): void {
-    event.stopPropagation();
-
-    // Toggle: Wenn bereits aktiv, deaktivieren
-    if (this.activeEventIndex === index) {
-      this.activeEventIndex = null;
-    } else {
-      this.activeEventIndex = index;
-    }
-  }
-
-  /**
-   * Prüft ob ein Event aktiv (geöffnet) ist
-   * @param index Index des Events
-   */
-  isEventActive(index: number): boolean {
-    return this.activeEventIndex === index;
-  }
-
-  /**
-   * Schließt alle Event-Popups (z.B. bei Tap außerhalb)
-   */
-  closeAllEventPopups(): void {
-    this.activeEventIndex = null;
-  }
-
-  /**
-   * Berechnet Popup-Position-Klasse für Events am Rand
-   * @param position Position in Prozent (0-100)
-   */
-  getPopupPositionClass(position: number): string {
-    if (position < 20) return 'popup-right';
-    if (position > 80) return 'popup-left';
-    return '';
-  }
+/** Minimal game report from a liveticker entry (when the DSV page is unavailable). */
+export function detailsFromTicker(g: LiveGame): GameDetails {
+  const team = (name?: string) => ({ name: name || '', logoUrl: '' });
+  const quarterScores = (g.ScorePeriods || '').replace(/[()]/g, '').split(',')
+    .map(s => s.trim().match(/^(\d+)\s*:\s*(\d+)$/)).filter((m): m is RegExpMatchArray => !!m)
+    .map((m, i) => ({ quarter: i + 1, home: +m[1], guest: +m[2] }));
+  return {
+    gameId: String(g.GameIDShow || g.GameID),
+    league: g.LeagueNameLive || g.LeagueName || '',
+    startDate: g.StartDate || '', // ISO, parseGameDate reads it
+    playKind: '',
+    homeTeam: team(g.HomeClubname),
+    guestTeam: team(g.GuestClubname),
+    finalScore: '',
+    quarterScores,
+    venue: { poolName: g.PoolName || '', poolCity: g.PoolCity || '', googleMapsLink: '' },
+    officials: {},
+    events: []
+  };
 }

@@ -1,0 +1,158 @@
+<div class="page">
+  <div class="page-head">
+    <div class="titles">
+      <h1>Meine Teams</h1>
+      <span class="sub">Ihre Spiele und Ergebnisse stehen auf deiner Startseite.</span>
+    </div>
+  </div>
+
+  @if (!seasonService.isLive()) {
+    <div class="notice">
+      <mat-icon>history</mat-icon>
+      <span class="grow">Du siehst eine Archiv-Saison. Teams folgen geht nur in der laufenden Saison.</span>
+    </div>
+  }
+
+  <!-- Followed teams -->
+  <section class="section">
+    @if (followed().length) {
+      <div class="panel rows">
+        @for (t of followed(); track t.name) {
+          <div class="followed">
+            <a class="row" routerLink="/team" [queryParams]="{ liga: t.league?.link, name: t.name }">
+              @if (t.logo || teamIndex.logoFor(t.name); as logo) { <img class="logo big" [src]="logo" [attr.data-name]="t.name" alt=""> }
+              @else { <span class="logo-ph big" aria-hidden="true">{{ initial(t.name) }}</span> }
+              <span class="grow">
+                <span class="title">{{ t.name }}</span>
+                @if (t.next) { <span class="meta">{{ t.next }}</span> }
+                @else if (t.last) {
+                  <span class="meta">
+                    @if (t.lastOutcome) { <span class="form"><i [class]="t.lastOutcome">{{ t.lastOutcome === 'W' ? 'S' : t.lastOutcome === 'D' ? 'U' : 'N' }}</i></span> }
+                    {{ t.last }}
+                  </span>
+                } @else if (t.league) { <span class="meta">{{ t.league.name }}</span> }
+              </span>
+            </a>
+            <button class="follow on" (click)="toggle(t.name, t.league)" [attr.aria-label]="t.name + ' nicht mehr folgen'">
+              <mat-icon>star</mat-icon><span>Folge ich</span>
+            </button>
+          </div>
+        }
+      </div>
+    } @else {
+      <div class="empty first">
+        <mat-icon>star_border</mat-icon>
+        <h2>Noch keinem Team gefolgt</h2>
+        <p>Folge deinem Verein: Du siehst dann sein nächstes Spiel, Live-Stände und Ergebnisse direkt auf der Startseite.</p>
+      </div>
+    }
+    @if (fromStart() && followed().length) {
+      <a class="btn primary done" routerLink="/"><mat-icon>check</mat-icon>Fertig, zur Startseite</a>
+    }
+  </section>
+
+  @if (seasonService.isLive()) {
+    <!-- Suggestions from my leagues -->
+    @for (s of suggestions(); track s.league.link) {
+      <section class="section">
+        <div class="section-head">
+          <h2>{{ s.league.name }}</h2>
+          <span class="hint">aus deinen Ligen</span>
+        </div>
+        <div class="team-grid">
+          @for (t of s.teams; track t.name) {
+            <button class="team-pick" (click)="toggle(t.name, s.league)" [attr.aria-label]="t.name + ' folgen'">
+              @if (t.logo || teamIndex.logoFor(t.name); as logo) { <img class="logo" [src]="logo" [attr.data-name]="t.name" alt=""> }
+              @else { <span class="logo-ph" aria-hidden="true">{{ initial(t.name) }}</span> }
+              <span class="pick-name">{{ t.name }}</span>
+              <mat-icon class="pick-add">add</mat-icon>
+            </button>
+          }
+        </div>
+      </section>
+    }
+
+    <!-- Any league -->
+    <section class="section">
+      <div class="section-head">
+        <h2>{{ picked() ? picked()!.name : 'Team oder Liga suchen' }}</h2>
+        @if (picked()) { <button class="more link" (click)="clearPick()">Andere Liga</button> }
+      </div>
+
+      @if (!picked()) {
+        <label class="search">
+          <mat-icon>search</mat-icon>
+          <input type="search" [ngModel]="query()" (ngModelChange)="onSearch($event)" (focus)="teamIndex.warmUp()"
+            placeholder="z. B. Spandau oder Oberliga" autocomplete="off" aria-label="Team oder Liga suchen">
+          @if (query()) {
+            <button class="icon-btn" (click)="onSearch('')" aria-label="Suche leeren"><mat-icon>close</mat-icon></button>
+          }
+        </label>
+        @if (query().trim().length >= 2) {
+          @if (teamHits().length) {
+            <h3 class="result-head">Teams</h3>
+            <div class="panel rows">
+              @for (h of teamHits(); track rowKey(h)) {
+                <button class="row hit" (click)="followHit(h)" [disabled]="resolving() === rowKey(h)"
+                  [attr.aria-label]="(isFollowed(h.team) ? h.team + ' nicht mehr folgen' : h.team + ' folgen') + (h.league ? ', ' + h.league.name : '')">
+                  @if (teamIndex.logoFor(h.team); as logo) { <img class="logo" [src]="logo" [attr.data-name]="h.team" alt=""> }
+                  @else { <span class="logo-ph" aria-hidden="true">{{ initial(h.team) }}</span> }
+                  <span class="grow">
+                    <span class="title">{{ h.team }}</span>
+                    <span class="meta">{{ h.league ? h.league.name : 'Liga dieser Saison noch nicht begonnen' }}</span>
+                  </span>
+                  @if (resolving() === rowKey(h)) {
+                    <mat-icon class="spin">progress_activity</mat-icon>
+                  } @else {
+                    <span class="follow small-follow" [class.on]="isFollowed(h.team)">
+                      <mat-icon>{{ isFollowed(h.team) ? 'star' : 'add' }}</mat-icon>{{ isFollowed(h.team) ? 'Folge ich' : 'Folgen' }}
+                    </span>
+                  }
+                </button>
+              }
+            </div>
+          }
+          @if (leagueMatches().length) {
+            <h3 class="result-head">Ligen</h3>
+            <div class="panel rows">
+              @for (l of leagueMatches(); track l.link) {
+                <button class="row" (click)="pick(l)">
+                  <span class="grow"><span class="title">{{ l.name }}</span></span>
+                  <mat-icon class="chev">chevron_right</mat-icon>
+                </button>
+              }
+            </div>
+          }
+          @if (!teamHits().length && !leagueMatches().length) {
+            <p class="hint-text">Nichts gefunden. Versuche einen Teil des Vereinsnamens, etwa „Spandau“ statt „Wasserfreunde Spandau“.</p>
+          }
+        } @else {
+          <p class="hint-text">Tippe den Namen deines Vereins oder deiner Liga.</p>
+        }
+      } @else if (pickedLoading()) {
+        <div class="skeleton-list" aria-busy="true">
+          @for (i of [1,2,3,4]; track i) { <div class="skeleton skeleton-line short"></div> }
+        </div>
+      } @else if (pickedFailed()) {
+        <div class="empty">
+          <p>Die Liga konnte nicht geladen werden.</p>
+          <button class="btn" (click)="pick(picked()!)">Erneut laden</button>
+        </div>
+      } @else {
+        <div class="team-grid">
+          @for (t of pickedTeams(); track t.name) {
+            <button class="team-pick" [class.on]="isFollowed(t.name)" (click)="toggle(t.name, picked())"
+              [attr.aria-pressed]="isFollowed(t.name)" [attr.aria-label]="isFollowed(t.name) ? t.name + ' nicht mehr folgen' : t.name + ' folgen'">
+              @if (t.logo || teamIndex.logoFor(t.name); as logo) { <img class="logo" [src]="logo" [attr.data-name]="t.name" alt=""> }
+              @else { <span class="logo-ph" aria-hidden="true">{{ initial(t.name) }}</span> }
+              <span class="pick-name">{{ t.name }}</span>
+              <mat-icon class="pick-add">{{ isFollowed(t.name) ? 'star' : 'add' }}</mat-icon>
+            </button>
+          } @empty {
+            <p class="hint-text">In dieser Liga stehen noch keine Teams fest.</p>
+          }
+        </div>
+      }
+    </section>
+  }
+</div>

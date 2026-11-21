@@ -1,191 +1,193 @@
+import type { Mock } from "vitest";
 import { TestBed } from '@angular/core/testing';
 import { ThemeService, Theme } from './theme.service';
 
 describe('ThemeService', () => {
-  let service: ThemeService;
-  let localStorageSpy: jasmine.Spy;
+    let service: ThemeService;
+    let localStorageSpy: Mock;
 
-  beforeEach(() => {
-    // Mock localStorage
-    let store: { [key: string]: string } = {};
-    const mockLocalStorage = {
-      getItem: (key: string): string | null => {
-        return key in store ? store[key] : null;
-      },
-      setItem: (key: string, value: string) => {
-        store[key] = value;
-      },
-      removeItem: (key: string) => {
-        delete store[key];
-      },
-      clear: () => {
-        store = {};
-      }
-    };
-
-    spyOn(localStorage, 'getItem').and.callFake(mockLocalStorage.getItem);
-    spyOn(localStorage, 'setItem').and.callFake(mockLocalStorage.setItem);
-    spyOn(localStorage, 'removeItem').and.callFake(mockLocalStorage.removeItem);
-
-    TestBed.configureTestingModule({});
-  });
-
-  afterEach(() => {
-    localStorage.clear();
-    document.body.className = '';
-  });
-
-  it('should be created', () => {
-    service = TestBed.inject(ThemeService);
-    expect(service).toBeTruthy();
-  });
-
-  describe('getInitialTheme', () => {
-    it('should return saved theme from localStorage', () => {
-      localStorage.setItem('app-theme', 'dark');
-      service = TestBed.inject(ThemeService);
-      expect(service.currentTheme()).toBe('dark');
-    });
-
-    it('should return light as fallback when no theme is saved', () => {
-      localStorage.removeItem('app-theme');
-      service = TestBed.inject(ThemeService);
-      expect(service.currentTheme()).toBe('light');
-    });
-
-    it('should return light for invalid saved theme', () => {
-      localStorage.setItem('app-theme', 'invalid');
-      service = TestBed.inject(ThemeService);
-      expect(service.currentTheme()).toBe('light');
-    });
-  });
-
-  describe('applyTheme', () => {
     beforeEach(() => {
-      service = TestBed.inject(ThemeService);
-      // Wait for initial theme application
-      TestBed.flushEffects();
+        // Mock localStorage
+        let store: {
+            [key: string]: string;
+        } = {};
+        const mockLocalStorage = {
+            getItem: (key: string): string | null => {
+                return key in store ? store[key] : null;
+            },
+            setItem: (key: string, value: string) => {
+                store[key] = value;
+            },
+            removeItem: (key: string) => {
+                delete store[key];
+            },
+            clear: () => {
+                store = {};
+            }
+        };
+
+        vi.spyOn(Storage.prototype, 'getItem').mockImplementation(mockLocalStorage.getItem);
+        vi.spyOn(Storage.prototype, 'setItem').mockImplementation(mockLocalStorage.setItem);
+        vi.spyOn(Storage.prototype, 'removeItem').mockImplementation(mockLocalStorage.removeItem);
+
+        TestBed.configureTestingModule({});
     });
 
-    it('should apply light-theme class to body', () => {
-      service.setTheme('light');
-      TestBed.flushEffects(); // Flush effects after setTheme
-      expect(document.body.classList.contains('light-theme')).toBe(true);
-      expect(document.body.classList.contains('dark-theme')).toBe(false);
+    afterEach(() => {
+        localStorage.clear();
+        document.body.className = '';
     });
 
-    it('should apply dark-theme class to body', () => {
-      service.setTheme('dark');
-      TestBed.flushEffects(); // Flush effects after setTheme
-      expect(document.body.classList.contains('dark-theme')).toBe(true);
-      expect(document.body.classList.contains('light-theme')).toBe(false);
+    it('should be created', () => {
+        service = TestBed.inject(ThemeService);
+        expect(service).toBeTruthy();
     });
 
-    it('should resolve auto to light or dark based on system preference', () => {
-      // This test depends on system settings, so we just check that a theme is applied
-      service.setTheme('auto');
-      TestBed.flushEffects(); // Flush effects after setTheme
-      const hasLightOrDark = document.body.classList.contains('light-theme') ||
-                            document.body.classList.contains('dark-theme');
-      expect(hasLightOrDark).toBe(true);
-    });
-  });
+    describe('getInitialTheme', () => {
+        it('should return saved theme from localStorage', () => {
+            localStorage.setItem('app-theme', 'dark');
+            service = TestBed.inject(ThemeService);
+            expect(service.currentTheme()).toBe('dark');
+        });
 
-  describe('setTheme', () => {
-    beforeEach(() => {
-      service = TestBed.inject(ThemeService);
-      TestBed.flushEffects();
-    });
+        it('should follow the system when no theme is saved', () => {
+            localStorage.removeItem('app-theme');
+            service = TestBed.inject(ThemeService);
+            expect(service.currentTheme()).toBe('auto');
+        });
 
-    it('should update currentTheme signal', () => {
-      service.setTheme('dark');
-      expect(service.currentTheme()).toBe('dark');
-    });
-
-    it('should save theme to localStorage', () => {
-      service.setTheme('dark');
-      TestBed.flushEffects();
-      expect(localStorage.setItem).toHaveBeenCalledWith('app-theme', 'dark');
+        it('should follow the system for an invalid saved theme', () => {
+            localStorage.setItem('app-theme', 'invalid');
+            service = TestBed.inject(ThemeService);
+            expect(service.currentTheme()).toBe('auto');
+        });
     });
 
-    it('should apply theme when set', () => {
-      service.setTheme('dark');
-      TestBed.flushEffects();
-      expect(document.body.classList.contains('dark-theme')).toBe(true);
-    });
-  });
+    describe('applyTheme', () => {
+        beforeEach(() => {
+            service = TestBed.inject(ThemeService);
+            // Wait for initial theme application
+            TestBed.flushEffects();
+        });
 
-  describe('toggleTheme', () => {
-    beforeEach(() => {
-      service = TestBed.inject(ThemeService);
-    });
+        it('should apply light-theme class to body', () => {
+            service.setTheme('light');
+            TestBed.flushEffects(); // Flush effects after setTheme
+            expect(document.body.classList.contains('light-theme')).toBe(true);
+            expect(document.body.classList.contains('dark-theme')).toBe(false);
+        });
 
-    it('should toggle from light to dark', () => {
-      service.setTheme('light');
-      service.toggleTheme();
-      expect(service.currentTheme()).toBe('dark');
-    });
+        it('should apply dark-theme class to body', () => {
+            service.setTheme('dark');
+            TestBed.flushEffects(); // Flush effects after setTheme
+            expect(document.body.classList.contains('dark-theme')).toBe(true);
+            expect(document.body.classList.contains('light-theme')).toBe(false);
+        });
 
-    it('should toggle from dark to light', () => {
-      service.setTheme('dark');
-      service.toggleTheme();
-      expect(service.currentTheme()).toBe('light');
-    });
-
-    it('should toggle from auto based on effective theme', () => {
-      service.setTheme('auto');
-      const effectiveBefore = service.effectiveTheme();
-      service.toggleTheme();
-      const expectedTheme = effectiveBefore === 'light' ? 'dark' : 'light';
-      expect(service.currentTheme()).toBe(expectedTheme);
-    });
-  });
-
-  describe('isDarkMode', () => {
-    beforeEach(() => {
-      service = TestBed.inject(ThemeService);
+        it('should resolve auto to light or dark based on system preference', () => {
+            // This test depends on system settings, so we just check that a theme is applied
+            service.setTheme('auto');
+            TestBed.flushEffects(); // Flush effects after setTheme
+            const hasLightOrDark = document.body.classList.contains('light-theme') ||
+                document.body.classList.contains('dark-theme');
+            expect(hasLightOrDark).toBe(true);
+        });
     });
 
-    it('should return true when theme is dark', () => {
-      service.setTheme('dark');
-      expect(service.isDarkMode()).toBe(true);
+    describe('setTheme', () => {
+        beforeEach(() => {
+            service = TestBed.inject(ThemeService);
+            TestBed.flushEffects();
+        });
+
+        it('should update currentTheme signal', () => {
+            service.setTheme('dark');
+            expect(service.currentTheme()).toBe('dark');
+        });
+
+        it('should save theme to localStorage', () => {
+            service.setTheme('dark');
+            TestBed.flushEffects();
+            expect(Storage.prototype.setItem).toHaveBeenCalledWith('app-theme', 'dark');
+        });
+
+        it('should apply theme when set', () => {
+            service.setTheme('dark');
+            TestBed.flushEffects();
+            expect(document.body.classList.contains('dark-theme')).toBe(true);
+        });
     });
 
-    it('should return false when theme is light', () => {
-      service.setTheme('light');
-      expect(service.isDarkMode()).toBe(false);
+    describe('toggleTheme', () => {
+        beforeEach(() => {
+            service = TestBed.inject(ThemeService);
+        });
+
+        it('should toggle from light to dark', () => {
+            service.setTheme('light');
+            service.toggleTheme();
+            expect(service.currentTheme()).toBe('dark');
+        });
+
+        it('should toggle from dark to light', () => {
+            service.setTheme('dark');
+            service.toggleTheme();
+            expect(service.currentTheme()).toBe('light');
+        });
+
+        it('should toggle from auto based on effective theme', () => {
+            service.setTheme('auto');
+            const effectiveBefore = service.effectiveTheme();
+            service.toggleTheme();
+            const expectedTheme = effectiveBefore === 'light' ? 'dark' : 'light';
+            expect(service.currentTheme()).toBe(expectedTheme);
+        });
     });
 
-    it('should return false when theme is auto', () => {
-      service.setTheme('auto');
-      expect(service.isDarkMode()).toBe(false);
-    });
-  });
+    describe('isDarkMode', () => {
+        beforeEach(() => {
+            service = TestBed.inject(ThemeService);
+        });
 
-  describe('effectiveTheme', () => {
-    beforeEach(() => {
-      service = TestBed.inject(ThemeService);
-      TestBed.flushEffects();
-    });
+        it('should return true when theme is dark', () => {
+            service.setTheme('dark');
+            expect(service.isDarkMode()).toBe(true);
+        });
 
-    it('should return light when theme is light', () => {
-      service.setTheme('light');
-      TestBed.flushEffects();
-      expect(service.effectiveTheme()).toBe('light');
-    });
+        it('should return false when theme is light', () => {
+            service.setTheme('light');
+            expect(service.isDarkMode()).toBe(false);
+        });
 
-    it('should return dark when theme is dark', () => {
-      service.setTheme('dark');
-      TestBed.flushEffects();
-      expect(service.effectiveTheme()).toBe('dark');
+        it('should return false when theme is auto', () => {
+            service.setTheme('auto');
+            expect(service.isDarkMode()).toBe(false);
+        });
     });
 
-    it('should resolve auto to light or dark', () => {
-      service.setTheme('auto');
-      TestBed.flushEffects();
-      const effective = service.effectiveTheme();
-      expect(['light', 'dark']).toContain(effective);
+    describe('effectiveTheme', () => {
+        beforeEach(() => {
+            service = TestBed.inject(ThemeService);
+            TestBed.flushEffects();
+        });
+
+        it('should return light when theme is light', () => {
+            service.setTheme('light');
+            TestBed.flushEffects();
+            expect(service.effectiveTheme()).toBe('light');
+        });
+
+        it('should return dark when theme is dark', () => {
+            service.setTheme('dark');
+            TestBed.flushEffects();
+            expect(service.effectiveTheme()).toBe('dark');
+        });
+
+        it('should resolve auto to light or dark', () => {
+            service.setTheme('auto');
+            TestBed.flushEffects();
+            const effective = service.effectiveTheme();
+            expect(['light', 'dark']).toContain(effective);
+        });
     });
-  });
 });
-

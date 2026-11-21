@@ -1,102 +1,81 @@
 <div class="dialog-container">
-  <!-- This is the element that will be converted to an image -->
-  <div #shareImage class="share-image-content force-desktop-layout">
-    <div class="background-layer"></div>
-    <div class="content-layer">
-      <header class="header">
-        <span class="league-badge">{{ league }}</span>
-      </header>
+  <!-- This element is rendered to the image (1080 × 1920, off-screen) -->
+  <div #shareImage class="share-image-content">
+    <header class="img-league">{{ league }}</header>
 
-      <!-- Layout for FINISHED games -->
-      <main class="main-content" *ngIf="!isFutureGame">
-        <div class="teams-and-score">
-          <div class="team home-team">
-            <img [src]="homeTeam.logo" alt="{{ homeTeam.name }} Logo" class="team-logo" />
-            <h2 class="team-name">{{ homeTeam.name }}</h2>
-          </div>
+    <main class="img-main">
+      <div class="img-team">
+        @if (homeTeam.logo) { <img [src]="homeTeam.logo" alt="" class="team-logo" /> }
+        <div class="img-name">{{ homeTeam.name }}</div>
+      </div>
 
-          <div class="score-container">
-            <span class="final-score">{{ finalScore }}</span>
-            <span class="status-badge">Endergebnis</span>
-          </div>
+      @if (isFutureGame) {
+        <div class="img-versus">gegen</div>
+      } @else {
+        <div class="img-score">{{ homeScore }}<span>:</span>{{ guestScore }}</div>
+        <div class="img-status">{{ statusLabel }}</div>
+      }
 
-          <div class="team guest-team">
-            <img [src]="guestTeam.logo" alt="{{ guestTeam.name }} Logo" class="team-logo" />
-            <h2 class="team-name">{{ guestTeam.name }}</h2>
-          </div>
-        </div>
+      <div class="img-team">
+        @if (guestTeam.logo) { <img [src]="guestTeam.logo" alt="" class="team-logo" /> }
+        <div class="img-name">{{ guestTeam.name }}</div>
+      </div>
 
-        <div class="quarter-scores-container" *ngIf="quarterScores && quarterScores.length > 0">
-          <div class="quarter-scores-grid">
-            <div *ngFor="let quarter of quarterScores" class="quarter-score-item">
-              <span class="quarter-label">Q{{ quarter.quarter }}</span>
-              <span class="quarter-value">{{ quarter.home }}:{{ quarter.guest }}</span>
+      @if (!isFutureGame && quarterScores && quarterScores.length) {
+        <div class="img-quarters">
+          @for (quarter of quarterScores; track quarter.quarter) {
+            <div class="img-quarter">
+              <span class="img-quarter-label">{{ quarter.quarter }}. Viertel</span>
+              <span class="img-quarter-value">{{ quarter.home }}:{{ quarter.guest }}</span>
             </div>
-          </div>
+          }
         </div>
-      </main>
+      }
+    </main>
 
-      <!-- Layout for FUTURE games (Announcement) -->
-      <main class="main-content-future" *ngIf="isFutureGame">
-        <div class="team-vertical home-team">
-          <img [src]="homeTeam.logo" alt="{{ homeTeam.name }} Logo" class="team-logo-large" />
-          <h2 class="team-name-large">{{ homeTeam.name }}</h2>
-        </div>
-
-        <div class="versus-divider">VS</div>
-
-        <div class="team-vertical guest-team">
-          <img [src]="guestTeam.logo" alt="{{ guestTeam.name }} Logo" class="team-logo-large" />
-          <h2 class="team-name-large">{{ guestTeam.name }}</h2>
-        </div>
-
-        <div class="game-details-future">
-          <div class="detail-item-future">
-            <mat-icon>event</mat-icon>
-            <span>{{ gameDate | date:'EEEE, dd. MMMM yyyy' }}</span>
-          </div>
-          <div class="detail-item-future">
-            <mat-icon>schedule</mat-icon>
-            <span>{{ gameDate | date:'HH:mm' }} Uhr</span>
-          </div>
-          <div class="detail-item-future">
-            <mat-icon>place</mat-icon>
-            <span>{{ gameLocation }}</span>
-          </div>
-        </div>
-      </main>
-
-      <footer class="footer">
-        <div class="watermark">
-          <span>Wasserball-Tabelle</span>
-        </div>
-      </footer>
+    <!-- lane line built from blocks (canvas renderer has no repeating gradients) -->
+    <div class="img-lane">
+      @for (i of laneBlocks; track i) { <span [class.alt]="i % 2 === 1"></span> }
     </div>
+
+    <footer class="img-footer">
+      <div class="img-when">
+        @if (gameDate) {
+          <span>{{ gameDate | date:'EEEE, d. MMMM yyyy' }}@if (isFutureGame) {, {{ gameDate | date:'HH:mm' }} Uhr}</span>
+        }
+        @if (gameLocation) { <span>{{ gameLocation }}</span> }
+      </div>
+      <div class="img-brand">Wasserball Live</div>
+    </footer>
   </div>
 
-  <!-- This is the visible part of the dialog -->
+  <!-- Visible part of the dialog -->
   <div class="preview-and-actions">
-    <h2 class="dialog-title">Share Pic</h2>
-    <p class="dialog-subtitle">Dein Bild wurde generiert. Lade es herunter und teile es!</p>
+    <h2 class="dialog-title">{{ isFutureGame ? 'Ankündigung als Bild' : 'Ergebnis als Bild' }}</h2>
 
-    <div class="preview-container" *ngIf="!isLoading && generatedImage">
-      <img [src]="generatedImage" alt="Vorschau des Share-Bildes" class="preview-image">
-    </div>
-
-    <div class="loading-container" *ngIf="isLoading">
-      <mat-progress-spinner mode="indeterminate" diameter="50"></mat-progress-spinner>
-      <p>Generiere Bild...</p>
-    </div>
+    @if (isLoading) {
+      <div class="loading-container">
+        <mat-progress-spinner mode="indeterminate" diameter="40"></mat-progress-spinner>
+        <p>Bild wird erstellt …</p>
+      </div>
+    } @else if (generatedImage) {
+      <div class="preview-container">
+        <img [src]="generatedImage" alt="Vorschau des Bildes" class="preview-image">
+      </div>
+    } @else {
+      <p class="dialog-error">Das Bild konnte nicht erstellt werden.</p>
+    }
 
     <div class="actions-container">
-      <button mat-flat-button color="primary" (click)="downloadImage()" [disabled]="isLoading || !generatedImage">
-        <mat-icon>download</mat-icon>
-        Herunterladen
+      @if (canShareFiles) {
+        <button class="btn primary" (click)="shareAsFile()" [disabled]="isLoading || !generatedImage">
+          <mat-icon>ios_share</mat-icon>Teilen
+        </button>
+      }
+      <button class="btn" [class.primary]="!canShareFiles" (click)="downloadImage()" [disabled]="isLoading || !generatedImage">
+        <mat-icon>download</mat-icon>Speichern
       </button>
-      <button mat-dialog-close mat-stroked-button>
-        <mat-icon>close</mat-icon>
-        Schließen
-      </button>
+      <button class="btn" mat-dialog-close>Schließen</button>
     </div>
   </div>
 </div>

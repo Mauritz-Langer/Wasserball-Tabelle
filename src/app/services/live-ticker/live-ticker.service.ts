@@ -15,6 +15,9 @@ import { liveGameKey } from '../../models/game-ref';
  * Server methods: getAllGames, getGamePlan, getGameStats, getLeagueTable.
  * Server→client pushes: gameTime, addPlay, updatePlay, updateGame.
  */
+/** How often the list of games is re-read while connected. */
+const LIST_REFRESH_MS = 60_000;
+
 @Injectable({ providedIn: 'root' })
 export class LiveTickerService {
     private readonly base = '/live-api/signalr';
@@ -43,6 +46,18 @@ export class LiveTickerService {
     readonly liveNowKeys = computed(() =>
         new Set(this.liveGames().filter(g => this.statusOf(g) === 'live').map(g => liveGameKey(g))));
 
+    /** Ticker games by shared game key. */
+    readonly byKey = computed(() => new Map(this.liveGames().map(g => [liveGameKey(g), g])));
+
+    /** Current score of a ticker game as "h:g". */
+    scoreOf(game: LiveGame): string {
+        if (game.ScoreText && game.ScoreText.includes(':')) return game.ScoreText.replace(/\s+/g, '');
+        const valid = (n: any) => typeof n === 'number' && n >= 0 && n < 200;
+        const h = valid(game.HomeGoalsFinal) ? game.HomeGoalsFinal : (valid(game.HomeGoals) ? game.HomeGoals : 0);
+        const g = valid(game.GuestGoalsFinal) ? game.GuestGoalsFinal : (valid(game.GuestGoals) ? game.GuestGoals : 0);
+        return `${h}:${g}`;
+    }
+
     /**
      * Derive a game's status from the ticker's own fields (NOT `Active`, which
      * is always true, or `Period`, always 0 in the list). Shared by the live
@@ -59,9 +74,71 @@ export class LiveTickerService {
 
     private watchKey: string | null = null;
 
+    // ---- Shared connection lifetime ---------------------------------------
+    //
+    // Several views show live data (home, league hub, game centre, live list).
+    // Each one retains the connection while it is on screen; the connection is
+    // closed shortly after the last one lets go, and paused while the tab is
+    // hidden — every poll is a proxied request, so we never poll for nobody.
+
+    private holders = 0;
+    private releaseTimer: ReturnType<typeof setTimeout> | null = null;
+    private retryTimer: ReturnType<typeof setTimeout> | null = null;
+    private paused = false;
+
+    constructor() {
+        if (typeof document !== 'undefined') {
+            document.addEventListener('visibilitychange', () => this.onVisibility());
+        }
+    }
+
+    /** Keep the ticker connected while the caller is on screen. */
+    retain(): void {
+        this.holders++;
+        if (this.releaseTimer) { clearTimeout(this.releaseTimer); this.releaseTimer = null; }
+        if (!this.paused) this.connect();
+    }
+
+    /** Counterpart to `retain()`; disconnects once nobody is left. */
+    release(): void {
+        this.holders = Math.max(0, this.holders - 1);
+        if (this.holders > 0 || this.releaseTimer) return;
+        this.releaseTimer = setTimeout(() => {
+            this.releaseTimer = null;
+            if (this.holders === 0) this.disconnect();
+        }, 5000);
+    }
+
+    private onVisibility(): void {
+        if (document.hidden) {
+            if (this.running) { this.paused = true; this.teardown(); }
+        } else if (this.paused) {
+            this.paused = false;
+            if (this.holders > 0) this.resume();
+        }
+    }
+
+    /** Reconnect and pick the watched game up again. */
+    private async resume(): Promise<void> {
+        const key = this.watchKey;
+        await this.connect();
+        if (key && this.running) {
+            const game = this.findByKey(key);
+            if (game) await this.loadPlan(game);
+        }
+    }
+
+    private scheduleRetry(): void {
+        if (this.retryTimer || this.holders === 0) return;
+        this.retryTimer = setTimeout(() => {
+            this.retryTimer = null;
+            if (this.holders > 0 && !this.running && !this.paused) this.resume();
+        }, 15_000);
+    }
+
     /** Look up a ticker game by its shared game key. */
     findByKey(key: string): LiveGame | undefined {
-        return this.liveGames().find(g => liveGameKey(g) === key);
+        return this.byKey().get(key);
     }
 
     /** Connect (if needed) and watch the game with the given key, if present. */
@@ -79,7 +156,15 @@ export class LiveTickerService {
 
     /** Establish the connection (idempotent) and load the live games list. */
     async connect(): Promise<void> {
-        if (this.running || this.state() === 'connecting') return;
+        if (this.running) return;
+        if (this.connecting) return this.connecting;
+        this.connecting = this.open().finally(() => { this.connecting = null; });
+        return this.connecting;
+    }
+
+    private connecting: Promise<void> | null = null;
+
+    private async open(): Promise<void> {
         this.state.set('connecting');
         try {
             await this.negotiate();
@@ -91,7 +176,10 @@ export class LiveTickerService {
             await this.refreshGames();
         } catch (e) {
             console.error('Liveticker connect failed:', e);
+            this.running = false;
+            this.connectionToken = null;
             this.state.set('error');
+            this.scheduleRetry();
         }
     }
 
@@ -108,11 +196,16 @@ export class LiveTickerService {
         this.watchKey = this.keyOf(game);
         this.plays.set([]);
         this.clock.set('');
+        await this.loadPlan(game);
+    }
+
+    private async loadPlan(game: LiveGame): Promise<void> {
+        const key = this.keyOf(game);
         const plan = await this.invoke<LivePlay[]>('getGamePlan', [
             game.Season, game.LeagueID, game.Gruppe ?? '', game.LeagueKind, game.GameID,
             game.HomeRegID ?? '', game.HomeTeamID ?? 0, game.GuestRegID ?? '', game.GuestTeamID ?? 0
         ]);
-        if (Array.isArray(plan)) {
+        if (Array.isArray(plan) && this.watchKey === key) {
             // Newest first for display.
             this.plays.set([...plan].sort((a, b) => (b.Number ?? 0) - (a.Number ?? 0)));
         }
@@ -128,13 +221,23 @@ export class LiveTickerService {
 
     /** Tear down the connection entirely. */
     disconnect(): void {
+        this.teardown();
+        // Without a connection the list would go stale (a "live" badge for a
+        // game that has ended long ago): forget it.
+        this.liveGames.set([]);
+        this.paused = false;
+        if (this.retryTimer) { clearTimeout(this.retryTimer); this.retryTimer = null; }
+        this.unwatch();
+    }
+
+    /** Stop polling but keep the watched game and the last known data. */
+    private teardown(): void {
         this.running = false;
         this.pollAbort?.abort();
         this.pollAbort = null;
         this.connectionToken = null;
         this.messageId = null;
         this.state.set('idle');
-        this.unwatch();
     }
 
     // ---- SignalR 2.x longPolling transport ---------------------------------
@@ -159,6 +262,7 @@ export class LiveTickerService {
     /** Invoke a hub method and return its result (`R`). */
     private async invoke<T>(method: string, args: any[]): Promise<T | null> {
         if (!this.connectionToken) await this.connect();
+        if (!this.connectionToken) return null;
         const body = new URLSearchParams({
             data: JSON.stringify({ H: 'wbhub', M: method, A: args, I: this.invocationId++ })
         });
@@ -177,7 +281,18 @@ export class LiveTickerService {
     }
 
     private async pollLoop(): Promise<void> {
-        while (this.running) {
+        const token = this.connectionToken;
+        let failures = 0;
+        let listAt = Date.now();
+        // The loop belongs to one connection: it ends when that connection is
+        // torn down or replaced.
+        while (this.running && this.connectionToken === token) {
+            // The hub pushes changes of known games only: games added or
+            // removed later (rescheduled, test entries) need a fresh list.
+            if (Date.now() - listAt > LIST_REFRESH_MS) {
+                listAt = Date.now();
+                this.refreshGames().catch(() => { /* next round */ });
+            }
             this.pollAbort = new AbortController();
             // Abort before the serverless function times out, then re-poll with
             // the same cursor (no message loss — longPolling is cursor based).
@@ -188,16 +303,32 @@ export class LiveTickerService {
                     headers: { Accept: 'application/json' }
                 });
                 if (res.ok) {
+                    failures = 0;
                     const text = await res.text();
                     if (text) this.dispatchEnvelope(JSON.parse(text));
+                } else if (++failures >= 3) {
+                    // Token expired / server restarted: start over.
+                    this.reconnect(token);
+                    return;
+                } else {
+                    await this.delay(2000);
                 }
-            } catch {
-                // AbortError (our timeout) or transient network error — back off briefly.
-                if (this.running) await this.delay(1500);
+            } catch (e: any) {
+                // AbortError is our own timeout; anything else is a network error.
+                if (this.running && this.connectionToken === token) {
+                    if (e?.name !== 'AbortError' && ++failures >= 5) { this.reconnect(token); return; }
+                    await this.delay(1500);
+                }
             } finally {
                 clearTimeout(timer);
             }
         }
+    }
+
+    private reconnect(token: string | null): void {
+        if (this.connectionToken !== token) return;
+        this.teardown();
+        if (this.holders > 0 && !this.paused) this.resume().then(() => { if (!this.running) this.scheduleRetry(); });
     }
 
     /** Handle a SignalR message envelope: cursor `C` + messages `M`. */

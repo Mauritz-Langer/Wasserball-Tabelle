@@ -10,14 +10,14 @@ describe('ConsentService', () => {
     it('starts with no decision', () => {
         const service = TestBed.inject(ConsentService);
         expect(service.decision()).toBeNull();
-        expect(service.hasConsent).toBeFalse();
+        expect(service.hasConsent).toBe(false);
     });
 
     it('grants consent and persists it', () => {
         const service = TestBed.inject(ConsentService);
         service.accept();
         expect(service.decision()).toBe('granted');
-        expect(service.hasConsent).toBeTrue();
+        expect(service.hasConsent).toBe(true);
         expect(localStorage.getItem('analytics-consent')).toBe('granted');
     });
 
@@ -25,7 +25,7 @@ describe('ConsentService', () => {
         const service = TestBed.inject(ConsentService);
         service.decline();
         expect(service.decision()).toBe('denied');
-        expect(service.hasConsent).toBeFalse();
+        expect(service.hasConsent).toBe(false);
         expect(localStorage.getItem('analytics-consent')).toBe('denied');
     });
 

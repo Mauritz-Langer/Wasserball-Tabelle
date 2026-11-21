@@ -1,94 +1,98 @@
-<mat-toolbar class="app-header">
-  <div class="header-content">
-    <!-- Logo & Title Section (clickable -> home) -->
-    <button class="brand-section" (click)="goHome()" aria-label="Zur Startseite">
-      <div class="logo-container">
-        <mat-icon class="logo-icon">pool</mat-icon>
-        <div class="brand-text">
-          <span class="brand-title">Wasserball Live</span>
-        </div>
-      </div>
+<a class="skip-link" href="#inhalt">Zum Inhalt springen</a>
+
+<header class="bar">
+  <div class="bar-inner">
+    <button class="brand" (click)="goHome()" aria-label="Zur Startseite">
+      <img class="ball" src="favicon.svg" alt="" width="28" height="28">
+      <span class="brand-title">Wasserball</span>
     </button>
 
-    <!-- Primary nav (desktop) -->
-    <nav class="header-nav">
-      <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">
-        <mat-icon>home</mat-icon><span>Start</span>
-      </a>
-      <a routerLink="/live" routerLinkActive="active">
-        <mat-icon>bolt</mat-icon><span>Live</span>
-      </a>
-      <a routerLink="/analytics" routerLinkActive="active">
-        <mat-icon>insights</mat-icon><span>Statistik</span>
-      </a>
+    <nav class="top-nav" aria-label="Hauptnavigation">
+      @for (item of nav; track item.path) {
+        <a [routerLink]="item.path" routerLinkActive="active"
+          [routerLinkActiveOptions]="{ exact: !!item.exact }">
+          {{ item.label }}
+          @if (item.path === '/live' && liveCount() > 0) {
+            <span class="live-count num">{{ liveCount() }}</span>
+          }
+        </a>
+      }
     </nav>
 
-    <div class="spacer"></div>
+    <span class="spacer"></span>
 
-    <!-- Info Section -->
-    <div class="info-section">
-      <!-- Theme Toggle -->
-      <button mat-icon-button
-        class="theme-toggle-button"
-        [matTooltip]="getThemeTooltip()"
-        [attr.aria-label]="getThemeTooltip()"
-        (click)="toggleTheme()">
-        <mat-icon>{{ getThemeIcon() }}</mat-icon>
-      </button>
-
-      <!-- Favorites Counter -->
-      @if (favoritesCount > 0) {
-        <div class="info-item" matTooltip="Favorisierte Ligen">
-          <mat-icon class="info-icon">favorite</mat-icon>
-          <span class="info-text">{{ favoritesCount }}</span>
-        </div>
+    <button class="season-button" [class.archive]="!seasonService.isLive()" [matMenuTriggerFor]="seasonMenu"
+      aria-label="Saison wechseln">
+      <span class="num">{{ seasonService.getSeasonLabel() }}</span>
+      @if (!seasonService.isLive()) { <span class="archive-badge">Archiv</span> }
+      <mat-icon>expand_more</mat-icon>
+    </button>
+    <mat-menu #seasonMenu="matMenu" xPosition="before">
+      @for (season of seasonService.availableSeasons(); track season) {
+        <button mat-menu-item (click)="selectSeason(season)"
+          [class.active-season]="season === seasonService.currentSeason()">
+          <mat-icon>{{ season === seasonService.currentSeason() ? 'check' : '' }}</mat-icon>
+          <span>Saison {{ seasonService.getSeasonLabel(season) }}</span>
+          @if (seasonService.isLive(season)) { <span class="menu-live">aktuell</span> }
+        </button>
       }
+    </mat-menu>
 
-      <!-- Season Selector (available everywhere) -->
-      <button class="season-button" [matMenuTriggerFor]="seasonMenu"
-        matTooltip="Saison wechseln" aria-label="Saison wechseln">
-        <mat-icon class="info-icon">event</mat-icon>
-        <span class="info-text">{{ seasonService.getSeasonLabel() }}</span>
-        @if (seasonService.isLive()) {
-          <span class="live-badge">LIVE</span>
-        } @else {
-          <span class="archive-badge">ARCHIV</span>
-        }
-        <mat-icon class="caret">arrow_drop_down</mat-icon>
+    <button class="icon-btn" [matMenuTriggerFor]="moreMenu" aria-label="Weitere Optionen">
+      <mat-icon>more_vert</mat-icon>
+    </button>
+    <mat-menu #moreMenu="matMenu" xPosition="before">
+      <a mat-menu-item routerLink="/teams">
+        <mat-icon>star</mat-icon>
+        <span>Meine Teams</span>
+      </a>
+      <button mat-menu-item (click)="toggleTheme(); $event.stopPropagation()">
+        <mat-icon>{{ getThemeIcon() }}</mat-icon>
+        <span>Darstellung: {{ getThemeLabel() }}</span>
       </button>
-      <mat-menu #seasonMenu="matMenu">
-        @for (season of seasonService.availableSeasons(); track season) {
-          <button mat-menu-item (click)="selectSeason(season)"
-            [class.active-season]="season === seasonService.currentSeason()">
-            <mat-icon>{{ season === seasonService.currentSeason() ? 'check' : 'event' }}</mat-icon>
-            <span>Saison {{ season }}/{{ +season + 1 }}</span>
-            @if (seasonService.isLive(season)) { <span class="menu-live">LIVE</span> }
-          </button>
-        }
-      </mat-menu>
-
-      <!-- DSV Link -->
-      <button mat-icon-button
-        class="dsv-button"
-        matTooltip="DSV Website öffnen"
-        aria-label="DSV Website öffnen"
-        (click)="openDsvWebsite()">
+      @if (installPrompt()) {
+        <button mat-menu-item (click)="install()">
+          <mat-icon>install_mobile</mat-icon>
+          <span>App installieren</span>
+        </button>
+      }
+      <button mat-menu-item (click)="openDsvWebsite()">
         <mat-icon>open_in_new</mat-icon>
+        <span>DSV-Website</span>
       </button>
-    </div>
+      <a mat-menu-item routerLink="/datenschutz">
+        <mat-icon>privacy_tip</mat-icon>
+        <span>Datenschutz</span>
+      </a>
+    </mat-menu>
   </div>
-</mat-toolbar>
+</header>
+
+<!-- Archive season: make it obvious and offer the way back -->
+@if (!seasonService.isLive()) {
+  <div class="archive-strip">
+    <mat-icon>history</mat-icon>
+    <span>Archiv, Saison {{ seasonService.getSeasonLabel() }}</span>
+    <button (click)="backToLiveSeason()">Zur aktuellen Saison</button>
+  </div>
+}
+
+@if (offline()) {
+  <div class="offline-strip" role="status">
+    <mat-icon>cloud_off</mat-icon>
+    <span>Offline. Du siehst zuletzt geladene Daten.</span>
+  </div>
+}
 
 <!-- Archive database download overlay -->
 @if (databaseService.loading()) {
-  <div class="db-loading-overlay">
+  <div class="db-loading-overlay" role="status">
     <div class="db-loading-card">
-      <mat-icon class="db-loading-icon">cloud_download</mat-icon>
-      <h2 class="db-loading-title">Archiv wird geladen</h2>
-      <p class="db-loading-text">Historische Saison-Daten werden heruntergeladen…</p>
+      <h2>Archiv wird geladen</h2>
+      <p>Die Daten früherer Saisons werden einmalig heruntergeladen und danach auf dem Gerät gespeichert.</p>
       @if (databaseService.progress() >= 0) {
         <mat-progress-bar mode="determinate" [value]="databaseService.progress()" />
-        <span class="db-loading-percent">{{ databaseService.progress() }} %</span>
+        <span class="db-loading-percent num">{{ databaseService.progress() }} %</span>
       } @else {
         <mat-progress-bar mode="indeterminate" />
       }
@@ -96,37 +100,36 @@
   </div>
 }
 
-<main class="app-content" [@routeFade]="routeKey">
+<main class="app-content" id="inhalt" tabindex="-1">
   <router-outlet />
 </main>
 
 <!-- Bottom navigation (mobile) -->
-<nav class="bottom-nav">
-  <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" aria-label="Start">
-    <mat-icon>home</mat-icon><span>Start</span>
-  </a>
-  <a routerLink="/live" routerLinkActive="active" aria-label="Liveticker">
-    <mat-icon>bolt</mat-icon><span>Live</span>
-  </a>
-  <a routerLink="/analytics" routerLinkActive="active" aria-label="Statistik">
-    <mat-icon>insights</mat-icon><span>Statistik</span>
-  </a>
+<nav class="bottom-nav" aria-label="Hauptnavigation">
+  @for (item of nav; track item.path) {
+    <a [routerLink]="item.path" routerLinkActive="active"
+      [routerLinkActiveOptions]="{ exact: !!item.exact }" [attr.aria-label]="item.label">
+      <span class="nav-icon">
+        <mat-icon>{{ item.icon }}</mat-icon>
+        @if (item.path === '/live' && liveCount() > 0) {
+          <span class="live-count num">{{ liveCount() }}</span>
+        }
+      </span>
+      <span>{{ item.label }}</span>
+    </a>
+  }
 </nav>
 
 <!-- Cookie / analytics consent banner (GDPR) -->
 @if (consentService.decision() === null) {
-  <div class="consent-banner" role="dialog" aria-label="Einwilligung zu Analyse-Cookies">
-    <div class="consent-content">
-      <mat-icon class="consent-icon">privacy_tip</mat-icon>
-      <p class="consent-text">
-        Wir nutzen anonymisierte Analyse-Tools, um die App zu verbessern. Du
-        kannst selbst entscheiden, ob du das erlauben möchtest.
-        <a routerLink="/datenschutz">Mehr in der Datenschutzerklärung</a>.
-      </p>
-    </div>
+  <div class="consent-banner" role="dialog" aria-label="Einwilligung zur Nutzungsanalyse">
+    <p class="consent-text">
+      Dürfen wir anonym auswerten, wie die App genutzt wird? Das hilft, sie zu verbessern.
+      <a routerLink="/datenschutz">Datenschutz</a>
+    </p>
     <div class="consent-actions">
-      <button mat-stroked-button (click)="declineConsent()">Ablehnen</button>
-      <button mat-flat-button color="primary" (click)="acceptConsent()">Akzeptieren</button>
+      <button class="btn small" (click)="declineConsent()">Ablehnen</button>
+      <button class="btn small primary" (click)="acceptConsent()">Erlauben</button>
     </div>
   </div>
 }

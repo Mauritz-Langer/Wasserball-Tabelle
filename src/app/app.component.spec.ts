@@ -1,201 +1,96 @@
-import { TestBed } from '@angular/core/testing';
-import { signal } from '@angular/core';
-import { AppComponent } from './app.component';
-import { Router, NavigationEnd } from '@angular/router';
-import { FavoritesService } from './services/favorites/favorites.service';
-import { ThemeService } from './services/theme/theme.service';
-import { Subject, BehaviorSubject } from 'rxjs';
+import type { MockedObject } from "vitest";
+import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { AppComponent } from './app.component';
 import { SeasonService } from './services/season/season.service';
-import { DatabaseService } from './services/database/database.service';
+import { ThemeService } from './services/theme/theme.service';
+import { ConsentService } from './services/consent/consent.service';
+import { TrackingService } from './services/tracking/tracking.service';
+import { LiveTickerService } from './services/live-ticker/live-ticker.service';
+import { TickerStub } from './testing/ticker.stub';
 
 describe('AppComponent', () => {
-  let component: AppComponent;
-  let fixture: any;
-  let router: Router;
-  let favoritesService: jasmine.SpyObj<FavoritesService>;
-  let themeService: jasmine.SpyObj<ThemeService>;
-  let routerEventsSubject: Subject<any>;
-  let favoritesCountSubject: BehaviorSubject<number>;
+    let fixture: ComponentFixture<AppComponent>;
+    let component: AppComponent;
+    let tracking: MockedObject<TrackingService>;
+    let ticker: TickerStub;
 
-  beforeEach(async () => {
-    routerEventsSubject = new Subject();
-    favoritesCountSubject = new BehaviorSubject<number>(0);
-
-    const favoritesServiceSpy = jasmine.createSpyObj('FavoritesService', ['updateCount'], {
-      favoritesCount$: favoritesCountSubject.asObservable()
-    });
-
-    const themeServiceSpy = jasmine.createSpyObj('ThemeService', ['toggleTheme', 'isDarkMode'], {
-      currentTheme: jasmine.createSpy().and.returnValue('light'),
-      effectiveTheme: jasmine.createSpy().and.returnValue('light')
-    });
-
-    const seasonServiceSpy = jasmine.createSpyObj('SeasonService', ['getSeasonLabel', 'isLive', 'loadAvailableSeasons', 'setSeason'], {
-      currentSeason: jasmine.createSpy().and.returnValue('2025'),
-      availableSeasons: jasmine.createSpy().and.returnValue(['2025']),
-      seasonsLoaded: jasmine.createSpy().and.returnValue(false),
-      isCurrentSeason: true
-    });
-    seasonServiceSpy.getSeasonLabel.and.returnValue('2025/2026');
-    seasonServiceSpy.isLive.and.returnValue(true);
-    seasonServiceSpy.loadAvailableSeasons.and.returnValue(Promise.resolve());
-
-    await TestBed.configureTestingModule({
-      imports: [AppComponent, BrowserAnimationsModule],
-      providers: [
-        provideRouter([]),
-        { provide: FavoritesService, useValue: favoritesServiceSpy },
-        { provide: ThemeService, useValue: themeServiceSpy },
-        { provide: SeasonService, useValue: seasonServiceSpy },
-        { provide: DatabaseService, useValue: { loading: signal(false), progress: signal(0) } }
-      ]
-    }).compileComponents();
-
-    favoritesService = TestBed.inject(FavoritesService) as jasmine.SpyObj<FavoritesService>;
-    themeService = TestBed.inject(ThemeService) as jasmine.SpyObj<ThemeService>;
-    router = TestBed.inject(Router);
-
-    // Mock router events
-    Object.defineProperty(router, 'events', {
-      get: () => routerEventsSubject.asObservable()
-    });
-
-    // Mock window.open globally to prevent full page reloads in any test
-    spyOn(window, 'open');
-
-    fixture = TestBed.createComponent(AppComponent);
-    component = fixture.componentInstance;
-  });
-
-  it('should create the app', () => {
-    expect(component).toBeTruthy();
-  });
-
-  describe('ngOnInit', () => {
-    it('should subscribe to router events', () => {
-      fixture.detectChanges();
-
-      routerEventsSubject.next(new NavigationEnd(1, '/', '/'));
-      expect(component.isHomePage).toBe(true);
-
-      routerEventsSubject.next(new NavigationEnd(2, '/liga', '/liga'));
-      expect(component.isHomePage).toBe(false);
-    });
-
-    it('should subscribe to favorites count changes', () => {
-      fixture.detectChanges();
-
-      favoritesCountSubject.next(5);
-      expect(component.favoritesCount).toBe(5);
-
-      favoritesCountSubject.next(10);
-      expect(component.favoritesCount).toBe(10);
-    });
-
-    it('should have seasonService injected', () => {
-      fixture.detectChanges();
-
-      expect(component.seasonService).toBeTruthy();
-    });
-  });
-
-  describe('goHome', () => {
-    it('should navigate to home page', () => {
-      spyOn(router, 'navigate');
-
-      component.goHome();
-
-      expect(router.navigate).toHaveBeenCalledWith(['/']);
-    });
-  });
-
-  describe('openDsvWebsite', () => {
-    it('should open DSV website in new tab', () => {
-
-      component.openDsvWebsite();
-
-      expect(window.open).toHaveBeenCalledWith(
-        'https://dsvdaten.dsv.de/Modules/WB/Index.aspx',
-        '_blank'
-      );
-    });
-  });
-
-  describe('toggleTheme', () => {
-    it('should call theme service toggle', () => {
-      component.toggleTheme();
-
-      expect(themeService.toggleTheme).toHaveBeenCalled();
-    });
-  });
-
-  describe('getThemeIcon', () => {
-    it('should return light_mode icon when dark mode is active', () => {
-      themeService.isDarkMode.and.returnValue(true);
-
-      expect(component.getThemeIcon()).toBe('light_mode');
-    });
-
-    it('should return dark_mode icon when light mode is active', () => {
-      themeService.isDarkMode.and.returnValue(false);
-
-      expect(component.getThemeIcon()).toBe('dark_mode');
-    });
-  });
-
-  describe('getThemeTooltip', () => {
-    it('should return correct tooltip for dark mode', () => {
-      themeService.isDarkMode.and.returnValue(true);
-
-      expect(component.getThemeTooltip()).toBe('Light Mode aktivieren');
-    });
-
-    it('should return correct tooltip for light mode', () => {
-      themeService.isDarkMode.and.returnValue(false);
-
-      expect(component.getThemeTooltip()).toBe('Dark Mode aktivieren');
-    });
-  });
-
-  describe('Route Detection', () => {
     beforeEach(() => {
-      fixture.detectChanges();
+        localStorage.removeItem('analytics-consent');
+        localStorage.removeItem('app-theme');
+        tracking = {
+            init: vi.fn().mockName("TrackingService.init"),
+            track: vi.fn().mockName("TrackingService.track")
+        } as unknown as MockedObject<TrackingService>;
+        ticker = new TickerStub();
+        TestBed.configureTestingModule({
+            imports: [AppComponent],
+            providers: [
+                provideRouter([]), provideHttpClient(), provideHttpClientTesting(),
+                { provide: TrackingService, useValue: tracking },
+                { provide: LiveTickerService, useValue: ticker }
+            ]
+        });
+        fixture = TestBed.createComponent(AppComponent);
+        component = fixture.componentInstance;
+        fixture.detectChanges();
     });
 
-    it('should detect home page for root route', () => {
-      routerEventsSubject.next(new NavigationEnd(1, '/', '/'));
-      expect(component.isHomePage).toBe(true);
+    afterEach(() => {
+        localStorage.removeItem('analytics-consent');
+        localStorage.removeItem('app-theme');
     });
 
-    it('should detect home page for root with query params', () => {
-      routerEventsSubject.next(new NavigationEnd(1, '/?param=value', '/?param=value'));
-      expect(component.isHomePage).toBe(true);
+    it('renders top bar and bottom navigation with all four areas', () => {
+        const el: HTMLElement = fixture.nativeElement;
+        expect(el.querySelector('.brand-title')?.textContent).toContain('Wasserball');
+        const labels = Array.from(el.querySelectorAll('.bottom-nav a > span:last-child')).map(a => a.textContent?.trim());
+        expect(labels).toEqual(['Start', 'Ligen', 'Live', 'Statistik']);
     });
 
-    it('should detect non-home page for other routes', () => {
-      routerEventsSubject.next(new NavigationEnd(1, '/liga', '/liga'));
-      expect(component.isHomePage).toBe(false);
-
-      routerEventsSubject.next(new NavigationEnd(2, '/game-details', '/game-details'));
-      expect(component.isHomePage).toBe(false);
-    });
-  });
-
-  describe('Favorites Count Display', () => {
-    beforeEach(() => {
-      fixture.detectChanges();
+    it('does not track before consent and starts tracking on accept', () => {
+        expect(tracking.init).not.toHaveBeenCalled();
+        expect(fixture.nativeElement.querySelector('.consent-banner')).toBeTruthy();
+        component.acceptConsent();
+        fixture.detectChanges();
+        expect(tracking.init).toHaveBeenCalled();
+        expect(TestBed.inject(ConsentService).decision()).toBe('granted');
+        expect(fixture.nativeElement.querySelector('.consent-banner')).toBeNull();
     });
 
-    it('should update when favorites count changes', () => {
-      expect(component.favoritesCount).toBe(0);
-
-      favoritesCountSubject.next(3);
-      expect(component.favoritesCount).toBe(3);
-
-      favoritesCountSubject.next(7);
-      expect(component.favoritesCount).toBe(7);
+    it('remembers a declined consent', () => {
+        component.declineConsent();
+        expect(TestBed.inject(ConsentService).decision()).toBe('denied');
+        expect(tracking.init).not.toHaveBeenCalled();
     });
-  });
+
+    it('marks archive seasons and leads back to the live season', () => {
+        const seasons = TestBed.inject(SeasonService);
+        component.selectSeason('2015');
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('.archive-strip')).toBeTruthy();
+        component.backToLiveSeason();
+        fixture.detectChanges();
+        expect(seasons.isLive()).toBe(true);
+        expect(fixture.nativeElement.querySelector('.archive-strip')).toBeNull();
+    });
+
+    it('cycles the theme light, dark, system', () => {
+        const theme = TestBed.inject(ThemeService);
+        theme.setTheme('light');
+        component.toggleTheme();
+        expect(theme.currentTheme()).toBe('dark');
+        component.toggleTheme();
+        expect(theme.currentTheme()).toBe('auto');
+        expect(component.getThemeLabel()).toBe('Wie System');
+    });
+
+    it('shows the number of live games on the Live tab', () => {
+        expect(component.liveCount()).toBe(0);
+        ticker.liveGames.set([{ Season: 2026, LeagueID: 1, Gruppe: '', LeagueKind: 'V', GameID: 1, LiveShortText: '1:0' }]);
+        fixture.detectChanges();
+        expect(fixture.nativeElement.querySelector('.bottom-nav .live-count')?.textContent).toContain('1');
+    });
 });

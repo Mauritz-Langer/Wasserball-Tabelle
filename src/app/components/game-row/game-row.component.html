@@ -1,0 +1,42 @@
+@let g = game();
+@let s = score();
+<a class="game" [class.is-live]="live()" [class.no-link]="!g.gameLink"
+  [routerLink]="g.gameLink ? '/game-details' : null" [queryParams]="g.gameLink ? queryParams() : null"
+  [attr.aria-label]="label()">
+  <span class="when num">
+    @if (live()) {
+      <span class="tag live"><span class="pulse"></span>Live</span>
+    } @else {
+      <span class="when-top" [class.done]="played()">{{ whenTop() }}</span>
+      @if (whenSub()) { <span class="when-sub">{{ whenSub() }}</span> }
+    }
+  </span>
+
+  <span class="teams">
+    <span class="team" [class.lost]="played() && s && s[0] < s[1]">
+      @if (g.homeImageUrl || teamIndex.logoFor(g.home); as logo) {
+        <img class="logo" [attr.data-name]="g.home" [src]="logo" alt="" loading="lazy" decoding="async">
+      } @else {
+        <span class="logo-ph" aria-hidden="true">{{ initial(g.home) }}</span>
+      }
+      <span class="name">{{ g.home }}</span>
+      @if (homeFav()) { <mat-icon class="fav" aria-label="Lieblingsteam">star</mat-icon> }
+      @if (s) { <span class="goals num">{{ s[0] }}</span> }
+    </span>
+    <span class="team" [class.lost]="played() && s && s[1] < s[0]">
+      @if (g.guestImageUrl || teamIndex.logoFor(g.guest); as logo) {
+        <img class="logo" [attr.data-name]="g.guest" [src]="logo" alt="" loading="lazy" decoding="async">
+      } @else {
+        <span class="logo-ph" aria-hidden="true">{{ initial(g.guest) }}</span>
+      }
+      <span class="name">{{ g.guest }}</span>
+      @if (guestFav()) { <mat-icon class="fav" aria-label="Lieblingsteam">star</mat-icon> }
+      @if (s) { <span class="goals num">{{ s[1] }}</span> }
+    </span>
+    @if (context()) { <span class="context">{{ context() }}</span> }
+  </span>
+
+  @if (outcome()) {
+    <span class="form"><i [class]="outcome()">{{ outcome() === 'W' ? 'S' : outcome() === 'D' ? 'U' : 'N' }}</i></span>
+  }
+</a>

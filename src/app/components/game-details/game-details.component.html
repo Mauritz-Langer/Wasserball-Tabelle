@@ -1,683 +1,421 @@
-<div class="game-details-container">
-  <!-- Loading Spinner with Message -->
-  @if (isLoading) {
-    <div class="spinner-container">
-      <mat-spinner diameter="60" />
-      <p class="loading-text">Lade Spieldetails...</p>
+<div class="page">
+  <div class="page-head">
+    <button class="icon-btn back" (click)="goBack()" aria-label="Zurück">
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+    <div class="titles">
+      @if (details(); as d) {
+        @if (ligaParam()) {
+          <a class="crumb" routerLink="/liga" [queryParams]="{ param: ligaParam() }">{{ d.league }}</a>
+        } @else {
+          <span class="crumb">{{ d.league }}</span>
+        }
+      }
     </div>
-  }
-
-  <!-- Error Message -->
-  @if (error && !isLoading) {
-    <div class="error-container">
-      <mat-card>
-        <mat-card-content>
-          <p class="error-message">{{ error }}</p>
-          <button mat-raised-button color="primary" (click)="goBack()">
-            <mat-icon>arrow_back</mat-icon>
-            Zurück
+    @if (details()) {
+      <button class="icon-btn" (click)="shareGame()" aria-label="Spiel teilen">
+        <mat-icon>ios_share</mat-icon>
+      </button>
+      <button class="icon-btn" [matMenuTriggerFor]="gameMenu" aria-label="Weitere Aktionen">
+        <mat-icon>more_vert</mat-icon>
+      </button>
+      <mat-menu #gameMenu="matMenu" xPosition="before">
+        <button mat-menu-item (click)="refresh()" [disabled]="isRefreshing()">
+          <mat-icon>refresh</mat-icon><span>Aktualisieren</span>
+        </button>
+        @if (status() === 'upcoming' && startDate()) {
+          <button mat-menu-item (click)="addToCalendar()">
+            <mat-icon>event</mat-icon><span>In den Kalender</span>
           </button>
-        </mat-card-content>
-      </mat-card>
-    </div>
-  }
+        }
+        <button mat-menu-item (click)="openShareImageDialog()">
+          <mat-icon>image</mat-icon><span>{{ status() === 'upcoming' ? 'Ankündigung als Bild' : 'Ergebnis als Bild' }}</span>
+        </button>
+        @if (dsvUrl(); as url) {
+          <a mat-menu-item [href]="url" target="_blank" rel="noopener" (click)="trackLink('DSV Spielbericht')">
+            <mat-icon>open_in_new</mat-icon><span>Beim DSV ansehen</span>
+          </a>
+        }
+      </mat-menu>
+    }
+  </div>
 
-  <!-- Game Details Content -->
-  @if (gameDetails && !isLoading) {
-    <div class="content">
-      <!-- Header with Back Button -->
-      <div class="header-actions">
-        <button mat-icon-button (click)="goBack()" class="back-button">
-          <mat-icon>arrow_back</mat-icon>
-        </button>
-        <h1 class="page-title">Spieldetails</h1>
-        <button mat-icon-button (click)="shareGame()" class="share-button" title="Spiel teilen">
-          <mat-icon>share</mat-icon>
-        </button>
+  @if (isLoading()) {
+    <div class="skeleton board-skeleton" aria-busy="true" aria-label="Lade Spiel"></div>
+    <div class="skeleton-list">
+      @for (i of [1,2,3,4]; track i) { <div class="skeleton skeleton-line"></div> }
+    </div>
+  } @else if (error()) {
+    <div class="empty">
+      <mat-icon>cloud_off</mat-icon>
+      <h2>Spiel nicht verfügbar</h2>
+      <p>{{ error() }}</p>
+      @if (param()) { <button class="btn primary" (click)="retry()">Erneut laden</button> }
+      <button class="btn" (click)="goBack()">Zurück</button>
+    </div>
+  } @else if (details(); as d) {
+    <!-- ================= Scoreboard ================= -->
+    <h1 class="sr-only">
+      {{ d.homeTeam.name }} gegen {{ d.guestTeam.name }}@if (score(); as s) {, {{ s[0] }}:{{ s[1] }}}@if (status() === 'live') {, läuft}
+    </h1>
+    <header class="board" [class.is-live]="status() === 'live'">
+      <div class="board-teams">
+        <div class="board-team">
+          @if (d.homeTeam.logoUrl || teamIndex.logoFor(d.homeTeam.name); as logo) { <img class="board-logo" [attr.data-name]="d.homeTeam.name" [src]="logo" alt=""> }
+          @else { <span class="board-logo ph" aria-hidden="true">{{ initial(d.homeTeam.name) }}</span> }
+          @if (ligaParam()) {
+            <a class="board-name" routerLink="/team" [queryParams]="{ liga: ligaParam(), name: d.homeTeam.name }">{{ d.homeTeam.name }}</a>
+          } @else {
+            <span class="board-name">{{ d.homeTeam.name }}</span>
+          }
+          <span class="cap-mark"><span class="cap" aria-hidden="true"></span>Heim</span>
+        </div>
+
+        <div class="board-mid">
+          @if (score(); as s) {
+            <div class="board-score num" [attr.aria-label]="s[0] + ' zu ' + s[1]">
+              <span>{{ s[0] }}</span><span class="colon">:</span><span>{{ s[1] }}</span>
+            </div>
+          } @else {
+            <div class="board-vs">gegen</div>
+          }
+          @switch (status()) {
+            @case ('live') { <span class="tag live"><span class="pulse"></span>{{ clock() }}</span> }
+            @case ('finished') { <span class="board-state">Endstand</span> }
+          }
+        </div>
+
+        <div class="board-team">
+          @if (d.guestTeam.logoUrl || teamIndex.logoFor(d.guestTeam.name); as logo) { <img class="board-logo" [attr.data-name]="d.guestTeam.name" [src]="logo" alt=""> }
+          @else { <span class="board-logo ph" aria-hidden="true">{{ initial(d.guestTeam.name) }}</span> }
+          @if (ligaParam()) {
+            <a class="board-name" routerLink="/team" [queryParams]="{ liga: ligaParam(), name: d.guestTeam.name }">{{ d.guestTeam.name }}</a>
+          } @else {
+            <span class="board-name">{{ d.guestTeam.name }}</span>
+          }
+          <span class="cap-mark"><span class="cap guest" aria-hidden="true"></span>Gast</span>
+        </div>
       </div>
-      <!-- Game Header -->
-      <mat-card class="game-header-card mat-elevation-z4">
-        <mat-card-content>
-          <div class="game-header">
-            <!-- Home Team -->
-            <div class="team-section home-team">
-              @if (gameDetails.homeTeam.logoUrl && gameDetails.homeTeam.logoUrl.trim() !== '') {
-                <img [src]="gameDetails.homeTeam.logoUrl"
-                  [alt]="gameDetails.homeTeam.name"
-                  class="team-logo"
-                  >
-              }
-              <h2 class="team-name">{{ gameDetails.homeTeam.name }}</h2>
-              <span class="team-label">Heim</span>
-              @if (isGameFinished()) {
-                <div class="team-final-score home">{{ getFinalHomeScore() }}</div>
+
+      @if (quarters().length) {
+        <ol class="board-quarters num" aria-label="Viertelergebnisse">
+          @for (q of quarters(); track $index) { <li>{{ q }}</li> }
+        </ol>
+      }
+
+      <div class="lane-line" aria-hidden="true"></div>
+
+      <div class="board-foot">
+        <span>{{ whenLabel() }}</span>
+        @if (d.venue.poolName) { <span>{{ d.venue.poolName }}</span> }
+      </div>
+    </header>
+
+    @if (tickerOnly()) {
+      <div class="notice ticker-only" role="status">
+        <mat-icon>bolt</mat-icon>
+        <span class="grow">Die DSV-Spielseite ist gerade nicht erreichbar. Stand und Ereignisse kommen direkt aus dem Liveticker, Aufstellung und Statistik folgen später.</span>
+        <button class="btn small" (click)="retry()">Erneut laden</button>
+      </div>
+    }
+
+    @if (status() === 'upcoming') {
+      <div class="btn-row quick">
+        @if (startDate()) {
+          <button class="btn small" (click)="addToCalendar()"><mat-icon>event</mat-icon>In den Kalender</button>
+        }
+        @if (d.venue.googleMapsLink) {
+          <a class="btn small" [href]="d.venue.googleMapsLink" target="_blank" rel="noopener" (click)="trackLink('Google Maps')">
+            <mat-icon>directions</mat-icon>Anfahrt
+          </a>
+        }
+      </div>
+    }
+
+    @if (tabs().length > 1) {
+      <div class="tabs-sticky">
+        <div class="seg" role="tablist">
+          @for (t of tabs(); track t.id) {
+            <button role="tab" [class.on]="activeTab() === t.id" [attr.aria-selected]="activeTab() === t.id"
+              (click)="selectTab(t.id)">{{ t.label }}</button>
+          }
+        </div>
+      </div>
+    }
+
+    @switch (activeTab()) {
+      <!-- ================= Verlauf ================= -->
+      @case ('verlauf') {
+        @if (showLiveFeed()) {
+          <section class="section">
+            <div class="section-head"><h2>Liveticker</h2><span class="hint">Neuestes zuerst</span></div>
+            <div class="panel feed">
+              @for (e of livePlays(); track e.id) {
+                <div class="ev" [class.goal]="e.goal" [class.guest]="e.side === 'guest'" [class.retracted]="e.retracted">
+                  <span class="ev-time num">{{ e.period }}<br>{{ e.time }}</span>
+                  @if (e.side && e.cap) { <span class="cap" [class.guest]="e.side === 'guest'">{{ e.cap }}</span> }
+                  @else { <mat-icon class="ev-icon">{{ e.icon }}</mat-icon> }
+                  <span class="ev-body">
+                    <span class="ev-label">{{ e.label }}</span>
+                    @if (e.player) { <span class="ev-player">{{ e.player }}</span> }
+                  </span>
+                  @if (e.score) { <span class="ev-score num">{{ e.score }}</span> }
+                </div>
               }
             </div>
-            <!-- Score -->
-            <div class="score-section">
-              <div class="final-score-wrapper">
-                <div class="versus-label">VS</div>
-                <div class="game-status-badge" [class.finished]="isGameFinished()" [class.scheduled]="!isGameFinished()">
-                  {{ isGameFinished() ? 'Beendet' : 'Angesetzt' }}
-                </div>
-                @if (gameDetails.scoringSystem && gameDetails.scoringSystem.trim() !== '') {
-                  <div class="scoring-system-hint">
-                    {{ gameDetails.scoringSystem }}
+          </section>
+        } @else if (isLive()) {
+          <div class="empty">
+            <mat-icon>hourglass_top</mat-icon>
+            <h3>Das Spiel läuft</h3>
+            <p>Sobald die erste Aktion erfasst ist, erscheint sie hier.</p>
+          </div>
+        }
+
+        @if (!showLiveFeed() && leadChart(); as chart) {
+          <section class="section">
+            <div class="section-head"><h2>Führungsverlauf</h2></div>
+            <div class="panel panel-pad lead">
+              <div class="lead-legend">
+                <span><span class="cap" aria-hidden="true"></span>{{ d.homeTeam.name }} vorn</span>
+                <span><span class="cap guest" aria-hidden="true"></span>{{ d.guestTeam.name }} vorn</span>
+              </div>
+              <svg class="lead-svg" [attr.viewBox]="'0 0 ' + chart.width + ' ' + chart.height" preserveAspectRatio="none"
+                role="img" [attr.aria-label]="'Führungsverlauf, größter Vorsprung ' + chart.maxLead + ' Tore'">
+                <defs>
+                  <clipPath id="lead-top"><rect x="0" y="0" [attr.width]="chart.width" [attr.height]="chart.zero" /></clipPath>
+                  <clipPath id="lead-bottom"><rect x="0" [attr.y]="chart.zero" [attr.width]="chart.width" [attr.height]="chart.zero" /></clipPath>
+                </defs>
+                @for (q of chart.quarters; track q) {
+                  <line class="lead-q" [attr.x1]="q" [attr.x2]="q" y1="0" [attr.y2]="chart.height" />
+                }
+                <path class="lead-area home" clip-path="url(#lead-top)"
+                  [attr.d]="chart.path + ' L' + chart.width + ' ' + chart.zero + ' L0 ' + chart.zero + ' Z'" />
+                <path class="lead-area guest" clip-path="url(#lead-bottom)"
+                  [attr.d]="chart.path + ' L' + chart.width + ' ' + chart.zero + ' L0 ' + chart.zero + ' Z'" />
+                <line class="lead-zero" x1="0" [attr.x2]="chart.width" [attr.y1]="chart.zero" [attr.y2]="chart.zero" />
+                <path class="lead-line" [attr.d]="chart.path" />
+              </svg>
+              <div class="lead-axis num" aria-hidden="true"><span>1. V</span><span>2. V</span><span>3. V</span><span>4. V</span></div>
+            </div>
+          </section>
+        }
+
+        @if (!showLiveFeed()) {
+          @for (p of periods(); track p.period) {
+            <section class="section">
+              <div class="section-head">
+                <h2>{{ p.label }}</h2>
+                @if (p.score) { <span class="period-score num">{{ p.score }}</span> }
+              </div>
+              <div class="panel feed">
+                @for (e of p.events; track $index) {
+                  <div class="ev" [class.goal]="e.goal" [class.guest]="e.side === 'guest'">
+                    <span class="ev-time num">{{ e.time }}</span>
+                    @if (e.side && e.cap && e.cap !== '0') { <span class="cap" [class.guest]="e.side === 'guest'">{{ e.cap }}</span> }
+                    @else { <mat-icon class="ev-icon">{{ e.icon }}</mat-icon> }
+                    <span class="ev-body">
+                      <span class="ev-label">{{ e.label }}</span>
+                      @if (e.player) { <span class="ev-player">{{ e.player }}</span> }
+                    </span>
+                    @if (e.score) { <span class="ev-score num">{{ e.score }}</span> }
                   </div>
                 }
               </div>
-            </div>
-            <!-- Guest Team -->
-            <div class="team-section guest-team">
-              @if (gameDetails.guestTeam.logoUrl && gameDetails.guestTeam.logoUrl.trim() !== '') {
-                <img [src]="gameDetails.guestTeam.logoUrl"
-                  [alt]="gameDetails.guestTeam.name"
-                  class="team-logo"
-                  >
-              }
-              <h2 class="team-name">{{ gameDetails.guestTeam.name }}</h2>
-              <span class="team-label">Gast</span>
-              @if (isGameFinished()) {
-                <div class="team-final-score guest">{{ getFinalGuestScore() }}</div>
-              }
-            </div>
-          </div>
-          <!-- Quarter Scores - Outside game-header for better mobile layout -->
-          @if (gameDetails.quarterScores && gameDetails.quarterScores.length > 0) {
-            <div class="quarter-scores-enhanced">
-              @for (quarter of gameDetails.quarterScores; track quarter) {
-                <div class="quarter-score-item">
-                  <span class="quarter-label">Q{{ quarter.quarter }}</span>
-                  <span class="quarter-value">{{ quarter.home }}:{{ quarter.guest }}</span>
-                </div>
-              }
-            </div>
+            </section>
           }
-          <!-- Quick Actions Bar -->
-          <div class="quick-actions">
-            @if (gameDetails.venue.googleMapsLink) {
-              <button mat-stroked-button (click)="openGoogleMaps()">
-                <mat-icon>map</mat-icon>
-                Spielort
-              </button>
-            }
-            @if (gameDetails.videoLink) {
-              <button mat-stroked-button color="primary" (click)="openVideoLink()">
-                <mat-icon>play_circle</mat-icon>
-                Video
-              </button>
-            }
-            <button mat-stroked-button color="accent" (click)="openShareImageDialog()">
-              <mat-icon>photo_camera</mat-icon>
-              Share Pic
-            </button>
-          </div>
-        </mat-card-content>
-      </mat-card>
-      <!-- Game Info - Kompaktere Version -->
-      <mat-card class="info-card-compact">
-        <mat-card-content>
-          <div class="info-chips">
-            <div class="info-chip">
-              <mat-icon>event</mat-icon>
-              <span>{{ gameDetails.startDate }}</span>
-            </div>
-            <div class="info-chip">
-              <mat-icon>sports</mat-icon>
-              <span>{{ gameDetails.league }}</span>
-            </div>
-            @if (gameDetails.playKind && gameDetails.playKind.trim() !== '') {
-              <div class="info-chip">
-                <mat-icon>emoji_events</mat-icon>
-                <span>{{ gameDetails.playKind }}</span>
-              </div>
-            }
-            <div class="info-chip">
-              <mat-icon>place</mat-icon>
-              <span>{{ gameDetails.venue.poolName }}, {{ gameDetails.venue.poolCity }}</span>
-            </div>
-            @if (gameDetails.endGameTime && gameDetails.endGameTime.trim() !== '') {
-              <div class="info-chip">
-                <mat-icon>schedule</mat-icon>
-                <span>Ende: {{ gameDetails.endGameTime }}</span>
-              </div>
-            }
-            @if (gameDetails.organizer && gameDetails.organizer.trim() !== '') {
-              <div class="info-chip">
-                <mat-icon>groups</mat-icon>
-                <span>{{ gameDetails.organizer }}</span>
-              </div>
-            }
-          </div>
-        </mat-card-content>
-      </mat-card>
-      <!-- Tabs for different sections -->
-      @if (hasTeamDetails() || hasPlayerStats() || hasGameEvents() || hasStatistics()) {
-        <mat-tab-group class="details-tabs" (selectedIndexChange)="trackTabChange($event)">
-          <!-- Player Statistics Tab -->
-          @if (hasPlayerStats()) {
-            <mat-tab label="Spielerstatistik">
-              <div class="tab-content">
-                <div class="players-grid">
-                  <!-- Home Team Players -->
-                  @if (gameDetails.homeTeam.players && gameDetails.homeTeam.players.length > 0) {
-                    <mat-card class="players-card">
-                      <mat-card-header>
-                        <div class="team-header-with-logo">
-                          @if (gameDetails.homeTeam.logoUrl && gameDetails.homeTeam.logoUrl.trim() !== '') {
-                            <img [src]="gameDetails.homeTeam.logoUrl"
-                              [alt]="gameDetails.homeTeam.name"
-                              class="team-logo-small"
-                              >
-                          }
-                          <mat-card-title>{{ gameDetails.homeTeam.name }}</mat-card-title>
-                        </div>
-                      </mat-card-header>
-                      <mat-card-content>
-                        <!-- Team Stats Summary -->
-                        <div class="team-stats-summary">
-                          <div class="stat-badge">
-                            <span class="stat-value">{{ getTotalGoals(gameDetails.homeTeam.players) }}</span>
-                            <span class="stat-label">Tore</span>
-                          </div>
-                          <div class="stat-badge">
-                            <span class="stat-value">{{ getTopScorer(gameDetails.homeTeam.players)?.goals || 0 }}</span>
-                            <span class="stat-label">Top-Scorer</span>
-                          </div>
-                          <div class="stat-badge">
-                            <span class="stat-value">{{ getTotalFouls(gameDetails.homeTeam.players) }}</span>
-                            <span class="stat-label">Fouls</span>
-                          </div>
-                        </div>
-                        <div class="players-table-container">
-                          <table class="players-table">
-                            <thead>
-                              <tr>
-                                <th>Nr.</th>
-                                <th>Name / Vorname</th>
-                                <th>Jg.</th>
-                                <th>Tore</th>
-                                <th colspan="4" class="fouls-header">persönl. Fehler</th>
-                              </tr>
-                              <tr class="quarters-header">
-                                <th colspan="4"></th>
-                                <th>Q1</th>
-                                <th>Q2</th>
-                                <th>Q3</th>
-                                <th>Q4</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              @for (player of gameDetails.homeTeam.players; track player) {
-                                <tr
-                                  [class.top-scorer]="isTopScorer(player, gameDetails.homeTeam.players)"
-                                  [class.has-goals]="player.goals > 0">
-                                  <td class="player-number">{{ player.number }}</td>
-                                  <td class="player-name">
-                                    {{ player.name }}
-                                    @if (isTopScorer(player, gameDetails.homeTeam.players)) {
-                                      <mat-icon class="trophy-icon">emoji_events</mat-icon>
-                                    }
-                                  </td>
-                                  <td class="birth-year">{{ player.birthYear }}</td>
-                                  <td class="goals-cell">
-                                    @if (player.goals > 0) {
-                                      <span class="goals-badge">{{ player.goals }}</span>
-                                    }
-                                  </td>
-                                  @for (quarter of [1, 2, 3, 4]; track quarter) {
-                                    <td class="foul-cell">
-                                      @if (getFoulForQuarter(player.fouls, quarter)) {
-                                        <span class="foul-badge">
-                                          {{ getFoulForQuarter(player.fouls, quarter) }}
-                                        </span>
-                                      }
-                                    </td>
-                                  }
-                                </tr>
-                              }
-                            </tbody>
-                          </table>
-                        </div>
-                      </mat-card-content>
-                    </mat-card>
-                  }
-                  <!-- Guest Team Players -->
-                  @if (gameDetails.guestTeam.players && gameDetails.guestTeam.players.length > 0) {
-                    <mat-card class="players-card">
-                      <mat-card-header>
-                        <div class="team-header-with-logo">
-                          @if (gameDetails.guestTeam.logoUrl && gameDetails.guestTeam.logoUrl.trim() !== '') {
-                            <img [src]="gameDetails.guestTeam.logoUrl"
-                              [alt]="gameDetails.guestTeam.name"
-                              class="team-logo-small"
-                              >
-                          }
-                          <mat-card-title>{{ gameDetails.guestTeam.name }}</mat-card-title>
-                        </div>
-                      </mat-card-header>
-                      <mat-card-content>
-                        <!-- Team Stats Summary -->
-                        <div class="team-stats-summary">
-                          <div class="stat-badge">
-                            <span class="stat-value">{{ getTotalGoals(gameDetails.guestTeam.players) }}</span>
-                            <span class="stat-label">Tore</span>
-                          </div>
-                          <div class="stat-badge">
-                            <span class="stat-value">{{ getTopScorer(gameDetails.guestTeam.players)?.goals || 0 }}</span>
-                            <span class="stat-label">Top-Scorer</span>
-                          </div>
-                          <div class="stat-badge">
-                            <span class="stat-value">{{ getTotalFouls(gameDetails.guestTeam.players) }}</span>
-                            <span class="stat-label">Fouls</span>
-                          </div>
-                        </div>
-                        <div class="players-table-container">
-                          <table class="players-table">
-                            <thead>
-                              <tr>
-                                <th>Nr.</th>
-                                <th>Name / Vorname</th>
-                                <th>Jg.</th>
-                                <th>Tore</th>
-                                <th colspan="4" class="fouls-header">persönl. Fehler</th>
-                              </tr>
-                              <tr class="quarters-header">
-                                <th colspan="4"></th>
-                                <th>Q1</th>
-                                <th>Q2</th>
-                                <th>Q3</th>
-                                <th>Q4</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              @for (player of gameDetails.guestTeam.players; track player) {
-                                <tr
-                                  [class.top-scorer]="isTopScorer(player, gameDetails.guestTeam.players)"
-                                  [class.has-goals]="player.goals > 0">
-                                  <td class="player-number">{{ player.number }}</td>
-                                  <td class="player-name">
-                                    {{ player.name }}
-                                    @if (isTopScorer(player, gameDetails.guestTeam.players)) {
-                                      <mat-icon class="trophy-icon">emoji_events</mat-icon>
-                                    }
-                                  </td>
-                                  <td class="birth-year">{{ player.birthYear }}</td>
-                                  <td class="goals-cell">
-                                    @if (player.goals > 0) {
-                                      <span class="goals-badge">{{ player.goals }}</span>
-                                    }
-                                  </td>
-                                  @for (quarter of [1, 2, 3, 4]; track quarter) {
-                                    <td class="foul-cell">
-                                      @if (getFoulForQuarter(player.fouls, quarter)) {
-                                        <span class="foul-badge">
-                                          {{ getFoulForQuarter(player.fouls, quarter) }}
-                                        </span>
-                                      }
-                                    </td>
-                                  }
-                                </tr>
-                              }
-                            </tbody>
-                          </table>
-                        </div>
-                      </mat-card-content>
-                    </mat-card>
-                  }
-                  <!-- No data message -->
-                  @if (!gameDetails.homeTeam.players && !gameDetails.guestTeam.players) {
-                    <mat-card>
-                      <mat-card-content>
-                        <p class="no-data">Keine Spielerstatistiken verfügbar</p>
-                      </mat-card-content>
-                    </mat-card>
-                  }
-                </div>
-                <div class="foul-legend">
-                  <span class="foul-badge">S</span> Strafwurf
-                  <span class="foul-badge">A</span> Ausschluss
-                </div>
-              </div>
-            </mat-tab>
+          @if (periods().length > 0) {
+            <p class="legend">Die Uhr läuft in jedem Viertel rückwärts. Weiße Kappe: Heim, blaue Kappe: Gast.</p>
           }
-          <!-- Game Events Tab -->
-          @if (hasGameEvents()) {
-            <mat-tab label="Spielverlauf">
-              <div class="tab-content" (click)="closeAllEventPopups()">
-                <!-- Timeline Visualisierung -->
-                <mat-card class="timeline-card">
-                  <mat-card-content>
-                    <h3 class="timeline-title">
-                      <mat-icon>timeline</mat-icon>
-                      Spielverlauf Timeline
-                    </h3>
-                    <!-- Mobile Scroll-Hinweis -->
-                    <div class="timeline-scroll-hint">
-                      <mat-icon>swipe</mat-icon>
-                      <span>← Wische für Spielverlauf →</span>
-                    </div>
-                    <div class="game-timeline">
-                      <!-- Viertel-Markierungen -->
-                      <div class="timeline-quarters">
-                        @for (quarter of [1, 2, 3, 4]; track quarter) {
-                          <div class="quarter-marker">
-                            <span class="quarter-label">Q{{ quarter }}</span>
-                          </div>
-                        }
-                      </div>
-                      <!-- Timeline-Linie -->
-                      <div class="timeline-line">
-                        <!-- Viertel-Trennlinien -->
-                        @for (quarter of [1, 2, 3, 4]; track quarter) {
-                          <div class="quarter-divider" [style.left.%]="(quarter / 4) * 100"></div>
-                        }
-                        <!-- Events auf der Timeline -->
-                        @for (event of getAllEventsSorted(); track event; let i = $index) {
-                          <div class="timeline-event"
-                               [style.left.%]="getEventTimelinePosition(event)"
-                               [class.event-goal]="event.eventType === 'T' || event.eventType === 'Goal'"
-                               [class.event-penalty]="event.eventType === 'P' || event.eventType === 'Penalty'"
-                               [class.event-exclusion]="event.eventType === 'A' || event.eventType === 'Exclusion'"
-                               [class.active]="isEventActive(i)"
-                               [attr.title]="event.time + ' - ' + getEventTypeName(event.eventType) + (event.player ? ': ' + event.player : '')"
-                               (click)="toggleEventPopup(i, $event)">
-                            <mat-icon class="event-marker-icon">{{ getEventIcon(event.eventType) }}</mat-icon>
-                            <div class="event-popup" [class]="getPopupPositionClass(getEventTimelinePosition(event))">
-                              <div class="event-popup-time">{{ event.time }}</div>
-                              <div class="event-popup-type">{{ getEventTypeName(event.eventType) }}</div>
-                              @if (event.player) {
-                                <div class="event-popup-player">{{ event.player }}</div>
-                              }
-                              <div class="event-popup-score">{{ event.homeScore }}:{{ event.guestScore }}</div>
-                            </div>
-                          </div>
-                        }
-                      </div>
-                      <!-- Zeit-Markierungen (0, 8, 16, 24, 32 Min) -->
-                      <div class="timeline-time-labels">
-                        @for (time of [0, 8, 16, 24, 32]; track time) {
-                          <span class="time-label" [style.left.%]="(time / 32) * 100">{{ time }}'</span>
-                        }
-                      </div>
-                    </div>
-                  </mat-card-content>
-                </mat-card>
-                <!-- Bestehende Events-Accordion -->
-                <mat-card>
-                  <mat-card-content>
-                    @if (gameDetails.events.length > 0) {
-                      <div class="events-accordion">
-                        <!-- Gruppiere Events nach Viertel mit Expansion Panels -->
-                        <mat-accordion multi>
-                          @for (quarter of [1, 2, 3, 4]; track quarter) {
-                            @if (getEventsByQuarter(gameDetails.events, quarter).length > 0) {
-                              <mat-expansion-panel
-                                [expanded]="true">
-                                <mat-expansion-panel-header class="quarter-panel-header">
-                                  <mat-panel-title class="quarter-panel-title">
-                                    <mat-icon>sports</mat-icon>
-                                    <span class="quarter-title">{{ quarter }}. Viertel</span>
-                                    <span class="quarter-score-badge">
-                                      {{ getQuarterScoreByNumber(quarter)?.home || 0 }}:{{ getQuarterScoreByNumber(quarter)?.guest || 0 }}
-                                    </span>
-                                  </mat-panel-title>
-                                </mat-expansion-panel-header>
-                                <!-- Events für dieses Viertel -->
-                                <div class="events-list-quarter">
-                                  @for (event of getEventsByQuarter(gameDetails.events, quarter); track event) {
-                                    <div class="event-item">
-                                      <div class="event-time">
-                                        <span class="time">{{ event.time }}</span>
-                                      </div>
-                                      <div class="event-details">
-                                        <div class="event-score">{{ event.homeScore }}:{{ event.guestScore }}</div>
-                                        <div class="event-info">
-                                          <mat-icon class="event-icon">{{ getEventIcon(event.eventType) }}</mat-icon>
-                                          <span class="event-type-text">{{ getEventTypeName(event.eventType) }}</span>
-                                          @if (event.player) {
-                                            <span class="event-player">- {{ event.player }}</span>
-                                          }
-                                          @if (event.goalNumber) {
-                                            <span class="event-goal"> (Tor #{{ event.goalNumber }})</span>
-                                          }
-                                        </div>
-                                      </div>
-                                    </div>
-                                  }
-                                </div>
-                              </mat-expansion-panel>
-                            }
-                          }
-                        </mat-accordion>
-                      </div>
-                    } @else {
-                      <p class="no-data">Keine Ereignisse verfügbar</p>
-                    }
-                  </mat-card-content>
-                </mat-card>
-              </div>
-            </mat-tab>
-          }
-          <!-- Team Details Tab -->
-          @if (hasTeamDetails()) {
-            <mat-tab label="Teams">
-              <div class="tab-content">
-                <div class="teams-grid">
-                  <!-- Home Team Details -->
-                  <mat-card>
-                    <mat-card-header>
-                      <mat-card-title>{{ gameDetails.homeTeam.name }}</mat-card-title>
-                    </mat-card-header>
-                    <mat-card-content>
-                      <div class="team-details">
-                        @if (gameDetails.homeTeam.coach && gameDetails.homeTeam.coach.trim() !== '') {
-                          <div class="detail-item">
-                            <strong>Trainer:</strong> {{ gameDetails.homeTeam.coach }}
-                          </div>
-                        }
-                        @if (gameDetails.homeTeam.captain && gameDetails.homeTeam.captain.trim() !== '') {
-                          <div class="detail-item">
-                            <strong>Kapitän:</strong> {{ gameDetails.homeTeam.captain }}
-                          </div>
-                        }
-                        @if (gameDetails.homeTeam.teamLeader && gameDetails.homeTeam.teamLeader.trim() !== '') {
-                          <div class="detail-item">
-                            <strong>Mannschaftsleiter:</strong> {{ gameDetails.homeTeam.teamLeader }}
-                          </div>
-                        }
-                        @if (gameDetails.homeTeam.companionLeader && gameDetails.homeTeam.companionLeader.trim() !== '') {
-                          <div class="detail-item">
-                            <strong>Mannschaftsbegleiter:</strong> {{ gameDetails.homeTeam.companionLeader }}
-                          </div>
-                        }
-                        @if (gameDetails.homeTeam.assistant && gameDetails.homeTeam.assistant.trim() !== '') {
-                          <div class="detail-item">
-                            <strong>Betreuer:</strong> {{ gameDetails.homeTeam.assistant }}
-                          </div>
-                        }
-                        @if (gameDetails.homeTeam.bestPlayer && gameDetails.homeTeam.bestPlayer.trim() !== '') {
-                          <div class="detail-item highlight">
-                            <strong>Bester Spieler:</strong> {{ gameDetails.homeTeam.bestPlayer }}
-                          </div>
-                        }
-                      </div>
-                    </mat-card-content>
-                  </mat-card>
-                  <!-- Guest Team Details -->
-                  <mat-card>
-                    <mat-card-header>
-                      <mat-card-title>{{ gameDetails.guestTeam.name }}</mat-card-title>
-                    </mat-card-header>
-                    <mat-card-content>
-                      <div class="team-details">
-                        @if (gameDetails.guestTeam.coach && gameDetails.guestTeam.coach.trim() !== '') {
-                          <div class="detail-item">
-                            <strong>Trainer:</strong> {{ gameDetails.guestTeam.coach }}
-                          </div>
-                        }
-                        @if (gameDetails.guestTeam.captain && gameDetails.guestTeam.captain.trim() !== '') {
-                          <div class="detail-item">
-                            <strong>Kapitän:</strong> {{ gameDetails.guestTeam.captain }}
-                          </div>
-                        }
-                        @if (gameDetails.guestTeam.teamLeader && gameDetails.guestTeam.teamLeader.trim() !== '') {
-                          <div class="detail-item">
-                            <strong>Mannschaftsleiter:</strong> {{ gameDetails.guestTeam.teamLeader }}
-                          </div>
-                        }
-                        @if (gameDetails.guestTeam.companionLeader && gameDetails.guestTeam.companionLeader.trim() !== '') {
-                          <div class="detail-item">
-                            <strong>Mannschaftsbegleiter:</strong> {{ gameDetails.guestTeam.companionLeader }}
-                          </div>
-                        }
-                        @if (gameDetails.guestTeam.assistant && gameDetails.guestTeam.assistant.trim() !== '') {
-                          <div class="detail-item">
-                            <strong>Betreuer:</strong> {{ gameDetails.guestTeam.assistant }}
-                          </div>
-                        }
-                        @if (gameDetails.guestTeam.bestPlayer && gameDetails.guestTeam.bestPlayer.trim() !== '') {
-                          <div class="detail-item highlight">
-                            <strong>Bester Spieler:</strong> {{ gameDetails.guestTeam.bestPlayer }}
-                          </div>
-                        }
-                      </div>
-                    </mat-card-content>
-                  </mat-card>
-                </div>
-              </div>
-            </mat-tab>
-          }
-          <!-- Statistics Tab -->
-          @if (hasStatistics()) {
-            <mat-tab label="Statistiken">
-              <div class="tab-content">
-                <div class="stats-grid">
-                  <!-- Home Team Stats -->
-                  <mat-card>
-                    <mat-card-header>
-                      <mat-card-title>{{ gameDetails.statistics?.home?.label }}</mat-card-title>
-                    </mat-card-header>
-                    <mat-card-content>
-                      <div class="stats-list">
-                        @for (stat of gameDetails.statistics?.home?.data | keyvalue; track stat) {
-                          <div class="stat-item">
-                            <span class="stat-label">{{ stat.key }}:</span>
-                            <span class="stat-value">{{ stat.value }}</span>
-                          </div>
-                        }
-                      </div>
-                    </mat-card-content>
-                  </mat-card>
-                  <!-- Guest Team Stats -->
-                  <mat-card>
-                    <mat-card-header>
-                      <mat-card-title>{{ gameDetails.statistics?.guest?.label }}</mat-card-title>
-                    </mat-card-header>
-                    <mat-card-content>
-                      <div class="stats-list">
-                        @for (stat of gameDetails.statistics?.guest?.data | keyvalue; track stat) {
-                          <div class="stat-item">
-                            <span class="stat-label">{{ stat.key }}:</span>
-                            <span class="stat-value">{{ stat.value }}</span>
-                          </div>
-                        }
-                      </div>
-                    </mat-card-content>
-                  </mat-card>
-                </div>
-              </div>
-            </mat-tab>
-          }
-        </mat-tab-group>
+        }
       }
-      <!-- No tabs available message -->
-      @if (!hasTeamDetails() && !hasPlayerStats() && !hasGameEvents() && !hasStatistics()) {
-        <div class="no-tabs-container">
-          <mat-card class="no-tabs-card">
-            <mat-card-content>
-              <div class="no-data-message">
-                <mat-icon class="no-data-icon">info</mat-icon>
-                <h2>Keine weiteren Informationen</h2>
-                <p>Für dieses Spiel sind derzeit keine zusätzlichen Details verfügbar.</p>
+
+      <!-- ================= Aufstellung ================= -->
+      @case ('aufstellung') {
+        <div class="seg side-switch">
+          <button [class.on]="lineupSide() === 'home'" (click)="lineupSide.set('home')">{{ d.homeTeam.name }}</button>
+          <button [class.on]="lineupSide() === 'guest'" (click)="lineupSide.set('guest')">{{ d.guestTeam.name }}</button>
+        </div>
+        <div class="lineups">
+          @for (team of [d.homeTeam, d.guestTeam]; track $index; let guest = $odd) {
+            <section class="lineup" [class.hidden-narrow]="(lineupSide() === 'guest') !== guest">
+              <div class="section-head">
+                <h2>{{ team.name }}</h2>
+                @if (status() !== 'upcoming') { <span class="hint num">{{ goalsOf(team) }} Tore</span> }
               </div>
-            </mat-card-content>
-          </mat-card>
+              @if (team.players?.length) {
+                <div class="panel rows">
+                  @for (pl of team.players; track pl.number + pl.name) {
+                    <div class="player">
+                      <span class="cap" [class.guest]="guest" [class.keeper]="isKeeper(pl.number)">{{ pl.number }}</span>
+                      <span class="player-name">
+                        {{ pl.name }}
+                        @if (pl.birthYear) { <span class="year num">{{ pl.birthYear }}</span> }
+                      </span>
+                      @if (pl.fouls.length) {
+                        <span class="fouls" [attr.aria-label]="foulText(pl)" [title]="foulText(pl)">
+                          @for (f of pl.fouls; track $index) { <i [class.penalty]="f.foulType === 'S'">{{ f.foulType }}</i> }
+                        </span>
+                      }
+                      @if (status() !== 'upcoming') {
+                        <span class="player-goals num" [class.none]="!pl.goals">{{ pl.goals || '' }}</span>
+                      }
+                    </div>
+                  }
+                </div>
+              } @else {
+                <p class="muted">Keine Aufstellung gemeldet.</p>
+              }
+              @if (staff(team).length) {
+                <dl class="staff">
+                  @for (s of staff(team); track s.role) {
+                    <div><dt>{{ s.role }}</dt><dd>{{ s.name }}</dd></div>
+                  }
+                </dl>
+              }
+            </section>
+          }
+        </div>
+        @if (status() === 'upcoming') {
+          <p class="legend">Gemeldeter Kader. Rote Kappe: Torwart.</p>
+        } @else {
+          <p class="legend">Rechts stehen die Tore. A Ausschluss, S Strafwurf (persönliche Fehler). Rote Kappe: Torwart.</p>
+        }
+      }
+
+      <!-- ================= Vergleich ================= -->
+      @case ('vergleich') {
+        @if (compareRows().length > 0) {
+          <section class="section">
+            <div class="section-head"><h2>Dieses Spiel</h2></div>
+            <div class="panel panel-pad compare">
+              @for (row of compareRows(); track row.label) {
+                <div class="cmp">
+                  <span class="cmp-val num">{{ row.home }}</span>
+                  <span class="cmp-label">{{ row.label }}</span>
+                  <span class="cmp-val num">{{ row.guest }}</span>
+                  <span class="cmp-bar" aria-hidden="true"><i [style.width.%]="row.homeShare"></i></span>
+                </div>
+              }
+            </div>
+          </section>
+        }
+
+        @if (topScorers().length > 0) {
+          <section class="section">
+            <div class="section-head"><h2>Beste Torschützen</h2></div>
+            <div class="panel rows">
+              @for (pl of topScorers(); track pl.side + pl.number + pl.name) {
+                <div class="player">
+                  <span class="cap" [class.guest]="pl.side === 'guest'">{{ pl.number }}</span>
+                  <span class="player-name">{{ pl.name }}</span>
+                  <span class="player-goals num">{{ pl.goals }}</span>
+                </div>
+              }
+            </div>
+          </section>
+        }
+
+        @if (teamContext(); as ctx) {
+          <section class="section">
+            <div class="section-head">
+              <h2>In der Liga</h2>
+              <a class="more" routerLink="/liga" [queryParams]="{ param: ligaParam(), tab: 'tabelle' }">Tabelle</a>
+            </div>
+            <div class="panel league-ctx">
+              @for (t of [ctx.home, ctx.guest]; track t.name) {
+                <a class="ctx-team" routerLink="/team" [queryParams]="{ liga: ligaParam(), name: t.name }">
+                  <span class="ctx-name">{{ t.name }}</span>
+                  @if (t.place !== null) {
+                    <span class="ctx-place num">{{ t.place }}.<small> Platz, {{ t.points }} Pkt</small></span>
+                    <span class="ctx-line num">Bilanz {{ t.record }}</span>
+                  }
+                  <span class="ctx-line num">Ø {{ t.goals }} Tore pro Spiel</span>
+                  @if (t.form.length) {
+                    <span class="form" aria-label="Form, neuestes Spiel zuerst">
+                      @for (o of t.form; track $index) { <i [class]="o">{{ formLabel(o) }}</i> }
+                    </span>
+                  }
+                </a>
+              }
+            </div>
+          </section>
+        }
+
+        @if (meetings().length > 0) {
+          <section class="section">
+            <div class="section-head"><h2>Weitere Duelle dieser Saison</h2></div>
+            <div class="panel rows">
+              @for (g of meetings(); track g.gameLink || g.start) {
+                <app-game-row [game]="g" [ligaParam]="ligaParam()" [showDate]="true" />
+              }
+            </div>
+          </section>
+        }
+      }
+
+      <!-- ================= Infos ================= -->
+      @case ('info') {
+        <section class="section">
+          <div class="panel">
+            <dl class="facts">
+              @if (d.startDate) { <div><dt>Anpfiff</dt><dd>{{ d.startDate }}</dd></div> }
+              @if (d.endGameTime) { <div><dt>Spielende</dt><dd>{{ d.endGameTime }}</dd></div> }
+              @if (d.venue.poolName || d.venue.poolCity) {
+                <div>
+                  <dt>Bad</dt>
+                  <dd>
+                    {{ d.venue.poolName }}@if (d.venue.poolName && d.venue.poolCity) {<br>}{{ d.venue.poolCity }}
+                    @if (d.venue.googleMapsLink) {
+                      <a class="inline-link" [href]="d.venue.googleMapsLink" target="_blank" rel="noopener" (click)="trackLink('Google Maps')">Anfahrt öffnen</a>
+                    }
+                  </dd>
+                </div>
+              }
+              @if (d.league) { <div><dt>Wettbewerb</dt><dd>{{ d.league }}@if (d.playKind) {, {{ d.playKind }}}</dd></div> }
+              @if (d.gameId) { <div><dt>Spielnummer</dt><dd class="num">{{ d.gameId }}</dd></div> }
+              @if (d.organizer) { <div><dt>Ausrichter</dt><dd>{{ d.organizer }}</dd></div> }
+              @if (d.scoringSystem) { <div><dt>Wertung</dt><dd>{{ d.scoringSystem }}</dd></div> }
+            </dl>
+          </div>
+        </section>
+
+        @if (officials().length > 0) {
+          <section class="section">
+            <div class="section-head"><h2>Kampfgericht</h2></div>
+            <div class="panel">
+              <dl class="facts">
+                @for (o of officials(); track o.role + o.name) { <div><dt>{{ o.role }}</dt><dd>{{ o.name }}</dd></div> }
+              </dl>
+            </div>
+          </section>
+        }
+
+        @if (d.notes) {
+          <section class="section">
+            <div class="section-head"><h2>Bemerkungen</h2></div>
+            <div class="panel panel-pad notes">{{ d.notes }}</div>
+          </section>
+        }
+
+        <div class="btn-row links">
+          @if (d.videoLink) {
+            <a class="btn small" [href]="d.videoLink" target="_blank" rel="noopener" (click)="trackLink('Video')">
+              <mat-icon>play_circle</mat-icon>Video ansehen
+            </a>
+          }
+          @if (d.protocolLink) {
+            <a class="btn small" [href]="d.protocolLink" target="_blank" rel="noopener" (click)="trackLink('Protokoll')">
+              <mat-icon>description</mat-icon>Protokoll (PDF)
+            </a>
+          }
+          @if (dsvUrl(); as url) {
+            <a class="btn small" [href]="url" target="_blank" rel="noopener" (click)="trackLink('DSV Spielbericht')">
+              <mat-icon>open_in_new</mat-icon>Originalbericht beim DSV
+            </a>
+          }
         </div>
       }
-      <!-- Notes -->
-      @if (gameDetails.notes) {
-        <mat-card class="notes-card">
-          <mat-card-header>
-            <mat-card-title>Anmerkungen</mat-card-title>
-          </mat-card-header>
-          <mat-card-content>
-            <p>{{ gameDetails.notes }}</p>
-          </mat-card-content>
-        </mat-card>
-      }
-      <!-- Officials Section (always visible if data available) -->
-      @if (hasOfficials()) {
-        <mat-card class="officials-card">
-          <mat-card-header>
-            <mat-card-title>Offizielle</mat-card-title>
-          </mat-card-header>
-          <mat-card-content>
-            <div class="officials-grid">
-              @if (gameDetails.officials.referee1) {
-                <div class="official-item">
-                  <strong>1. Schiedsrichter:</strong> {{ gameDetails.officials.referee1 }}
-                </div>
-              }
-              @if (gameDetails.officials.referee2) {
-                <div class="official-item">
-                  <strong>2. Schiedsrichter:</strong> {{ gameDetails.officials.referee2 }}
-                </div>
-              }
-              @if (gameDetails.officials.timekeeper1) {
-                <div class="official-item">
-                  <strong>1. Zeitnehmer:</strong> {{ gameDetails.officials.timekeeper1 }}
-                </div>
-              }
-              @if (gameDetails.officials.timekeeper2) {
-                <div class="official-item">
-                  <strong>2. Zeitnehmer:</strong> {{ gameDetails.officials.timekeeper2 }}
-                </div>
-              }
-              @if (gameDetails.officials.secretary1) {
-                <div class="official-item">
-                  <strong>1. Sekretär:</strong> {{ gameDetails.officials.secretary1 }}
-                </div>
-              }
-              @if (gameDetails.officials.secretary2) {
-                <div class="official-item">
-                  <strong>2. Sekretär:</strong> {{ gameDetails.officials.secretary2 }}
-                </div>
-              }
-              @if (gameDetails.officials.goalJudge1) {
-                <div class="official-item">
-                  <strong>1. Torrichter:</strong> {{ gameDetails.officials.goalJudge1 }}
-                </div>
-              }
-              @if (gameDetails.officials.goalJudge2) {
-                <div class="official-item">
-                  <strong>2. Torrichter:</strong> {{ gameDetails.officials.goalJudge2 }}
-                </div>
-              }
-              @if (gameDetails.officials.observer1) {
-                <div class="official-item">
-                  <strong>1. Beobachter:</strong> {{ gameDetails.officials.observer1 }}
-                </div>
-              }
-              @if (gameDetails.officials.observer2) {
-                <div class="official-item">
-                  <strong>2. Beobachter:</strong> {{ gameDetails.officials.observer2 }}
-                </div>
-              }
-            </div>
-          </mat-card-content>
-        </mat-card>
-      }
-    </div>
+    }
   }
 </div>

@@ -1,0 +1,202 @@
+<div class="page">
+  @if (!seasonService.isLive()) {
+    <!-- Archive season: the feed only exists for the running season -->
+    <div class="page-head"><div class="titles"><h1>Saison {{ seasonService.getSeasonLabel() }}</h1></div></div>
+    <div class="panel panel-pad archive">
+      <p>Du blätterst im Archiv. Tabellen, Ergebnisse und Spielberichte dieser Saison findest du bei den Ligen.</p>
+      <div class="btn-row">
+        <a class="btn primary" routerLink="/ligen">Ligen der Saison</a>
+        <a class="btn" routerLink="/analytics">Statistik</a>
+      </div>
+    </div>
+  } @else {
+    @if (hasFollows()) { <h1 class="sr-only">Startseite: deine Teams und Ligen</h1> }
+    <!-- Live right now -->
+    @if (liveNow().length > 0) {
+      <section class="section">
+        <div class="section-head">
+          <h2 class="live-title"><span class="pulse"></span>Jetzt im Wasser</h2>
+          @if (liveTotal() > liveNow().length) { <a class="more" routerLink="/live">Alle {{ liveTotal() }}</a> }
+        </div>
+        <div class="panel rows">
+          @for (f of liveNow(); track f.game.gameLink) {
+            <app-game-row [game]="f.game" [ligaParam]="f.ligaParam" [context]="f.league" />
+          }
+        </div>
+      </section>
+    }
+
+    @if (!hasFollows()) {
+      <!-- First visit -->
+      <section class="welcome">
+        <h1>Dein Wasserball, auf einen Blick</h1>
+        <p>Folge deinem Team oder deiner Liga. Dann stehen die nächsten Spiele, Ergebnisse und Live-Stände hier auf der Startseite.</p>
+        <div class="lane-line" aria-hidden="true"></div>
+        <div class="btn-row">
+          <a class="btn primary-light" routerLink="/teams" [queryParams]="{ von: 'start' }"><mat-icon>star</mat-icon>Team folgen</a>
+          <a class="btn ghost" routerLink="/ligen"><mat-icon>search</mat-icon>Liga suchen</a>
+        </div>
+      </section>
+
+      @if (suggestions().length > 0) {
+        <section class="section">
+          <div class="section-head">
+            <h2>Zum Einstieg</h2>
+            <a class="more" routerLink="/ligen">Alle Ligen</a>
+          </div>
+          <div class="panel rows">
+            @for (s of suggestions(); track s.link) {
+              <div class="league">
+                <a class="row" routerLink="/liga" [queryParams]="{ param: s.link }">
+                  <span class="grow">
+                    <span class="title">{{ s.name }}</span>
+                    @if (s.status) { <span class="meta">{{ s.status }}</span> }
+                  </span>
+                </a>
+                <button class="icon-btn" (click)="follow(s)" [attr.aria-label]="s.name + ' merken'">
+                  <mat-icon>star_border</mat-icon>
+                </button>
+              </div>
+            }
+          </div>
+        </section>
+      }
+    } @else {
+      <!-- Followed teams: one tap to the team, one to add more -->
+      <section class="section my-teams">
+        <div class="section-head">
+          <h2>Meine Teams</h2>
+          @if (teamChips().length) { <a class="more" routerLink="/teams">Verwalten</a> }
+        </div>
+        <div class="chips team-chips">
+          @for (t of teamChips(); track t.name) {
+            <a class="team-chip" routerLink="/team" [queryParams]="{ liga: t.liga, name: t.name }">
+              @if (t.logo || teamIndex.logoFor(t.name); as logo) { <img class="logo" [src]="logo" [attr.data-name]="t.name" alt=""> }
+              @else { <span class="logo-ph" aria-hidden="true">{{ initial(t.name) }}</span> }
+              <span class="chip-text">
+                <span class="chip-name">{{ t.name }}</span>
+                @if (t.when) { <span class="chip-when">{{ t.when }}</span> }
+              </span>
+            </a>
+          }
+          <a class="team-chip add" routerLink="/teams" [queryParams]="{ von: 'start' }">
+            <mat-icon>add</mat-icon>
+            <span class="chip-name">{{ teamChips().length ? 'Weiteres Team' : 'Team folgen' }}</span>
+          </a>
+        </div>
+      </section>
+
+      @if (isLoading()) {
+        <div class="skeleton spotlight-skeleton" aria-busy="true" aria-label="Lade deine Spiele"></div>
+        <div class="skeleton-list">
+          @for (i of [1,2,3]; track i) { <div class="skeleton skeleton-line"></div> }
+        </div>
+      } @else {
+        <!-- The next game, large -->
+        @if (spotlight(); as s) {
+          <a class="spotlight" routerLink="/game-details"
+            [queryParams]="{ param: s.game.gameLink, ligaParam: s.ligaParam }" [class.no-link]="!s.game.gameLink">
+            <span class="spot-top">
+              <span class="spot-label">{{ teamMode() ? 'Dein nächstes Spiel' : 'Nächstes Spiel' }}</span>
+              @if (spotlightLive()) {
+                <span class="tag live"><span class="pulse"></span>Live</span>
+              } @else {
+                <span class="spot-when">{{ spotlightWhen() }}</span>
+              }
+            </span>
+            <span class="spot-teams">
+              <span class="spot-team">
+                @if (s.game.homeImageUrl || teamIndex.logoFor(s.game.home); as logo) { <img class="spot-logo" [attr.data-name]="s.game.home" [src]="logo" alt=""> }
+                @else { <span class="spot-logo ph" aria-hidden="true">{{ initial(s.game.home) }}</span> }
+                <span class="spot-name">{{ s.game.home }}</span>
+              </span>
+              <span class="spot-mid num">
+                @if (spotlightLive(); as score) { {{ score[0] }}:{{ score[1] }} } @else { – }
+              </span>
+              <span class="spot-team">
+                @if (s.game.guestImageUrl || teamIndex.logoFor(s.game.guest); as logo) { <img class="spot-logo" [attr.data-name]="s.game.guest" [src]="logo" alt=""> }
+                @else { <span class="spot-logo ph" aria-hidden="true">{{ initial(s.game.guest) }}</span> }
+                <span class="spot-name">{{ s.game.guest }}</span>
+              </span>
+            </span>
+            <span class="lane-line" aria-hidden="true"></span>
+            <span class="spot-foot">
+              <span>{{ s.league }}</span>
+              @if (s.game.location) { <span>{{ s.game.location }}</span> }
+            </span>
+          </a>
+        }
+
+        @if (furtherUpcoming().length > 0) {
+          <section class="section">
+            <div class="section-head"><h2>{{ teamMode() ? 'Danach für deine Teams' : 'Danach' }}</h2></div>
+            <div class="panel rows">
+              @for (f of furtherUpcoming(); track f.game.gameLink || f.game.start + f.game.home) {
+                <app-game-row [game]="f.game" [ligaParam]="f.ligaParam" [showDate]="true" [context]="f.league" />
+              }
+            </div>
+          </section>
+        }
+
+        @if (results().length > 0) {
+          <section class="section">
+            <div class="section-head"><h2>Letzte Ergebnisse</h2></div>
+            <div class="panel rows">
+              @for (f of results(); track f.game.gameLink || f.game.start + f.game.home) {
+                <app-game-row [game]="f.game" [ligaParam]="f.ligaParam" [showDate]="true" [context]="f.league" />
+              }
+            </div>
+          </section>
+        }
+
+        @if (!spotlight() && results().length === 0) {
+          <div class="empty">
+            <mat-icon>event_busy</mat-icon>
+            <h2>Noch keine Spiele angesetzt</h2>
+            <p>Für deine Ligen und Teams hat der DSV aktuell keine Spiele veröffentlicht.</p>
+          </div>
+        }
+      }
+
+      @if (myLeagues().length > 0) {
+        <section class="section">
+          <div class="section-head">
+            <h2>Meine Ligen</h2>
+            <a class="more" routerLink="/ligen">Bearbeiten</a>
+          </div>
+          <div class="panel rows">
+            @for (l of myLeagues(); track l.ref.name) {
+              <a class="row" routerLink="/liga" [queryParams]="{ param: l.ref.link }">
+                <span class="grow">
+                  <span class="title">{{ l.ref.name }}</span>
+                  @if (l.leader) { <span class="meta">{{ l.leader }}</span> }
+                </span>
+                <mat-icon class="chev">chevron_right</mat-icon>
+              </a>
+            }
+          </div>
+        </section>
+      }
+    }
+
+    @if (recent().length > 0) {
+      <section class="section">
+        <div class="section-head"><h2>Zuletzt angesehen</h2></div>
+        <div class="panel rows">
+          @for (r of recent(); track r.name) {
+            <a class="row" routerLink="/liga" [queryParams]="{ param: r.link }">
+              <span class="grow"><span class="title">{{ r.name }}</span></span>
+              <mat-icon class="chev">chevron_right</mat-icon>
+            </a>
+          }
+        </div>
+      </section>
+    }
+
+    <nav class="shortcuts" aria-label="Weitere Bereiche">
+      <a class="btn" routerLink="/ligen"><mat-icon>emoji_events</mat-icon>Alle Ligen</a>
+      <a class="btn" routerLink="/live"><mat-icon>bolt</mat-icon>Liveticker</a>
+      <a class="btn" routerLink="/analytics"><mat-icon>insights</mat-icon>Statistik</a>
+    </nav>
+  }
+</div>

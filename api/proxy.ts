@@ -58,8 +58,13 @@ export default async function handler(request: Request) {
   }
 
   try {
-    // Construct the target URL with query parameters
-    const targetUrl = `https://dsvdaten.dsv.de${targetPath}${url.search}`;
+    // Forward the caller's query, minus the routing parameter of the rewrite.
+    const query = new URLSearchParams(url.search);
+    query.delete('path');
+    const search = query.toString();
+    const targetUrl = `https://dsvdaten.dsv.de${targetPath}${search ? '?' + search : ''}`;
+    // Club logos (LogoHandler.ashx) practically never change.
+    const isLogo = /LogoHandler\.ashx$/i.test(targetPath);
 
     // Forward the request to the target server
     const response = await fetch(targetUrl, {
@@ -73,14 +78,22 @@ export default async function handler(request: Request) {
       },
     });
 
-    // Get the response body
-    const body = await response.text();
-
     // Return the response with CORS headers
-    return new Response(body, {
+    // Let Vercel's edge cache absorb repeat requests: every visitor of a
+    // league shares one upstream fetch per 30 s, and a stale copy is served
+    // instantly while it refreshes in the background. Errors are never cached.
+    const cacheControl = !response.ok
+      ? 'no-store'
+      : isLogo
+        ? 'public, max-age=86400, s-maxage=604800, stale-while-revalidate=2592000'
+        : 'public, max-age=0, s-maxage=30, stale-while-revalidate=120';
+
+    // Stream the body through untouched: pages are text, logos are binary.
+    return new Response(response.body, {
       status: response.status,
       headers: {
         'Content-Type': response.headers.get('Content-Type') || 'text/html; charset=utf-8',
+        'Cache-Control': cacheControl,
         ...corsHeaders(request),
       },
     });

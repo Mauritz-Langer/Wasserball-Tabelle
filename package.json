@@ -8,7 +8,10 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "scrape": "node scripts/scrape-seasons.js",
-    "slim-db": "node scripts/slim-db.js"
+    "slim-db": "node scripts/slim-db.js",
+    "update-archive": "node scripts/update-archive.js",
+    "build-archive": "node scripts/build-archive.js",
+    "data": "node scripts/scrape-seasons.js && node scripts/slim-db.js && node scripts/build-archive.js"
   },
   "private": true,
   "browser": {
@@ -17,42 +20,35 @@
     "crypto": false
   },
   "dependencies": {
-    "@amplitude/unified": "^1.0.0-beta.30",
-    "@angular/animations": "^20.3.12",
-    "@angular/cdk": "^20.2.13",
-    "@angular/common": "^20.3.12",
-    "@angular/compiler": "^20.3.12",
-    "@angular/core": "^20.3.12",
-    "@angular/forms": "^20.3.12",
-    "@angular/material": "^20.2.13",
-    "@angular/platform-browser": "^20.3.12",
-    "@angular/platform-browser-dynamic": "^20.3.12",
-    "@angular/router": "^20.3.12",
-    "@angular/service-worker": "^20.3.12",
-    "chart.js": "^4.5.1",
+    "@amplitude/unified": "^1.2.3",
+    "@angular/cdk": "^22.3.0",
+    "@angular/common": "^22.2.6",
+    "@angular/compiler": "^22.2.6",
+    "@angular/core": "^22.2.6",
+    "@angular/forms": "^22.2.6",
+    "@angular/material": "^22.3.0",
+    "@angular/platform-browser": "^22.2.6",
+    "@angular/router": "^22.2.6",
+    "@angular/service-worker": "^22.2.6",
     "html2canvas": "^1.4.1",
-    "ng2-charts": "^8.0.0",
-    "rxjs": "~7.8.0",
-    "sql.js": "^1.13.0",
-    "tslib": "^2.3.0",
-    "zone.js": "~0.15.1"
+    "rxjs": "^7.8.2",
+    "sql.js": "^1.16.0",
+    "tslib": "^2.9.1",
+    "zone.js": "^0.16.3"
   },
   "devDependencies": {
-    "@angular-devkit/build-angular": "^20.3.10",
-    "@angular/cli": "^20.3.10",
-    "@angular/compiler-cli": "^20.3.12",
-    "@types/jasmine": "~5.1.15",
-    "@types/sql.js": "^1.4.9",
-    "axios": "^1.13.4",
-    "better-sqlite3": "^12.6.2",
-    "fs-extra": "^11.3.3",
-    "jasmine-core": "~5.13.0",
-    "jsdom": "^28.0.0",
-    "karma": "~6.4.0",
-    "karma-chrome-launcher": "~3.2.0",
-    "karma-coverage": "~2.2.0",
-    "karma-jasmine": "~5.1.0",
-    "karma-jasmine-html-reporter": "~2.1.0",
-    "typescript": "5.9.3"
+    "@angular/build": "^22.2.7",
+    "@angular/cli": "^22.2.7",
+    "@angular/compiler-cli": "^22.2.6",
+    "@types/sql.js": "^1.4.11",
+    "axios": "^1.21.1",
+    "better-sqlite3": "^13.2.0",
+    "fs-extra": "^11.4.1",
+    "jsdom": "^31.0.1",
+    "typescript": "6.0.3",
+    "vitest": "^5.1.1"
+  },
+  "engines": {
+    "node": ">=24.15.0"
   }
 }

@@ -1,543 +1,258 @@
-<div class="liga-container">
-  <!-- Loading Spinner -->
-  @if (isLoading) {
-    <div class="skeleton-list" aria-busy="true" aria-label="Lade Liga-Daten">
-      <div class="skeleton skeleton-line title"></div>
-      @for (i of [1,2,3,4,5,6,7,8]; track i) {
+<div class="page">
+  <div class="page-head">
+    <button class="icon-btn back" (click)="goBack()" aria-label="Zurück">
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+    <div class="titles">
+      @if (isLoading()) {
+        <div class="skeleton skeleton-line title"></div>
+      } @else {
+        <h1>{{ leagueName() || 'Liga' }}</h1>
+        <span class="sub">Saison {{ seasonService.getSeasonLabel() }}</span>
+      }
+    </div>
+    @if (data()) {
+      <!-- Following only makes sense for the running season -->
+      @if (seasonService.isLive()) {
+        <button class="follow" [class.on]="isFavorite()" (click)="toggleFavorite()" [attr.aria-pressed]="isFavorite()"
+          [attr.aria-label]="isFavorite() ? 'Liga nicht mehr folgen' : 'Liga folgen'">
+          <mat-icon>{{ isFavorite() ? 'star' : 'star_border' }}</mat-icon>
+          <span class="follow-text">{{ isFavorite() ? 'Folge ich' : 'Folgen' }}</span>
+        </button>
+      }
+      <button class="icon-btn" [matMenuTriggerFor]="leagueMenu" aria-label="Weitere Aktionen">
+        <mat-icon>more_vert</mat-icon>
+      </button>
+      <mat-menu #leagueMenu="matMenu" xPosition="before">
+        @if (seasonService.isLive()) {
+          <button mat-menu-item (click)="refresh()" [disabled]="isRefreshing()">
+            <mat-icon>refresh</mat-icon><span>Aktualisieren</span>
+          </button>
+        }
+        @if (upcomingCount() > 0) {
+          <button mat-menu-item (click)="exportCalendar()">
+            <mat-icon>event</mat-icon>
+            <span>{{ teamFilter() ? 'Spiele des Teams in den Kalender' : 'Spielplan in den Kalender' }}</span>
+          </button>
+        }
+        @if (seasonService.isLive()) {
+          <a mat-menu-item routerLink="/teams" [queryParams]="{ liga: param() }">
+            <mat-icon>star</mat-icon><span>Teams dieser Liga folgen</span>
+          </a>
+        }
+        <button mat-menu-item (click)="share()">
+          <mat-icon>ios_share</mat-icon><span>Liga teilen</span>
+        </button>
+        @if (dsvUrl(); as url) {
+          <a mat-menu-item [href]="url" target="_blank" rel="noopener">
+            <mat-icon>open_in_new</mat-icon><span>Beim DSV ansehen</span>
+          </a>
+        }
+      </mat-menu>
+    }
+  </div>
+
+  @if (isLoading()) {
+    <div class="skeleton-list" aria-busy="true" aria-label="Lade Liga">
+      <div class="skeleton skeleton-line short"></div>
+      @for (i of [1,2,3,4,5,6,7]; track i) {
         <div class="skeleton skeleton-line"></div>
       }
     </div>
-  }
+  } @else if (failed()) {
+    <div class="empty">
+      <mat-icon>cloud_off</mat-icon>
+      <h2>Liga nicht erreichbar</h2>
+      <p>Die Daten konnten nicht geladen werden. Prüfe deine Verbindung und versuche es noch einmal.</p>
+      @if (param()) { <button class="btn primary" (click)="retry()">Erneut laden</button> }
+      <a class="btn" routerLink="/ligen">Alle Ligen</a>
+    </div>
+  } @else if (!activeTab()) {
+    <div class="empty">
+      <mat-icon>event_busy</mat-icon>
+      <h2>Noch keine Daten</h2>
+      <p>Für diese Liga hat der DSV bisher weder Spiele noch eine Tabelle veröffentlicht.</p>
+      <a class="btn" routerLink="/ligen">Alle Ligen</a>
+    </div>
+  } @else {
+    @if (liveCount() > 0) {
+      <button class="live-banner" (click)="selectTab('spiele'); setView('alle')">
+        <span class="pulse"></span>
+        {{ liveCount() === 1 ? '1 Spiel läuft gerade' : liveCount() + ' Spiele laufen gerade' }}
+      </button>
+    }
 
-  <!-- Liga Content -->
-  @if (!isLoading) {
-    <div class="content">
-      <!-- Header with Back Button -->
-      <div class="header-actions">
-        <button mat-icon-button routerLink="/" class="back-button" aria-label="Zurück zur Übersicht">
-          <mat-icon>arrow_back</mat-icon>
-        </button>
-        <div class="header-title-group">
-          <h1 class="page-title">{{ ligaName }}</h1>
-          <span class="season-subtitle">
-            Saison {{ seasonService.getSeasonLabel() }}
-            @if (seasonService.isLive()) {
-              <span class="live-indicator">● LIVE</span>
-            } @else {
-              <span class="archive-indicator">ARCHIV</span>
-            }
-          </span>
+    @if (tabs().length > 1) {
+      <div class="tabs-sticky">
+        <div class="seg" role="tablist">
+          @for (t of tabs(); track t.id) {
+            <button role="tab" [class.on]="activeTab() === t.id" [attr.aria-selected]="activeTab() === t.id"
+              (click)="selectTab(t.id)">{{ t.label }}</button>
+          }
         </div>
-        @if (seasonService.isLive()) {
-          <button mat-icon-button class="refresh-button" (click)="refresh()"
-            [disabled]="isRefreshing"
-            matTooltip="Aktualisieren" aria-label="Live-Daten aktualisieren">
-            <mat-icon [class.spinning]="isRefreshing">refresh</mat-icon>
+      </div>
+    }
+
+    @switch (activeTab()) {
+      <!-- ============ Spiele ============ -->
+      @case ('spiele') {
+        <div class="chips" role="group" aria-label="Spiele filtern">
+          <button class="chip" [class.on]="view() === 'alle'" (click)="setView('alle')">Alle</button>
+          @if (upcomingCount() > 0 && playedCount() > 0) {
+            <button class="chip" [class.on]="view() === 'kommend'" (click)="setView('kommend')">Kommende</button>
+            <button class="chip" [class.on]="view() === 'ergebnisse'" (click)="setView('ergebnisse')">Ergebnisse</button>
+          }
+          @if (hasFavoriteTeams()) {
+            <button class="chip" [class.on]="view() === 'meine'" (click)="setView('meine')">
+              <mat-icon>star</mat-icon>Meine Teams
+            </button>
+          }
+          <select class="select" [ngModel]="teamFilter()" (ngModelChange)="setTeamFilter($event)"
+            aria-label="Nach Team filtern">
+            <option value="">Alle Teams</option>
+            @for (team of teams(); track team) { <option [value]="team">{{ team }}</option> }
+          </select>
+        </div>
+
+        @if (teamFilter()) {
+          <div class="team-hint">
+            <span>Nur Spiele von <strong>{{ teamFilter() }}</strong></span>
+            <a class="more" routerLink="/team" [queryParams]="{ liga: param(), name: teamFilter() }">Zum Team</a>
+          </div>
+        }
+
+        @if (nextGroupKey(); as key) {
+          <button class="jump" (click)="scrollToDay(key)">
+            <mat-icon>south</mat-icon>Zum nächsten Spieltag
           </button>
         }
-      </div>
-      <!-- Archive Banner for historical data -->
-      @if (!seasonService.isLive()) {
-        <div class="archive-banner">
-          <mat-icon>history</mat-icon>
-          <span>Historische Daten – Spiellinks und Kalender-Export sind für Archiv-Saisons nicht verfügbar.</span>
-        </div>
-      }
-      <!-- Live banner: games of this league currently being played -->
-      @if (liveCount > 0) {
-        <button class="live-banner" routerLink="/live" aria-label="Zum Liveticker">
-          <span class="pulse"></span>
-          <mat-icon>bolt</mat-icon>
-          <span>{{ liveCount }} {{ liveCount === 1 ? 'Spiel läuft' : 'Spiele laufen' }} gerade live</span>
-          <mat-icon class="chev">chevron_right</mat-icon>
-        </button>
-      }
-      <!-- Tabs -->
-      @if (dataSourceGames.data.length > 0 || dataSourceTable.data.length > 0 || dataSourceScorer.data.length > 0) {
-        <mat-tab-group class="liga-tabs" [selectedIndex]="activeTabIndex" (selectedIndexChange)="onTabChange($event)">
-          <!-- Spiele Tab -->
-          @if (dataSourceGames.data.length > 0) {
-            <mat-tab>
-              <ng-template mat-tab-label>
-                <mat-icon class="tab-icon">sports_soccer</mat-icon>
-                Spiele
-              </ng-template>
-              <div class="tab-content">
-                <!-- Next game of a favourite team -->
-                @if (nextFavoriteGame; as ng) {
-                <mat-card class="next-favorite-card" (click)="navigateToGameDetails(ng)">
-                  <mat-card-content>
-                    <mat-icon class="next-fav-icon">star</mat-icon>
-                    <div class="next-fav-text">
-                      <span class="next-fav-label">Nächstes Spiel deines Teams</span>
-                      <span class="next-fav-teams">{{ ng.home }} – {{ ng.guest }}</span>
-                      <span class="next-fav-when">{{ ng.start }}</span>
-                    </div>
-                    <mat-icon>chevron_right</mat-icon>
-                  </mat-card-content>
-                </mat-card>
-                }
-                <!-- Calendar Export Button (nur für Live-Saison) -->
-                @if (seasonService.isLive()) {
-                <mat-card class="export-card">
-                  <mat-card-content>
-                    <button mat-raised-button color="primary" (click)="downloadCalendar()">
-                      <mat-icon>calendar_month</mat-icon>
-                      Spielplan exportieren
-                    </button>
-                    <span class="export-hint">Exportiere alle zukünftigen Spiele in deinen Kalender</span>
-                  </mat-card-content>
-                </mat-card>
-                }
-                <!-- Filter -->
-                <mat-card class="filter-card">
-                  <mat-card-content>
-                    <mat-form-field appearance="outline" class="search-field">
-                      <mat-label>Spiele durchsuchen</mat-label>
-                      <input matInput [(ngModel)]="gamesFilter" (ngModelChange)="onGamesFilterChange()" placeholder="Team, Ort..." autocomplete="off">
-                      <mat-icon matPrefix>search</mat-icon>
-                      @if (gamesFilter) {
-                        <button mat-icon-button matSuffix (click)="clearGamesFilter()" aria-label="Suche leeren">
-                          <mat-icon>close</mat-icon>
-                        </button>
-                      }
-                    </mat-form-field>
-                  </mat-card-content>
-                </mat-card>
-                <!-- Games by Matchday -->
-                <div class="matchdays-container">
-                  @for (matchday of getMatchdays(); track matchday) {
-                    <div class="matchday-section" [class.past-matchday]="isMatchdayInPast(matchday)">
-                      <!-- Matchday Header -->
-                      <div class="matchday-header">
-                        <mat-icon class="calendar-icon">calendar_today</mat-icon>
-                        <h3 class="matchday-title">{{ matchday }}</h3>
-                        <span class="matchday-badge">
-                          {{ getGamesForMatchday(matchday).length }}
-                          {{ getGamesForMatchday(matchday).length === 1 ? 'Spiel' : 'Spiele' }}
-                        </span>
-                      </div>
-                      <!-- Games Grid for this Matchday -->
-                      <div class="games-grid">
-                        @for (game of getGamesForMatchday(matchday); track game.start) {
-                          <mat-card
-                            class="game-card mat-elevation-z2"
-                            [class.past-game]="checkEventInPast(game.start)"
-                            [class.clickable]="game.gameLink"
-                            [attr.role]="game.gameLink ? 'button' : null"
-                            [attr.tabindex]="game.gameLink ? 0 : null"
-                            [attr.aria-label]="game.gameLink ? ('Spieldetails: ' + game.home + ' gegen ' + game.guest) : null"
-                            [class.fav-game]="involvesFavorite(game)"
-                            [ngClass]="favResultClass(game)"
-                            (keyup.enter)="navigateToGameDetails(game)"
-                            (click)="navigateToGameDetails(game)">
-                            <mat-card-content>
-                              <!-- Time -->
-                              <div class="game-header">
-                                <div class="game-time">
-                                  <mat-icon>schedule</mat-icon>
-                                  <span>{{ game.start.split(',')[1]?.trim() ?? game.start }}</span>
-                                </div>
-                                @if (involvesFavorite(game)) {
-                                  <mat-icon class="fav-flag" matTooltip="Lieblingsteam">star</mat-icon>
-                                }
-                                <div class="game-status">
-                                  @if (isGameLive(game)) {
-                                    <button class="badge live-badge" (click)="openLive(game, $event)"
-                                      matTooltip="Im Liveticker verfolgen" aria-label="Im Liveticker verfolgen">
-                                      <span class="pulse"></span>LIVE
-                                    </button>
-                                  } @else if (isPlayed(game)) {
-                                    <span class="badge done">Beendet</span>
-                                  } @else {
-                                    <span class="badge pending">Ausstehend</span>
-                                  }
-                                </div>
-                              </div>
-                              <!-- Teams -->
-                              <div class="game-teams">
-                                <div class="team home-team">
-                                  @if (game.homeImageUrl && game.homeImageUrl.trim() !== '') {
-                                    <img [src]="game.homeImageUrl"
-                                      alt="{{ game.home }}" class="team-logo-game">
-                                  }
-                                  <span class="team-name">{{ game.home }}</span>
-                                </div>
-                                <div class="game-score">
-                                  @if (isPlayed(game)) {
-                                    <span class="score-display">{{ game.result }}</span>
-                                  } @else {
-                                    <span class="score-display score-pending">vs</span>
-                                  }
-                                </div>
-                                <div class="team guest-team">
-                                  <span class="team-name">{{ game.guest }}</span>
-                                  @if (game.guestImageUrl && game.guestImageUrl.trim() !== '') {
-                                    <img [src]="game.guestImageUrl"
-                                      alt="{{ game.guest }}" class="team-logo-game">
-                                  }
-                                </div>
-                              </div>
-                              <!-- Location -->
-                              @if (game.location && game.location.trim() !== '') {
-                                <div class="game-footer">
-                                  <mat-icon class="location-icon">place</mat-icon>
-                                  <span class="location-text" (click)="navigateToMapsLink(game, $event)">
-                                    {{ game.location }}
-                                  </span>
-                                </div>
-                              }
-                            </mat-card-content>
-                          </mat-card>
-                        }
-                      </div>
-                    </div>
-                  }
-                  @empty {
-                  <div class="no-data-message">
-                    <mat-icon>info</mat-icon>
-                    <p>Keine Spiele gefunden</p>
-                  </div>
-                }
-              </div>
-            </div>
-          </mat-tab>
-        }
-        <!-- Tabelle Tab -->
-        @if (dataSourceTable.data.length > 0) {
-          <mat-tab>
-            <ng-template mat-tab-label>
-              <mat-icon class="tab-icon">leaderboard</mat-icon>
-              Tabelle
-            </ng-template>
-            <div class="tab-content">
-              <mat-card class="table-card">
-                <mat-card-content>
-                  <!-- Mobile Scroll Hint -->
-                  <div class="mobile-scroll-hint">
-                    <mat-icon>swipe</mat-icon>
-                    <span>Wische für mehr Daten</span>
-                  </div>
-                  <!-- Scroll Progress Indicator -->
-                  <div class="scroll-progress">
-                    <div class="progress-bar"></div>
-                  </div>
-                  <div class="table-container" #tableContainer>
-                    <table mat-table [dataSource]="dataSourceTable" matSort multiTemplateDataRows class="standings-table">
-                      <ng-container matColumnDef="place">
-                        <th mat-header-cell *matHeaderCellDef mat-sort-header>#</th>
-                        <td mat-cell *matCellDef="let element">
-                          <div class="place-badge" [class.place-1]="element.place === 1"
-                            [class.place-2]="element.place === 2"
-                            [class.place-3]="element.place === 3">
-                            {{ element.place }}
-                          </div>
-                        </td>
-                      </ng-container>
-                      <ng-container matColumnDef="image">
-                        <th mat-header-cell *matHeaderCellDef></th>
-                        <td mat-cell *matCellDef="let element">
-                          @if (element.imageUrl && element.imageUrl.trim() !== '') {
-                            <img [src]="element.imageUrl"
-                              alt="{{ element.team }}" class="team-logo">
-                          }
-                        </td>
-                      </ng-container>
-                      <ng-container matColumnDef="team">
-                        <th mat-header-cell *matHeaderCellDef mat-sort-header>Team</th>
-                        <td mat-cell *matCellDef="let element" class="team-cell">
-                          <div class="team-name-wrapper">
-                            <span class="team-name">{{ element.team }}</span>
-                            @if (element.info && element.info.trim() !== '') {
-                              <span class="team-info">{{ element.info }}</span>
-                            }
-                          </div>
-                        </td>
-                      </ng-container>
-                      <ng-container matColumnDef="games">
-                        <th mat-header-cell *matHeaderCellDef mat-sort-header>Sp</th>
-                        <td mat-cell *matCellDef="let element">{{ element.games }}</td>
-                      </ng-container>
-                      <ng-container matColumnDef="wins">
-                        <th mat-header-cell *matHeaderCellDef mat-sort-header>S</th>
-                        <td mat-cell *matCellDef="let element" class="stat-win">{{ element.wins }}</td>
-                      </ng-container>
-                      <ng-container matColumnDef="draws">
-                        <th mat-header-cell *matHeaderCellDef mat-sort-header>U</th>
-                        <td mat-cell *matCellDef="let element" class="stat-draw">{{ element.draws }}</td>
-                      </ng-container>
-                      <ng-container matColumnDef="losses">
-                        <th mat-header-cell *matHeaderCellDef mat-sort-header>N</th>
-                        <td mat-cell *matCellDef="let element" class="stat-loss">{{ element.losses }}</td>
-                      </ng-container>
-                      <ng-container matColumnDef="goals">
-                        <th mat-header-cell *matHeaderCellDef mat-sort-header>Tore</th>
-                        <td mat-cell *matCellDef="let element">{{ element.goals }}</td>
-                      </ng-container>
-                      <ng-container matColumnDef="goalDifference">
-                        <th mat-header-cell *matHeaderCellDef mat-sort-header>TD</th>
-                        <td mat-cell *matCellDef="let element"
-                          [class.positive-diff]="element.goalDifference > 0"
-                          [class.negative-diff]="element.goalDifference < 0">
-                          {{ element.goalDifference > 0 ? '+' : '' }}{{ element.goalDifference }}
-                        </td>
-                      </ng-container>
-                      <ng-container matColumnDef="points">
-                        <th mat-header-cell *matHeaderCellDef mat-sort-header>Pkt</th>
-                        <td mat-cell *matCellDef="let element" class="points-cell">
-                          <strong>{{ element.points }}</strong>
-                        </td>
-                      </ng-container>
-                      <!-- Form Column -->
-                      <ng-container matColumnDef="form">
-                        <th mat-header-cell *matHeaderCellDef>Form</th>
-                        <td mat-cell *matCellDef="let element" class="form-cell">
-                          @if (element['form'] && element['form'].length > 0) {
-                            <div class="form-indicators">
-                              @for (result of element['form']; track $index) {
-                                <span class="form-dot" [class.win]="result === 'W'" [class.draw]="result === 'D'" [class.loss]="result === 'L'"
-                                  [attr.title]="result === 'W' ? 'Sieg' : (result === 'D' ? 'Unentschieden' : 'Niederlage')">
-                                  {{ result }}
-                                </span>
-                              }
-                            </div>
-                          }
-                        </td>
-                      </ng-container>
-                      <!-- Expand affordance -->
-                      <ng-container matColumnDef="expand">
-                        <th mat-header-cell *matHeaderCellDef aria-label="Details"></th>
-                        <td mat-cell *matCellDef="let element" class="expand-cell">
-                          <mat-icon class="expand-chevron" [class.open]="expandedElement === element">expand_more</mat-icon>
-                        </td>
-                      </ng-container>
-                      <!-- Expanded Detail -->
-                      <ng-container matColumnDef="expandedDetail">
-                        <td mat-cell *matCellDef="let element" [attr.colspan]="displayedColumnsTable.length">
-                          <div class="team-detail-container"
-                            [@detailExpand]="element == expandedElement ? 'expanded' : 'collapsed'">
-                            <div class="team-detail-header">
-                              @if (element.imageUrl && element.imageUrl.trim() !== '') {
-                                <img [src]="element.imageUrl"
-                                  alt="{{ element.team }}" class="team-logo-large">
-                              }
-                              <div>
-                                <h3>{{ element.team }}</h3>
-                                @if (element.info && element.info.trim() !== '') {
-                                  <p>{{ element.info }}</p>
-                                }
-                              </div>
-                              <div class="team-detail-actions">
-                                <button mat-icon-button class="team-fav-button"
-                                  [class.active]="teamFavorites.isFavorite(element.team)"
-                                  (click)="toggleTeamFavorite(element.team); $event.stopPropagation()"
-                                  [attr.aria-label]="teamFavorites.isFavorite(element.team) ? 'Team aus Favoriten entfernen' : 'Team zu Favoriten hinzufügen'"
-                                  [matTooltip]="teamFavorites.isFavorite(element.team) ? 'Aus Favoriten entfernen' : 'Als Favorit merken'">
-                                  <mat-icon>{{ teamFavorites.isFavorite(element.team) ? 'star' : 'star_border' }}</mat-icon>
-                                </button>
-                                <button mat-stroked-button color="accent" (click)="navigateToTeamStats(element.team); $event.stopPropagation()" class="team-stats-button">
-                                  <mat-icon>insights</mat-icon>
-                                  Team-Statistik
-                                </button>
-                                <button mat-stroked-button color="primary" (click)="downloadCalendar(element.team); $event.stopPropagation()" class="export-team-button">
-                                  <mat-icon>calendar_month</mat-icon>
-                                  Spielplan exportieren
-                                </button>
-                              </div>
-                            </div>
-                            @if (expandedGames && expandedGames.length > 0) {
-                              <div class="team-games">
-                                <h4>Bisherige Spiele ({{ expandedGames.length }})</h4>
-                                <div class="team-games-grid">
-                                  @for (game of expandedGames; track game.start) {
-                                    <div class="team-game-card"
-                                      [class.won]="isGameWon(game, element.team)"
-                                      [class.lost]="isGameLost(game, element.team)"
-                                      [class.draw]="isGameDraw(game)">
-                                      <div class="team-game-teams">
-                                        <div class="team-game-team">
-                                          @if (game.homeImageUrl && game.homeImageUrl.trim() !== '') {
-                                            <img [src]="game.homeImageUrl"
-                                              alt="{{ game.home }}" class="team-logo-small">
-                                          }
-                                          <span [class.current-team]="game.home === element.team">
-                                            {{ game.home }}
-                                          </span>
-                                        </div>
-                                        <div class="team-game-result">{{ game.result }}</div>
-                                        <div class="team-game-team">
-                                          <span [class.current-team]="game.guest === element.team">
-                                            {{ game.guest }}
-                                          </span>
-                                          @if (game.guestImageUrl && game.guestImageUrl.trim() !== '') {
-                                            <img [src]="game.guestImageUrl"
-                                              alt="{{ game.guest }}" class="team-logo-small">
-                                          }
-                                        </div>
-                                      </div>
-                                      <div class="team-game-info">
-                                        @if (game.start && game.start.trim() !== '') {
-                                          <span>{{ game.start }}</span>
-                                        }
-                                        @if (game.location && game.location.trim() !== '') {
-                                          <span>📍 {{ game.location }}</span>
-                                        }
-                                      </div>
-                                    </div>
-                                  }
-                                </div>
-                              </div>
-                            }
-                            @if (!expandedGames || expandedGames.length === 0) {
-                              <div class="no-games-message">
-                                <p>Noch keine Spiele gespielt</p>
-                              </div>
-                            }
-                          </div>
-                        </td>
-                      </ng-container>
-                      <tr mat-header-row *matHeaderRowDef="displayedColumnsTable; sticky: true"></tr>
-                      <tr mat-row *matRowDef="let row; columns: displayedColumnsTable;"
-                        [class.fav-row]="teamFavorites.isFavorite(row.team)"
-                        class="table-row"
-                        [class.expanded-row]="expandedElement === row"
-                        [class.top-3]="row.place <= 3"
-                      (click)="expandedElement = expandedElement === row ? null : row; getGamesByRow(row)"></tr>
-                      <tr mat-row *matRowDef="let row; columns: ['expandedDetail']" class="detail-row"></tr>
-                    </table>
-                  </div>
-                </mat-card-content>
-              </mat-card>
-            </div>
-          </mat-tab>
-        }
-        <!-- Torschützen Tab -->
-        @if (dataSourceScorer.data.length > 0) {
-          <mat-tab>
-            <ng-template mat-tab-label>
-              <mat-icon class="tab-icon">emoji_events</mat-icon>
-              Torschützen
-            </ng-template>
-            <div class="tab-content">
-              <!-- Filter -->
-              @if (dataSourceScorer.data.length > 0) {
-                <div class="filter-section">
-                  <mat-form-field appearance="outline" class="search-field">
-                    <mat-label>Spieler durchsuchen</mat-label>
-                    <input matInput [(ngModel)]="scorerFilter" (ngModelChange)="onScorerFilterChange()" placeholder="Name, Team..." autocomplete="off">
-                    <mat-icon matPrefix>search</mat-icon>
-                    @if (scorerFilter) {
-                      <button mat-icon-button matSuffix (click)="clearScorerFilter()" aria-label="Suche leeren">
-                        <mat-icon>close</mat-icon>
-                      </button>
-                    }
-                  </mat-form-field>
-                </div>
-              }
-              <!-- Top 3 Podium -->
-              @if (dataSourceScorer.filteredData.length >= 3 && dataSourceScorer.filteredData[0] && dataSourceScorer.filteredData[1] && dataSourceScorer.filteredData[2]) {
-                <div class="podium">
-                  <div class="podium-place place-2">
-                    <div class="podium-rank">2</div>
-                    <div class="podium-player">{{ dataSourceScorer.filteredData[1].name }}</div>
-                    <div class="podium-team">{{ dataSourceScorer.filteredData[1].team }}</div>
-                    <div class="podium-goals">{{ dataSourceScorer.filteredData[1].goals }} Tore</div>
-                    <div class="podium-avg">Ø {{ goalAverage(dataSourceScorer.filteredData[1].goals, dataSourceScorer.filteredData[1].games) }}/Spiel</div>
-                  </div>
-                  <div class="podium-place place-1">
-                    <mat-icon class="trophy-icon">emoji_events</mat-icon>
-                    <div class="podium-rank">1</div>
-                    <div class="podium-player">{{ dataSourceScorer.filteredData[0].name }}</div>
-                    <div class="podium-team">{{ dataSourceScorer.filteredData[0].team }}</div>
-                    <div class="podium-goals">{{ dataSourceScorer.filteredData[0].goals }} Tore</div>
-                    <div class="podium-avg">Ø {{ goalAverage(dataSourceScorer.filteredData[0].goals, dataSourceScorer.filteredData[0].games) }}/Spiel</div>
-                  </div>
-                  <div class="podium-place place-3">
-                    <div class="podium-rank">3</div>
-                    <div class="podium-player">{{ dataSourceScorer.filteredData[2].name }}</div>
-                    <div class="podium-team">{{ dataSourceScorer.filteredData[2].team }}</div>
-                    <div class="podium-goals">{{ dataSourceScorer.filteredData[2].goals }} Tore</div>
-                    <div class="podium-avg">Ø {{ goalAverage(dataSourceScorer.filteredData[2].goals, dataSourceScorer.filteredData[2].games) }}/Spiel</div>
-                  </div>
-                </div>
-              }
-              <!-- Scorer List -->
-              @if (dataSourceScorer.filteredData.length > 0) {
-                <mat-card class="scorers-card">
-                  <mat-card-content>
-                    <div class="scorers-list">
-                      @for (scorer of dataSourceScorer.filteredData; track scorer.name; let i = $index) {
-                        <div class="scorer-item"
-                          [class.top-scorer]="i === 0"
-                          [class.top-3]="i < 3">
-                          <div class="scorer-rank">
-                            <span class="rank-number">{{ scorer.place }}</span>
-                            @if (i === 0) {
-                              <mat-icon class="crown-icon">emoji_events</mat-icon>
-                            }
-                          </div>
-                          <div class="scorer-info">
-                            <div class="scorer-name">{{ scorer.name }}</div>
-                            <div class="scorer-team">{{ scorer.team }}</div>
-                          </div>
-                          <div class="scorer-stats">
-                            <div class="scorer-goals">
-                              <span class="goals-number">{{ scorer.goals }}</span>
-                              <span class="goals-label">Tore</span>
-                            </div>
-                            <div class="scorer-games">
-                              <span class="games-number">{{ scorer.games }}</span>
-                              <span class="games-label">Spiele</span>
-                            </div>
-                            <div class="scorer-avg" matTooltip="Tore pro Spiel">
-                              <span class="avg-number">{{ goalAverage(scorer.goals, scorer.games) }}</span>
-                              <span class="avg-label">Ø</span>
-                            </div>
-                          </div>
-                        </div>
-                      }
-                    </div>
-                  </mat-card-content>
-                </mat-card>
-              }
-              <!-- No data message -->
-              @if (dataSourceScorer.filteredData.length === 0 && dataSourceScorer.data.length === 0) {
-                <div class="no-data-message">
-                  <mat-icon>info</mat-icon>
-                  <p>Keine Torschützen gefunden</p>
-                </div>
-              }
-              <!-- Filter no results message -->
-              @if (dataSourceScorer.filteredData.length === 0 && dataSourceScorer.data.length > 0) {
-                <div class="no-data-message">
-                  <mat-icon>search_off</mat-icon>
-                  <p>Keine Ergebnisse für diese Suche</p>
-                </div>
-              }
-            </div>
-          </mat-tab>
-        }
-      </mat-tab-group>
-    }
-    <!-- No data available message -->
-    @if (dataSourceGames.data.length === 0 && dataSourceTable.data.length === 0 && dataSourceScorer.data.length === 0) {
-      <div class="no-data-container">
-        <mat-card class="no-data-card">
-          <mat-card-content>
-            <div class="no-data-message">
-              <mat-icon class="no-data-icon">info</mat-icon>
-              <h2>Keine Daten verfügbar</h2>
-              <p>Für diese Liga sind derzeit keine Informationen vorhanden.</p>
-              <button mat-raised-button color="primary" routerLink="/">
-                <mat-icon>arrow_back</mat-icon>
-                Zurück zur Übersicht
-              </button>
-            </div>
-          </mat-card-content>
-        </mat-card>
-      </div>
-    }
-  </div>
-}
-</div>
 
+        @for (group of groups(); track group.key) {
+          <section class="day" [id]="'tag-' + group.key">
+            <div class="day-head">
+              <h2>{{ group.label }}</h2>
+              @if (group.round) { <span class="round">{{ group.round }}</span> }
+            </div>
+            <div class="panel rows">
+              @for (game of group.games; track game.gameLink || (game.home + game.guest + game.start)) {
+                <app-game-row [game]="game" [ligaParam]="param()"
+                  [context]="!group.round && game.round ? game.round : ''" />
+              }
+            </div>
+          </section>
+        } @empty {
+          <div class="empty">
+            <mat-icon>filter_alt_off</mat-icon>
+            <h3>Keine Spiele in dieser Ansicht</h3>
+            <button class="btn" (click)="setView('alle'); setTeamFilter('')">Alle Spiele zeigen</button>
+          </div>
+        }
+      }
+
+      <!-- ============ Tabelle ============ -->
+      @case ('tabelle') {
+        <div class="panel standings" role="table" aria-label="Tabelle">
+          <div class="trow thead" role="row">
+            <button role="columnheader" class="c-place" [attr.aria-sort]="ariaSort('place')" (click)="sortBy('place')">#</button>
+            <button role="columnheader" class="c-team" [attr.aria-sort]="ariaSort('team')" (click)="sortBy('team')">Team</button>
+            <button role="columnheader" class="c-num" [attr.aria-sort]="ariaSort('games')" (click)="sortBy('games')" title="Spiele">Sp</button>
+            <button role="columnheader" class="c-num wide-only" [attr.aria-sort]="ariaSort('wins')" (click)="sortBy('wins')" title="Siege">S</button>
+            <button role="columnheader" class="c-num wide-only" [attr.aria-sort]="ariaSort('draws')" (click)="sortBy('draws')" title="Unentschieden">U</button>
+            <button role="columnheader" class="c-num wide-only" [attr.aria-sort]="ariaSort('losses')" (click)="sortBy('losses')" title="Niederlagen">N</button>
+            <button role="columnheader" class="c-goals mid-only" [attr.aria-sort]="ariaSort('goals')" (click)="sortBy('goals')">Tore</button>
+            <button role="columnheader" class="c-num" [attr.aria-sort]="ariaSort('goalDifference')" (click)="sortBy('goalDifference')" title="Tordifferenz">TD</button>
+            <button role="columnheader" class="c-num c-points" [attr.aria-sort]="ariaSort('points')" (click)="sortBy('points')" title="Punkte">Pkt</button>
+          </div>
+          @for (row of tableRows(); track row.team) {
+            <a class="trow" role="row" [class.fav]="row.favorite"
+              routerLink="/team" [queryParams]="{ liga: param(), name: row.team }">
+              <span role="cell" class="c-place num">{{ row.place }}</span>
+              <span role="cell" class="c-team">
+                @if (row.imageUrl || teamIndex.logoFor(row.team); as logo) {
+                  <img class="logo" [attr.data-name]="row.team" [src]="logo" alt="" loading="lazy" decoding="async">
+                } @else {
+                  <span class="logo-ph" aria-hidden="true">{{ initial(row.team) }}</span>
+                }
+                <span class="team-text">
+                  <span class="team-name">{{ row.team }}</span>
+                  @if (row.form.length) {
+                    <span class="team-sub">
+                      @if (row.form.length) {
+                        <span class="form" aria-label="Form, neuestes Spiel zuerst">
+                          @for (o of row.form; track $index) { <i [class]="o">{{ formLabel(o) }}</i> }
+                        </span>
+                      }
+                    </span>
+                  }
+                </span>
+              </span>
+              <span role="cell" class="c-num num">{{ row.games }}</span>
+              <span role="cell" class="c-num num wide-only">{{ row.wins }}</span>
+              <span role="cell" class="c-num num wide-only">{{ row.draws }}</span>
+              <span role="cell" class="c-num num wide-only">{{ row.losses }}</span>
+              <span role="cell" class="c-goals num mid-only">{{ row.goals }}</span>
+              <span role="cell" class="c-num num" [class.pos]="row.goalDifference > 0" [class.neg]="row.goalDifference < 0">
+                {{ row.goalDifference > 0 ? '+' : '' }}{{ row.goalDifference }}
+              </span>
+              <span role="cell" class="c-num c-points num">{{ row.points }}</span>
+            </a>
+          }
+        </div>
+        <p class="legend">
+          Sp Spiele, <span class="wide-only">S Siege, U Unentschieden, N Niederlagen, </span>TD Tordifferenz, Pkt Punkte.
+          Tippe auf ein Team für Spielplan und Torschützen.
+        </p>
+      }
+
+      <!-- ============ Torschützen ============ -->
+      @case ('torschuetzen') {
+        <label class="search">
+          <mat-icon>search</mat-icon>
+          <input type="search" [ngModel]="scorerSearch()" (ngModelChange)="onScorerSearch($event)"
+            placeholder="Spieler*in oder Team suchen" autocomplete="off" aria-label="Torschützen durchsuchen">
+          @if (scorerSearch()) {
+            <button class="icon-btn" (click)="onScorerSearch('')" aria-label="Suche leeren">
+              <mat-icon>close</mat-icon>
+            </button>
+          }
+        </label>
+        <div class="scorer-filter">
+          <select class="select" [ngModel]="scorerTeam()" (ngModelChange)="setScorerTeam($event)"
+            aria-label="Nach Team filtern">
+            <option value="">Alle Teams</option>
+            @for (team of scorerTeams(); track team) { <option [value]="team">{{ team }}</option> }
+          </select>
+          <span class="scorer-count num">{{ scorerRows().length }} Spieler*innen</span>
+        </div>
+
+        @if (scorerRows().length === 0) {
+          <div class="empty">
+            <mat-icon>search_off</mat-icon>
+            <h3>Niemand gefunden</h3>
+            <button class="btn" (click)="onScorerSearch(''); setScorerTeam('')">Filter zurücksetzen</button>
+          </div>
+        } @else {
+          <div class="panel rows scorers">
+            @for (scorer of shownScorers(); track scorer.name + scorer.team) {
+              <div class="scorer" [class.top]="scorer.place <= 3">
+                <span class="place num">{{ scorer.place }}</span>
+                <span class="who">
+                  <span class="player">{{ scorer.player }}</span>
+                  <a class="club" routerLink="/team" [queryParams]="{ liga: param(), name: scorer.team }">{{ scorer.team }}</a>
+                </span>
+                <span class="per-game num">
+                  <span>Ø {{ scorer.average }}</span>
+                  <span class="in-games">{{ scorer.games }} {{ scorer.games === 1 ? 'Spiel' : 'Spiele' }}</span>
+                </span>
+                <span class="goal-count num">{{ scorer.goals }}</span>
+              </div>
+            }
+          </div>
+          @if (scorerRows().length > shownScorers().length) {
+            <button class="btn more-btn" (click)="showMoreScorers()">Weitere anzeigen</button>
+          }
+        }
+      }
+    }
+  }
+</div>

@@ -1,9 +1,9 @@
-<div class="privacy-container">
-  <div class="privacy-header">
-    <button mat-icon-button (click)="goBack()" aria-label="Zurück">
+<div class="page privacy-container">
+  <div class="page-head">
+    <button class="icon-btn back" (click)="goBack()" aria-label="Zurück">
       <mat-icon>arrow_back</mat-icon>
     </button>
-    <h1>Datenschutz</h1>
+    <div class="titles"><h1>Datenschutz</h1></div>
   </div>
 
   <section>
@@ -37,10 +37,10 @@
     <div class="consent-controls">
       @if (consentService.decision() === 'granted') {
         <p class="status">Aktueller Status: <strong>Analyse erlaubt</strong></p>
-        <button mat-stroked-button (click)="revoke()">Analyse deaktivieren</button>
+        <button class="btn small" (click)="revoke()">Analyse deaktivieren</button>
       } @else {
         <p class="status">Aktueller Status: <strong>Analyse deaktiviert</strong></p>
-        <button mat-flat-button color="primary" (click)="allow()">Analyse erlauben</button>
+        <button class="btn small primary" (click)="allow()">Analyse erlauben</button>
       }
     </div>
   </section>

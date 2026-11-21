@@ -56,16 +56,16 @@ ng build
 
 ## Running Unit Tests
 
-Run `ng test` to execute the unit tests via [Karma](https://karma-runner.github.io).
+Run `ng test` to execute the unit tests via [Vitest](https://vitest.dev) (jsdom).
 
 ```bash
 ng test
 ```
 
-For CI/CD pipelines, use headless mode:
+For CI/CD pipelines, run once without watch mode:
 
 ```bash
-ng test -- --watch=false --browsers=ChromeHeadless
+ng test --watch=false
 ```
 
 ## Running End-to-End Tests
@@ -181,34 +181,38 @@ The current (live) season is fetched directly from the DSV website at runtime.
 Historical seasons are served from a pre-built SQLite database that the browser
 loads **only when a user opens an archive season** (via `sql.js`).
 
-The shipped database is a build artifact and is **not** committed to git
-(see `.gitignore`). Regenerate it with:
+Only the browser files in `public/assets/data/archive/` are committed (Vercel
+deploys them from git); the large intermediate `seasons.db` / `details.db` are
+not (see `.gitignore`). Regenerate everything with:
 
 ```bash
 # 1. Scrape DSV into a full SQLite DB (needs combined-seasons.html as the seed)
 npm run scrape
 
-# 2. Slim + split the DB for the browser:
-#    - deduplicate team logos
-#    - split into a small core seasons.db (~55 MB, ~15 MB gzipped) and a
-#      details.db (~110 MB) holding per-game events/lineups/officials
-#    - emit public/assets/data/seasons.json (lightweight season index)
+# 2. Slim the DB: deduplicate logos, split into seasons.db + details.db
 npm run slim-db
 
-#    Optional: drop per-game detail tables entirely (no details.db, no historical
-#    game-details) for the smallest footprint:
-#    node scripts/slim-db.js --drop-details
+# 3. Optional: complete/repair the archive from DSV (cached, rate-limit aware;
+#    plan only without --run, needs a backup in .cache/backup/)
+npm run update-archive -- --run
+
+# 4. Build the files the browser downloads into public/assets/data/archive/
+npm run build-archive
 ```
 
-`slim-db` is idempotent and uses the `sqlite3` CLI (no native node module).
-Loading is staged so mobile RAM stays bounded:
+`npm run data` runs steps 1, 2 and 4 in one go. The scripts use the `sqlite3`
+CLI / `node:sqlite` (no native node modules). Loading is staged so download
+size and mobile RAM stay small:
 
-- `seasons.json` — fetched at startup to populate the season picker.
-- `seasons.db` (core) — fetched only when a user opens an archive season.
-- `details.db` — fetched only when a user opens a specific historical game.
+- `archive/archive.json` — manifest, fetched at startup for the season picker.
+- `archive/season-<year>.db.gz` — one season, fetched when it is opened.
+- `archive/details-<year>.db.gz` — game reports of one season, fetched when a
+  historical game is opened.
+- `archive/stats.db.gz` — compact all-season data for the statistics pages.
+- `archive/logos/*.svg` — team logos, loaded lazily like any image.
 
-A download progress overlay covers each fetch, and the service worker caches
-the databases so they are downloaded at most once per release.
+The service worker caches these files so each is downloaded at most once per
+release.
 
 ## Live ticker (real-time)
 
@@ -239,7 +243,7 @@ This project uses GitHub Actions for continuous integration and automated depend
 Runs on every push and pull request to `main` and `develop` branches:
 - ✅ Installs dependencies
 - ✅ Builds the application (production mode)
-- ✅ Runs unit tests with code coverage
+- ✅ Runs unit tests (Vitest)
 - ✅ Archives build artifacts
 
 #### 2. Dependabot Auto-Merge (`dependabot-auto-merge.yml`)
@@ -272,8 +276,8 @@ For auto-merge to work, enable these settings in your GitHub repository:
 ### Manual Testing
 
 ```bash
-# Run tests in CI mode (headless)
-npm run test -- --watch=false --browsers=ChromeHeadless
+# Run tests once (CI mode)
+npm run test -- --watch=false
 
 # Build for production
 npm run build -- --configuration production

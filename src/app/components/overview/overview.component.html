@@ -1,169 +1,138 @@
-<div class="overview-container">
-  <!-- Loading Spinner -->
-  @if (isLoading) {
-  <div class="skeleton-list" aria-busy="true" aria-label="Lade Ligen">
-    <div class="skeleton skeleton-line title"></div>
-    @for (i of [1,2,3,4,5,6]; track i) {
-      <div class="skeleton skeleton-line"></div>
+<div class="page">
+  <div class="page-head">
+    <div class="titles">
+      <h1>Ligen</h1>
+      <span class="sub">
+        Saison {{ seasonService.getSeasonLabel() }}@if (totalCount()) {, {{ totalCount() }} Wettbewerbe}
+      </span>
+    </div>
+  </div>
+
+  <label class="search">
+    <mat-icon>search</mat-icon>
+    <input type="search" [ngModel]="searchTerm()" (ngModelChange)="onSearch($event)" (focus)="teamIndex.warmUp()"
+      placeholder="Liga, Verband oder Team suchen" autocomplete="off" enterkeyhint="search"
+      aria-label="Ligen und Teams durchsuchen">
+    @if (searchTerm()) {
+      <button class="icon-btn" (click)="onSearch('')" aria-label="Suche leeren">
+        <mat-icon>close</mat-icon>
+      </button>
+    }
+  </label>
+
+  <div class="chips filter-chips" role="group" aria-label="Nach Geschlecht filtern">
+    @for (g of genders; track g.id) {
+      <button class="chip" [class.on]="gender() === g.id" [attr.aria-pressed]="gender() === g.id"
+        (click)="setGender(g.id)">{{ g.label }}</button>
     }
   </div>
-  }
 
-  <!-- Overview Content -->
-  @if (!isLoading) {
-  <div class="content">
-    <!-- Page Header -->
-    <div class="page-header">
-      <h1 class="page-title">Wasserball Ligen</h1>
-      <p class="page-subtitle">Wähle deine Liga aus und verfolge die Saison</p>
+  @if (isLoading()) {
+    <div class="skeleton-list" aria-busy="true" aria-label="Lade Ligen">
+      @for (i of [1,2,3,4,5,6,7]; track i) {
+        <div class="skeleton skeleton-line"></div>
+      }
     </div>
-    <!-- Season Selector -->
-    <div class="season-section">
-      <mat-form-field appearance="outline" class="season-field">
-        <mat-label>Saison wählen</mat-label>
-        <mat-select [value]="seasonService.currentSeason()" (selectionChange)="seasonService.setSeason($event.value)">
-          @for (season of seasonService.availableSeasons(); track season) {
-          <mat-option [value]="season">
-            Saison {{ season }}/{{ +season + 1 }}
-            @if (seasonService.isLive(season)) {
-              <span class="option-live">● LIVE</span>
-            }
-          </mat-option>
+  } @else if (failed()) {
+    <div class="empty">
+      <mat-icon>cloud_off</mat-icon>
+      <h2>Ligen nicht erreichbar</h2>
+      <p>Die Daten des DSV konnten nicht geladen werden. Prüfe deine Verbindung und versuche es noch einmal.</p>
+      <button class="btn primary" (click)="retry()">Erneut laden</button>
+    </div>
+  } @else {
+    <!-- Favourites -->
+    @if (favorites().length > 0 && !isFiltering() && seasonService.isLive()) {
+      <section class="section">
+        <div class="section-head"><h2>Meine Ligen</h2></div>
+        <div class="panel rows">
+          @for (favorite of favorites(); track favorite.name) {
+            <div class="league">
+              <a class="row" routerLink="/liga" [queryParams]="{ param: favorite.link }" (click)="trackOpen(favorite)">
+                <span class="grow">
+                  <span class="title">{{ favorite.name }}</span>
+                  @if (favorite.status) { <span class="meta" [class.hot]="isHot(favorite.status)">{{ favorite.status }}</span> }
+                </span>
+              </a>
+              <button class="icon-btn on" (click)="toggleFavorite(favorite)"
+                [attr.aria-label]="favorite.name + ' aus meinen Ligen entfernen'">
+                <mat-icon>star</mat-icon>
+              </button>
+            </div>
           }
-        </mat-select>
-      </mat-form-field>
-    </div>
-    <!-- Archive Info Banner -->
-    @if (!seasonService.isLive()) {
-    <div class="archive-banner">
-      <mat-icon>history</mat-icon>
-      <span>Du siehst Archiv-Daten der Saison {{ seasonService.getSeasonLabel() }}. Diese Daten werden aus der lokalen Datenbank geladen.</span>
-    </div>
+        </div>
+      </section>
     }
-    <!-- Search Bar -->
-    <div class="search-section">
-      <mat-form-field appearance="outline" class="search-field">
-        <mat-label>Ligen durchsuchen</mat-label>
-        <mat-icon matPrefix>search</mat-icon>
-        <input matInput [(ngModel)]="searchTerm" (ngModelChange)="filterItems()"
-          placeholder="z.B. Bundesliga, Männer, Jugend..." autocomplete="off">
-        @if (searchTerm) {
-        <button mat-icon-button matSuffix (click)="searchTerm=''; filterItems()">
-          <mat-icon>close</mat-icon>
-        </button>
-        }
-      </mat-form-field>
-    </div>
-    <!-- Quick actions -->
-    <div class="quick-actions">
-      <button class="action-tile live" (click)="navigateToLive()" aria-label="Liveticker öffnen">
-        <span class="tile-glow"></span>
-        <mat-icon class="tile-icon">bolt</mat-icon>
-        <span class="tile-text">
-          <span class="tile-title">Liveticker</span>
-          <span class="tile-sub">Spiele in Echtzeit</span>
-        </span>
-        <mat-icon class="tile-arrow">arrow_forward</mat-icon>
-      </button>
-      <button class="action-tile stats" (click)="navigateToAnalytics()" aria-label="Statistik öffnen">
-        <span class="tile-glow"></span>
-        <mat-icon class="tile-icon">insights</mat-icon>
-        <span class="tile-text">
-          <span class="tile-title">Statistik</span>
-          <span class="tile-sub">15 Jahre Daten</span>
-        </span>
-        <mat-icon class="tile-arrow">arrow_forward</mat-icon>
-      </button>
-    </div>
-    <!-- Favorites Section -->
-    @if (favorites.length > 0) {
-    <div class="favorites-section">
-      <div class="section-header">
-        <mat-icon class="section-icon">favorite</mat-icon>
-        <h2 class="section-title">Meine Favoriten</h2>
-        <span class="favorites-badge">{{ favorites.length }}</span>
+
+    @if (teamHits().length) {
+      <section class="section">
+        <div class="section-head"><h2>Teams</h2></div>
+        <div class="panel rows">
+          @for (h of teamHits(); track h.team + h.league!.link) {
+            <a class="row" routerLink="/team" [queryParams]="{ liga: h.league!.link, name: h.team }">
+              @if (teamIndex.logoFor(h.team); as logo) { <img class="logo" [src]="logo" [attr.data-name]="h.team" alt=""> }
+              @else { <span class="logo-ph" aria-hidden="true">{{ initial(h.team) }}</span> }
+              <span class="grow">
+                <span class="title">{{ h.team }}</span>
+                <span class="meta">{{ h.league!.name }}</span>
+              </span>
+              <mat-icon class="chev">chevron_right</mat-icon>
+            </a>
+          }
+        </div>
+      </section>
+    }
+
+    <section class="section">
+      <div class="section-head">
+        <h2>{{ isFiltering() ? 'Ligen' : 'Alle Ligen' }}</h2>
+        @if (isFiltering()) { <span class="count num">{{ resultCount() }} von {{ totalCount() }}</span> }
       </div>
-      <div class="favorites-grid">
-        @for (favorite of favorites; track favorite) {
-        <mat-card class="favorite-card mat-elevation-z2" role="button" tabindex="0"
-          [attr.aria-label]="'Liga öffnen: ' + favorite.name"
-          (keyup.enter)="navigateToLiga(favorite)" (click)="navigateToLiga(favorite)">
-          <mat-card-content>
-            <div class="favorite-content">
-              <div class="favorite-info">
-                <span class="favorite-name">{{ favorite.name }}</span>
-                @if (favorite.gender && favorite.gender.trim() !== '') {
-                <span class="favorite-gender gender-badge" [ngClass]="genderClass(favorite.gender)">{{ favorite.gender }}</span>
+
+      @if (filteredItems().length === 0) {
+        <div class="empty">
+          <mat-icon>search_off</mat-icon>
+          <h3>Keine Liga gefunden</h3>
+          <p>Probiere einen kürzeren Begriff, zum Beispiel „Bundesliga“, „U16“ oder einen Teil des Vereinsnamens.</p>
+        </div>
+      }
+
+      <div class="categories">
+        @for (item of filteredItems(); track item.name) {
+          <div class="panel category" [class.open]="isOpen(item)">
+            <button class="category-head" (click)="toggleCategory(item)" [attr.aria-expanded]="isOpen(item)">
+              <span class="category-name">{{ item.name }}</span>
+              <span class="category-count num">{{ item.subItems.length }}</span>
+              @if (!isFiltering()) { <mat-icon class="category-chev">expand_more</mat-icon> }
+            </button>
+            @if (isOpen(item)) {
+              <div class="rows">
+                @for (subItem of item.subItems; track subItem.link + subItem.name) {
+                  <div class="league">
+                    <a class="row" routerLink="/liga" [queryParams]="{ param: subItem.link }" (click)="trackOpen(subItem)">
+                      <span class="grow">
+                        <span class="title">{{ subItem.name }}</span>
+                        <span class="meta">
+                          @if (genderLabel(subItem.gender)) { <span>{{ genderLabel(subItem.gender) }}</span> }
+                          @if (subItem.status) { <span [class.hot]="isHot(subItem.status)">{{ subItem.status }}</span> }
+                        </span>
+                      </span>
+                    </a>
+@if (seasonService.isLive()) {
+                    <button class="icon-btn" [class.on]="favoritesService.isFavorite(subItem.name)"
+                      (click)="toggleFavorite(subItem)"
+                      [attr.aria-pressed]="favoritesService.isFavorite(subItem.name)"
+                      [attr.aria-label]="favoritesService.isFavorite(subItem.name) ? subItem.name + ' aus meinen Ligen entfernen' : subItem.name + ' zu meinen Ligen hinzufügen'">
+                      <mat-icon>{{ favoritesService.isFavorite(subItem.name) ? 'star' : 'star_border' }}</mat-icon>
+                    </button>
+                    }
+                  </div>
                 }
               </div>
-              <mat-icon class="arrow-icon">arrow_forward</mat-icon>
-            </div>
-          </mat-card-content>
-        </mat-card>
-        }
-      </div>
-    </div>
-    }
-    <!-- Leagues Section -->
-    <div class="leagues-section">
-      <div class="section-header">
-        <mat-icon class="section-icon">emoji_events</mat-icon>
-        <h2 class="section-title">Alle Ligen</h2>
-        @if (filteredItems.length !== items.length) {
-        <span class="leagues-count">
-          {{ filteredItems.length }} von {{ items.length }}
-        </span>
-        }
-      </div>
-      <!-- No Results Message -->
-      @if (filteredItems.length === 0) {
-      <div class="no-results">
-        <mat-icon class="no-results-icon">search_off</mat-icon>
-        <p class="no-results-text">Keine Ligen gefunden</p>
-        <p class="no-results-hint">Versuche es mit einem anderen Suchbegriff</p>
-      </div>
-      }
-      <mat-accordion class="leagues-accordion">
-        @for (item of filteredItems; track item) {
-        <mat-expansion-panel class="league-panel">
-          <mat-expansion-panel-header>
-            <mat-panel-title class="panel-title">
-              <mat-icon class="cat-icon">{{ categoryIcon(item.name) }}</mat-icon>
-              {{ item.name }}
-            </mat-panel-title>
-            <mat-panel-description class="panel-description">
-              <span class="cat-count">{{ item.subItems.length }}</span>
-            </mat-panel-description>
-          </mat-expansion-panel-header>
-          <div class="subitems-container">
-            @for (subItem of item.subItems; track subItem) {
-            <div class="subitem-card">
-              <div class="subitem-content" role="button" tabindex="0"
-                [attr.aria-label]="'Liga öffnen: ' + subItem.name"
-                (keyup.enter)="navigateToLiga(subItem)" (click)="navigateToLiga(subItem)">
-                <div class="subitem-info">
-                  <span class="subitem-name">{{ subItem.name }}</span>
-                  @if (subItem.gender && subItem.gender.trim() !== '') {
-                  <span class="subitem-gender gender-badge" [ngClass]="genderClass(subItem.gender)">{{ subItem.gender }}</span>
-                  }
-                </div>
-                <mat-icon class="open-icon">open_in_new</mat-icon>
-              </div>
-              <div class="subitem-action">
-                <button mat-icon-button (click)="toggleFavorite(subItem); $event.stopPropagation()"
-                  [class.favorite-active]="subItem.isFavorite"
-                  matTooltip="{{ subItem.isFavorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen' }}"
-                  [attr.aria-label]="subItem.isFavorite ? 'Aus Favoriten entfernen' : 'Zu Favoriten hinzufügen'">
-                  <mat-icon>{{ subItem.isFavorite ? 'favorite' : 'favorite_border' }}</mat-icon>
-                </button>
-              </div>
-            </div>
             }
           </div>
-        </mat-expansion-panel>
         }
-      </mat-accordion>
-    </div>
-  </div>
+      </div>
+    </section>
   }
 </div>

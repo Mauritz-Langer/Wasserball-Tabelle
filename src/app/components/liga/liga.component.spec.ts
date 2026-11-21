@@ -1,458 +1,166 @@
-import { ComponentFixture, TestBed, fakeAsync, tick } from '@angular/core/testing';
+import type { MockedObject } from "vitest";
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { ActivatedRoute, provideRouter } from '@angular/router';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { BehaviorSubject, of, throwError } from 'rxjs';
 import { LigaComponent } from './liga.component';
 import { LigaService } from '../../services/liga/liga.service';
-import { SeasonService } from '../../services/season/season.service';
-import { ActivatedRoute, Router } from '@angular/router';
-import { of } from 'rxjs';
-import { signal } from '@angular/core';
-import { HttpClientTestingModule } from '@angular/common/http/testing';
-import { BrowserAnimationsModule } from '@angular/platform-browser/animations';
-import { Games } from '../../models/games';
-import { Table } from '../../models/table';
-import { Scorer } from '../../models/scorer';
+import { OverviewService } from '../../services/overview/overview.service';
+import { LiveTickerService } from '../../services/live-ticker/live-ticker.service';
+import { TeamFavoritesService } from '../../services/favorites/team-favorites.service';
+import { FavoritesService } from '../../services/favorites/favorites.service';
+import { TickerStub } from '../../testing/ticker.stub';
+import { LIGA_PARAM, makeLeague } from '../../testing/fixtures';
 
 describe('LigaComponent', () => {
-  let component: LigaComponent;
-  let fixture: ComponentFixture<LigaComponent>;
-  let ligaService: jasmine.SpyObj<LigaService>;
-  let router: jasmine.SpyObj<Router>;
-  let activatedRoute: any;
+    let fixture: ComponentFixture<LigaComponent>;
+    let component: LigaComponent;
+    let ligaService: MockedObject<LigaService>;
+    let ticker: TickerStub;
+    let queryParams: BehaviorSubject<Record<string, string>>;
 
-  const mockGames: Games[] = [
-    {
-      start: '10.11.2025, 18:00 Uhr',
-      home: 'Team A',
-      homeImageUrl: 'imageA.png',
-      guest: 'Team B',
-      guestImageUrl: 'imageB.png',
-      location: 'Berlin',
-      gameLink: 'Game.aspx?id=123',
-      result: '10:8'
-    },
-    {
-      start: '11.11.2025, 19:00 Uhr',
-      home: 'Team C',
-      homeImageUrl: 'imageC.png',
-      guest: 'Team D',
-      guestImageUrl: 'imageD.png',
-      location: 'Hamburg',
-      gameLink: '',
-      result: ' - '
+    function setup(params: Record<string, string> = { param: LIGA_PARAM }, data$ = of(makeLeague())) {
+        ['favorites', 'recent-leagues', 'favorite-teams', 'favorite-team-leagues'].forEach(k => localStorage.removeItem(k));
+        ligaService = {
+            fetchLeagueData: vi.fn().mockName("LigaService.fetchLeagueData"),
+            peek: vi.fn().mockName("LigaService.peek")
+        } as unknown as MockedObject<LigaService>;
+        ligaService.peek.mockReturnValue(null);
+        ligaService.fetchLeagueData.mockReturnValue(data$);
+        const overview = {
+            getItems: vi.fn().mockName("OverviewService.getItems")
+        };
+        overview.getItems.mockReturnValue(of([{
+                name: 'National', subItems: [{ name: 'Testliga', gender: 'männlich', link: LIGA_PARAM, isFavorite: false }]
+            }]));
+        ticker = new TickerStub();
+        queryParams = new BehaviorSubject(params);
+
+        TestBed.configureTestingModule({
+            imports: [LigaComponent],
+            providers: [
+                provideRouter([]), provideHttpClient(), provideHttpClientTesting(),
+                { provide: LigaService, useValue: ligaService },
+                { provide: OverviewService, useValue: overview },
+                { provide: LiveTickerService, useValue: ticker },
+                { provide: ActivatedRoute, useValue: { queryParams } }
+            ]
+        });
+        fixture = TestBed.createComponent(LigaComponent);
+        component = fixture.componentInstance;
+        fixture.detectChanges();
     }
-  ];
 
-  const mockTable: Table[] = [
-    {
-      place: 1,
-      team: 'Team A',
-      info: '',
-      imageUrl: 'imageA.png',
-      games: 10,
-      wins: 8,
-      draws: 1,
-      losses: 1,
-      goals: '100:70',
-      goalDifference: 30,
-      points: 17
-    }
-  ];
-
-  const mockScorers: Scorer[] = [
-    {
-      place: 1,
-      name: 'Spieler A',
-      team: 'Team A',
-      goals: 25,
-      games: 10
-    }
-  ];
-
-  beforeEach(async () => {
-    const ligaServiceSpy = jasmine.createSpyObj('LigaService', [
-      'getItems',
-      'fetchLeagueData',
-      'getLigaName',
-      'parseHtmlToGames',
-      'parseHtmlToTable',
-      'parseHtmlToScorer',
-      'getLocationLink'
-    ]);
-    const routerSpy = jasmine.createSpyObj('Router', ['navigate']);
-
-    const seasonServiceMock = {
-      currentSeason: signal('2025'),
-      availableSeasons: signal(['2025']),
-      seasonsLoaded: signal(false),
-      isCurrentSeason: true,
-      getSeasonLabel: () => '2025/2026',
-      isLive: () => true,
-      setSeason: jasmine.createSpy('setSeason'),
-      loadAvailableSeasons: jasmine.createSpy('loadAvailableSeasons').and.returnValue(Promise.resolve())
-    };
-
-    activatedRoute = {
-      queryParams: of({ param: 'WBGameList.aspx?V=DMOL2B&S=2025' }),
-      snapshot: {
-        queryParams: { param: 'WBGameList.aspx?V=DMOL2B&S=2025' }
-      }
-    };
-
-    await TestBed.configureTestingModule({
-      imports: [
-        LigaComponent,
-        HttpClientTestingModule,
-        BrowserAnimationsModule
-      ],
-      providers: [
-        { provide: LigaService, useValue: ligaServiceSpy },
-        { provide: Router, useValue: routerSpy },
-        { provide: ActivatedRoute, useValue: activatedRoute },
-        { provide: SeasonService, useValue: seasonServiceMock }
-      ]
-    })
-    .compileComponents();
-
-    ligaService = TestBed.inject(LigaService) as jasmine.SpyObj<LigaService>;
-    router = TestBed.inject(Router) as jasmine.SpyObj<Router>;
-
-    // Setup default mock responses - fetchLeagueData returns combined data
-    ligaService.fetchLeagueData.and.returnValue(of({
-      name: 'Test Liga',
-      games: mockGames,
-      table: mockTable,
-      scorers: mockScorers
-    }));
-    ligaService.getItems.and.returnValue(of('<html></html>'));
-    ligaService.getLigaName.and.returnValue('Test Liga');
-    ligaService.parseHtmlToGames.and.returnValue(mockGames);
-    ligaService.parseHtmlToTable.and.returnValue(mockTable);
-    ligaService.parseHtmlToScorer.and.returnValue(mockScorers);
-    ligaService.getLocationLink.and.returnValue(Promise.resolve('https://maps.google.com'));
-
-    // Mock window.open globally to prevent full page reloads in any test
-    spyOn(window, 'open');
-
-    fixture = TestBed.createComponent(LigaComponent);
-    component = fixture.componentInstance;
-  });
-
-  it('should create', () => {
-    expect(component).toBeTruthy();
-  });
-
-  describe('ngOnInit', () => {
-    it('should load liga data on initialization', () => {
-      fixture.detectChanges();
-
-      expect(ligaService.fetchLeagueData).toHaveBeenCalled();
-      expect(component.ligaName).toBe('Test Liga');
-      expect(component.dataSourceGames.data.length).toBe(2);
-      expect(component.dataSourceTable.data.length).toBe(1);
-      expect(component.dataSourceScorer.data.length).toBe(1);
-      expect(component.isLoading).toBe(false);
+    it('loads the league and uses the clean name from the index', () => {
+        setup();
+        expect(ligaService.fetchLeagueData).toHaveBeenCalledWith(LIGA_PARAM, false);
+        expect(component.isLoading()).toBe(false);
+        expect(component.leagueName()).toBe('Testliga');
+        expect(fixture.nativeElement.querySelector('h1').textContent).toContain('Testliga');
+        expect(TestBed.inject(FavoritesService).recent()[0].name).toBe('Testliga');
     });
 
-    it('should extract liga parameter from query params', () => {
-      fixture.detectChanges();
-
-      expect(ligaService.fetchLeagueData).toHaveBeenCalledWith('WBGameList.aspx?V=DMOL2B&S=2025', false);
-    });
-  });
-
-  describe('applyGamesFilter', () => {
-    beforeEach(() => {
-      fixture.detectChanges();
+    it('groups games by day in playing order and marks the next matchday', () => {
+        setup();
+        const groups = component.groups();
+        expect(groups.map(g => g.key)).toEqual(['2020-10-01', '2020-10-08', '2099-10-01']);
+        expect(groups[0].round).toBe('1. Spieltag');
+        expect(groups[0].past).toBe(true);
+        expect(component.nextGroupKey()).toBe('2099-10-01');
     });
 
-    it('should filter games by team name (debounced)', fakeAsync(() => {
-      component.gamesFilter = 'Team A';
-      component.onGamesFilterChange();
-      tick(300);
-
-      expect(component.dataSourceGames.filter).toBe('team a');
-    }));
-
-    it('should trim whitespace from filter', fakeAsync(() => {
-      component.gamesFilter = '  Team A  ';
-      component.onGamesFilterChange();
-      tick(300);
-
-      expect(component.dataSourceGames.filter).toBe('team a');
-    }));
-
-    it('clear button empties the games filter', fakeAsync(() => {
-      component.gamesFilter = 'Team A';
-      component.onGamesFilterChange();
-      tick(300);
-      component.clearGamesFilter();
-
-      expect(component.gamesFilter).toBe('');
-      expect(component.dataSourceGames.filter).toBe('');
-    }));
-  });
-
-  describe('applyScorerFilter', () => {
-    beforeEach(() => {
-      fixture.detectChanges();
+    it('filters by view and team, results newest first', () => {
+        setup();
+        component.setView('ergebnisse');
+        expect(component.groups().map(g => g.key)).toEqual(['2020-10-08', '2020-10-01']);
+        component.setView('kommend');
+        expect(component.visibleGames().length).toBe(1);
+        component.setView('alle');
+        component.setTeamFilter('Gamma');
+        expect(component.visibleGames().map(g => g.home)).toEqual(['Beta', 'Gamma']);
     });
 
-    it('should filter scorers by name (debounced)', fakeAsync(() => {
-      component.scorerFilter = 'Spieler A';
-      component.onScorerFilterChange();
-      tick(300);
-
-      expect(component.dataSourceScorer.filter).toBe('spieler a');
-    }));
-  });
-
-  describe('checkEventInPast', () => {
-    beforeEach(() => {
-      fixture.detectChanges();
+    it('restores tab and filters from the URL', () => {
+        setup({ param: LIGA_PARAM, tab: 'tabelle', ansicht: 'kommend', team: 'Alpha' });
+        expect(component.activeTab()).toBe('tabelle');
+        expect(component.view()).toBe('kommend');
+        expect(component.teamFilter()).toBe('Alpha');
     });
 
-    it('should return true for past events', () => {
-      const pastDate = '01.01.20, 10:00 Uhr';
-      expect(component.checkEventInPast(pastDate)).toBe(true);
+    it('does not refetch when only the tab changes', () => {
+        setup();
+        queryParams.next({ param: LIGA_PARAM, tab: 'torschuetzen' });
+        expect(ligaService.fetchLeagueData).toHaveBeenCalledTimes(1);
+        expect(component.activeTab()).toBe('torschuetzen');
     });
 
-    it('should return false for future events', () => {
-      const futureDate = '01.01.30, 10:00 Uhr';
-      expect(component.checkEventInPast(futureDate)).toBe(false);
+    it('adds form to the standings and sorts by column', () => {
+        setup();
+        expect(component.tableRows().map(r => r.team)).toEqual(['Alpha', 'Gamma', 'Beta']);
+        expect(component.tableRows()[2].form).toEqual(['D', 'L']);
+        component.sortBy('goalDifference');
+        expect(component.tableRows()[0].team).toBe('Alpha');
+        component.sortBy('goalDifference');
+        expect(component.tableRows()[0].team).toBe('Beta');
+        expect(component.ariaSort('goalDifference')).toBe('ascending');
     });
 
-    it('should handle invalid date format', () => {
-      const invalidDate = 'invalid date';
-      expect(() => component.checkEventInPast(invalidDate)).not.toThrow();
-      expect(component.checkEventInPast(invalidDate)).toBe(false);
+    it('flags followed teams in the standings', () => {
+        setup();
+        TestBed.inject(TeamFavoritesService).toggle('Gamma');
+        expect(component.tableRows().find(r => r.team === 'Gamma')!.favorite).toBe(true);
+        expect(component.hasFavoriteTeams()).toBe(true);
     });
 
-    it('should handle empty string', () => {
-      expect(component.checkEventInPast('')).toBe(false);
-    });
-  });
-
-  describe('isGameWon', () => {
-    it('should return true when home team wins', () => {
-      const game: Games = {
-        start: '',
-        home: 'Team A',
-        homeImageUrl: '',
-        guest: 'Team B',
-        guestImageUrl: '',
-        location: '',
-        gameLink: '',
-        result: '10:8'
-      };
-
-      expect(component.isGameWon(game, 'Team A')).toBe(true);
-      expect(component.isGameWon(game, 'Team B')).toBe(false);
+    it('splits scorer names and filters them', () => {
+        setup();
+        const first = component.scorerRows()[0];
+        expect(first.player).toBe('Muster, Max');
+        expect(first.year).toBe('2001');
+        expect(first.average).toBe('6,0');
+        component.onScorerSearch('beta');
+        expect(component.scorerRows().map(s => s.player)).toEqual(['Beispiel, Ben']);
     });
 
-    it('should return true when guest team wins', () => {
-      const game: Games = {
-        start: '',
-        home: 'Team A',
-        homeImageUrl: '',
-        guest: 'Team B',
-        guestImageUrl: '',
-        location: '',
-        gameLink: '',
-        result: '8:10'
-      };
-
-      expect(component.isGameWon(game, 'Team B')).toBe(true);
-      expect(component.isGameWon(game, 'Team A')).toBe(false);
-    });
-  });
-
-  describe('isGameLost', () => {
-    it('should return true when home team loses', () => {
-      const game: Games = {
-        start: '',
-        home: 'Team A',
-        homeImageUrl: '',
-        guest: 'Team B',
-        guestImageUrl: '',
-        location: '',
-        gameLink: '',
-        result: '8:10'
-      };
-
-      expect(component.isGameLost(game, 'Team A')).toBe(true);
-      expect(component.isGameLost(game, 'Team B')).toBe(false);
-    });
-  });
-
-  describe('isGameDraw', () => {
-    it('should return true for draw', () => {
-      const game: Games = {
-        start: '',
-        home: 'Team A',
-        homeImageUrl: '',
-        guest: 'Team B',
-        guestImageUrl: '',
-        location: '',
-        gameLink: '',
-        result: '10:10'
-      };
-
-      expect(component.isGameDraw(game)).toBe(true);
+    it('counts games that are live in the ticker', () => {
+        setup();
+        expect(component.liveCount()).toBe(0);
+        ticker.liveGames.set([{ Season: 2026, LeagueID: 9, Gruppe: '', LeagueKind: 'V', GameID: 3, LiveShortText: '4:2', ScoreText: '4:2' }]);
+        expect(component.liveCount()).toBe(1);
+        expect(ticker.retain).toHaveBeenCalled();
     });
 
-    it('should return false for non-draw', () => {
-      const game: Games = {
-        start: '',
-        home: 'Team A',
-        homeImageUrl: '',
-        guest: 'Team B',
-        guestImageUrl: '',
-        location: '',
-        gameLink: '',
-        result: '10:8'
-      };
-
-      expect(component.isGameDraw(game)).toBe(false);
+    it('toggles the league as favourite under its index name', () => {
+        setup();
+        component.toggleFavorite();
+        expect(TestBed.inject(FavoritesService).isFavorite('Testliga')).toBe(true);
+        expect(component.isFavorite()).toBe(true);
     });
 
-    it('should return false for no result', () => {
-      const game: Games = {
-        start: '',
-        home: 'Team A',
-        homeImageUrl: '',
-        guest: 'Team B',
-        guestImageUrl: '',
-        location: '',
-        gameLink: '',
-        result: ' - '
-      };
-
-      expect(component.isGameDraw(game)).toBe(false);
-    });
-  });
-
-  describe('navigateToGameDetails', () => {
-    beforeEach(() => {
-      fixture.detectChanges();
+    it('shows an error state with retry when loading fails', () => {
+        setup({ param: LIGA_PARAM }, throwError(() => new Error('offline')));
+        expect(component.failed()).toBe(true);
+        expect(fixture.nativeElement.textContent).toContain('Liga nicht erreichbar');
     });
 
-    it('should navigate to game details with correct link', () => {
-      const game: Games = {
-        start: '',
-        home: 'A',
-        homeImageUrl: '',
-        guest: 'B',
-        guestImageUrl: '',
-        location: '',
-        gameLink: 'Game.aspx?id=123',
-        result: '10:8'
-      };
-
-      component.navigateToGameDetails(game);
-
-      expect(router.navigate).toHaveBeenCalledWith(['/game-details'], {
-        queryParams: {
-          param: 'Game.aspx?id=123',
-          ligaParam: 'WBGameList.aspx?V=DMOL2B&S=2025'
-        }
-      });
+    it('refreshes by itself when a live game ends', () => {
+        vi.useFakeTimers();
+        // jsdom has no layout, so no scrollIntoView.
+        Element.prototype.scrollIntoView ??= vi.fn();
+        setup();
+        ticker.liveGames.set([{ Season: 2026, LeagueID: 9, Gruppe: '', LeagueKind: 'V', GameID: 3, LiveShortText: '4:2', ScoreText: '4:2' }]);
+        fixture.detectChanges();
+        ticker.liveGames.set([{ Season: 2026, LeagueID: 9, Gruppe: '', LeagueKind: 'V', GameID: 3, LiveShortCSS: 'black', LiveShortText: '9:8', ScoreText: '9:8' }]);
+        fixture.detectChanges();
+        vi.advanceTimersByTime(4000);
+        expect(ligaService.fetchLeagueData).toHaveBeenCalledWith(LIGA_PARAM, true);
+        vi.useRealTimers();
     });
 
-    it('should not navigate when gameLink is empty', () => {
-      const game: Games = {
-        start: '',
-        home: 'A',
-        homeImageUrl: '',
-        guest: 'B',
-        guestImageUrl: '',
-        location: '',
-        gameLink: '',
-        result: ' - '
-      };
-
-      component.navigateToGameDetails(game);
-
-      expect(router.navigate).not.toHaveBeenCalled();
+    it('releases the ticker on destroy', () => {
+        setup();
+        fixture.destroy();
+        expect(ticker.release).toHaveBeenCalled();
     });
-  });
-
-  describe('navigateToMapsLink', () => {
-    beforeEach(() => {
-      fixture.detectChanges();
-    });
-
-    it('should call ligaService.getLocationLink and open in new tab', async () => {
-      const game: Games = {
-        start: '',
-        home: 'A',
-        homeImageUrl: '',
-        guest: 'B',
-        guestImageUrl: '',
-        location: 'Berlin',
-        gameLink: 'Game.aspx?id=123',
-        result: '10:8'
-      };
-
-      const event = new Event('click');
-      spyOn(event, 'preventDefault');
-      spyOn(event, 'stopPropagation');
-
-      ligaService.getLocationLink.and.returnValue(Promise.resolve('https://maps.google.com'));
-
-      await component.navigateToMapsLink(game, event);
-
-      expect(event.preventDefault).toHaveBeenCalled();
-      expect(event.stopPropagation).toHaveBeenCalled();
-      expect(ligaService.getLocationLink).toHaveBeenCalledWith('Game.aspx?id=123');
-      expect(window.open).toHaveBeenCalledWith('https://maps.google.com', '_blank');
-    });
-
-    it('should not open window when location link is empty', async () => {
-      const game: Games = {
-        start: '',
-        home: 'A',
-        homeImageUrl: '',
-        guest: 'B',
-        guestImageUrl: '',
-        location: 'Berlin',
-        gameLink: 'Game.aspx?id=123',
-        result: '10:8'
-      };
-
-      const event = new Event('click');
-
-      ligaService.getLocationLink.and.returnValue(Promise.resolve(''));
-
-      await component.navigateToMapsLink(game, event);
-
-      expect(window.open).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('getGamesByRow', () => {
-    beforeEach(() => {
-      fixture.detectChanges();
-    });
-
-    it('should filter games for specific team', () => {
-      const tableRow = mockTable[0];
-
-      component.getGamesByRow(tableRow);
-
-      // expandedGames should contain games with results for this team
-      expect(component.expandedGames).toBeDefined();
-    });
-  });
-
-  describe('groupGamesByMatchday', () => {
-    beforeEach(() => {
-      fixture.detectChanges();
-    });
-
-    it('should group games by matchday', () => {
-      component.groupGamesByMatchday();
-
-      expect(component.groupedGames).toBeDefined();
-      expect(component.groupedGames instanceof Map).toBe(true);
-    });
-  });
 });

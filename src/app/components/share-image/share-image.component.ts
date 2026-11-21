@@ -1,4 +1,4 @@
-import { Component, OnInit, ElementRef, ViewChild, Inject, HostBinding, AfterViewInit, Renderer2, OnDestroy } from '@angular/core';
+import { Component, OnInit, ElementRef, ViewChild, Inject, HostBinding, AfterViewInit, Renderer2, OnDestroy, ChangeDetectionStrategy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
@@ -13,6 +13,7 @@ import { TrackingService } from '../../services/tracking/tracking.service';
   standalone: true,
   imports: [CommonModule, MatButtonModule, MatProgressSpinnerModule, MatDialogModule, MatIcon],
   templateUrl: './share-image.component.html',
+  changeDetection: ChangeDetectionStrategy.Eager,
   styleUrls: ['./share-image.component.scss']
 })
 export class ShareImageComponent implements OnInit, AfterViewInit, OnDestroy {
@@ -35,6 +36,12 @@ export class ShareImageComponent implements OnInit, AfterViewInit, OnDestroy {
   league: string;
   quarterScores: any[];
   isFutureGame: boolean;
+  statusLabel: string;
+  homeScore = '';
+  guestScore = '';
+  readonly laneBlocks = Array.from({ length: 16 }, (_, i) => i);
+  /** Native share sheet with image attachment (mobile browsers). */
+  canShareFiles = false;
 
   constructor(
     private imageGeneratorService: ImageGeneratorService,
@@ -52,6 +59,12 @@ export class ShareImageComponent implements OnInit, AfterViewInit, OnDestroy {
     this.league = data.league;
     this.quarterScores = data.quarterScores;
     this.isFutureGame = data.isFutureGame;
+    this.statusLabel = data.statusLabel ?? 'Endstand';
+    [this.homeScore = '', this.guestScore = ''] = String(data.finalScore ?? '').split(':').map((v: string) => v.trim());
+    try {
+      const probe = new File([''], 'x.png', { type: 'image/png' });
+      this.canShareFiles = !!navigator.canShare?.({ files: [probe] });
+    } catch { this.canShareFiles = false; }
   }
 
   ngOnInit(): void {
@@ -169,6 +182,19 @@ export class ShareImageComponent implements OnInit, AfterViewInit, OnDestroy {
       link.href = this.generatedImage;
       link.download = `wasserball-spiel-${this.homeTeam.name}-vs-${this.guestTeam.name}.png`;
       link.click();
+    }
+  }
+
+  /** Hand the image to the system share sheet (WhatsApp, Instagram, …). */
+  async shareAsFile(): Promise<void> {
+    if (!this.generatedImage) return;
+    try {
+      const blob = await (await fetch(this.generatedImage)).blob();
+      const file = new File([blob], `wasserball-${this.homeTeam.name}-${this.guestTeam.name}.png`.replace(/\s+/g, '-'), { type: 'image/png' });
+      await navigator.share({ files: [file], title: `${this.homeTeam.name} – ${this.guestTeam.name}` });
+      this.tracking.track('Share Image Shared', { league: this.league });
+    } catch (e: any) {
+      if (e?.name !== 'AbortError') this.downloadImage();
     }
   }
 

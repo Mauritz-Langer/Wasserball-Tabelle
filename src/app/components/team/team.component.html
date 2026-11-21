@@ -1,0 +1,147 @@
+<div class="page">
+  <div class="page-head">
+    <button class="icon-btn back" (click)="goBack()" aria-label="Zurück">
+      <mat-icon>arrow_back</mat-icon>
+    </button>
+    <div class="titles ident">
+      @if (logo()) {
+        <img class="logo big" [attr.data-name]="name()" [src]="logo()" alt="">
+      } @else {
+        <span class="logo-ph big" aria-hidden="true">{{ initial(name()) }}</span>
+      }
+      <div class="ident-text">
+        <h1>{{ name() || 'Team' }}</h1>
+        @if (data(); as d) {
+          <a class="sub" routerLink="/liga" [queryParams]="{ param: liga() }">{{ d.name }}</a>
+        }
+      </div>
+    </div>
+  </div>
+
+  @if (isLoading()) {
+    <div class="skeleton-list" aria-busy="true" aria-label="Lade Team">
+      @for (i of [1,2,3,4,5]; track i) { <div class="skeleton skeleton-line"></div> }
+    </div>
+  } @else if (failed()) {
+    <div class="empty">
+      <mat-icon>cloud_off</mat-icon>
+      <h2>Team nicht erreichbar</h2>
+      <p>Die Daten der Liga konnten nicht geladen werden.</p>
+      @if (liga()) { <button class="btn primary" (click)="retry()">Erneut laden</button> }
+      <a class="btn" routerLink="/ligen">Alle Ligen</a>
+    </div>
+  } @else if (games().length === 0 && !row()) {
+    <div class="empty">
+      <mat-icon>help_outline</mat-icon>
+      <h2>Team nicht gefunden</h2>
+      <p>„{{ name() }}“ spielt in dieser Liga nicht mit.</p>
+      <a class="btn" routerLink="/liga" [queryParams]="{ param: liga() }">Zur Liga</a>
+    </div>
+  } @else {
+    <!-- Standing -->
+    <div class="panel stats">
+      @if (row(); as r) {
+        <div class="stat lead">
+          <span class="value num">{{ r.place }}.</span>
+          <span class="label">von {{ teamCount() }}</span>
+        </div>
+        <div class="stat">
+          <span class="value num">{{ r.points }}</span>
+          <span class="label">Punkte</span>
+        </div>
+      }
+      <div class="stat">
+        <span class="value num">{{ record().wins }}<small>S</small> {{ record().draws }}<small>U</small> {{ record().losses }}<small>N</small></span>
+        <span class="label">{{ record().played }} {{ record().played === 1 ? 'Spiel' : 'Spiele' }}</span>
+      </div>
+      <div class="stat">
+        <span class="value num">{{ record().scored }}:{{ record().conceded }}</span>
+        <span class="label">Tore</span>
+      </div>
+    </div>
+
+    @if (record().played > 0) {
+      <div class="panel panel-pad averages">
+        <div class="avg">
+          <span class="num">{{ goalsPerGame() }}</span> Tore pro Spiel
+        </div>
+        <div class="avg">
+          <span class="num">{{ concededPerGame() }}</span> Gegentore pro Spiel
+        </div>
+        @if (form().length) {
+          <div class="avg form-line">
+            Form
+            <span class="form" aria-label="Neuestes Spiel zuerst">
+              @for (o of form(); track $index) { <i [class]="o">{{ formLabel(o) }}</i> }
+            </span>
+          </div>
+        }
+      </div>
+    }
+
+    @if (row()?.info; as info) { <p class="tiebreak">Tabellenhinweis: {{ info }}</p> }
+
+    <div class="btn-row actions">
+      @if (seasonService.isLive()) {
+        <button class="follow" [class.on]="isFavorite()" (click)="toggleFavorite()" [attr.aria-pressed]="isFavorite()">
+          <mat-icon>{{ isFavorite() ? 'star' : 'star_border' }}</mat-icon>
+          <span>{{ isFavorite() ? 'Folge ich' : 'Team folgen' }}</span>
+        </button>
+      }
+      @if (upcoming().length > 0) {
+        <button class="btn small" (click)="exportCalendar()"><mat-icon>event</mat-icon>In den Kalender</button>
+      }
+      <a class="btn small" routerLink="/analytics" [queryParams]="{ tab: 'teams', q: name() }">
+        <mat-icon>insights</mat-icon>Alle Saisons
+      </a>
+    </div>
+
+    @if (upcoming().length > 0) {
+      <section class="section">
+        <div class="section-head"><h2>Nächste Spiele</h2></div>
+        <div class="panel rows">
+          @for (game of shownUpcoming(); track game.gameLink || game.start + game.home) {
+            <app-game-row [game]="game" [ligaParam]="liga()" [showDate]="true" [context]="game.location" />
+          }
+        </div>
+        @if (upcoming().length > shownUpcoming().length) {
+          <button class="btn more-btn" (click)="showAllUpcoming.set(true)">Alle {{ upcoming().length }} Spiele</button>
+        }
+      </section>
+    }
+
+    @if (results().length > 0) {
+      <section class="section">
+        <div class="section-head"><h2>Ergebnisse</h2></div>
+        <div class="panel rows">
+          @for (game of shownResults(); track game.gameLink || game.start + game.home) {
+            <app-game-row [game]="game" [ligaParam]="liga()" [showDate]="true" [perspective]="name()" />
+          }
+        </div>
+        @if (results().length > shownResults().length) {
+          <button class="btn more-btn" (click)="showAllResults.set(true)">Alle {{ results().length }} Ergebnisse</button>
+        }
+      </section>
+    }
+
+    @if (scorers().length > 0) {
+      <section class="section">
+        <div class="section-head">
+          <h2>Torschützen</h2>
+          <a class="more" routerLink="/liga" [queryParams]="{ param: liga(), tab: 'torschuetzen' }">Liga-Rangliste</a>
+        </div>
+        <div class="panel rows">
+          @for (s of scorers(); track s.name) {
+            <div class="scorer">
+              <span class="who">
+                <span class="player">{{ s.player }}</span>
+                <span class="meta num">{{ s.games }} {{ s.games === 1 ? 'Spiel' : 'Spiele' }}, Platz {{ s.place }} der Liga</span>
+              </span>
+              <span class="goal-count num">{{ s.goals }}</span>
+            </div>
+          }
+        </div>
+      </section>
+    }
+  }
+</div>

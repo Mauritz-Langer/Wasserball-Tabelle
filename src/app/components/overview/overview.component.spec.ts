@@ -1,259 +1,92 @@
-import {ComponentFixture, TestBed} from '@angular/core/testing';
-import {OverviewComponent} from './overview.component';
-import {OverviewService} from '../../services/overview/overview.service';
-import {FavoritesService} from '../../services/favorites/favorites.service';
-import {SeasonService} from '../../services/season/season.service';
-import {Router} from '@angular/router';
-import {of} from 'rxjs';
-import {signal} from '@angular/core';
-import {HttpClientTestingModule} from '@angular/common/http/testing';
-import {BrowserAnimationsModule} from '@angular/platform-browser/animations';
-import {Item} from '../../models/item';
-import {SubItem} from '../../models/subItem';
+import type { MockedObject } from "vitest";
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { provideRouter } from '@angular/router';
+import { provideHttpClient } from '@angular/common/http';
+import { provideHttpClientTesting } from '@angular/common/http/testing';
+import { of, throwError } from 'rxjs';
+import { OverviewComponent, genderOf } from './overview.component';
+import { OverviewService } from '../../services/overview/overview.service';
+import { FavoritesService } from '../../services/favorites/favorites.service';
+import { Item } from '../../models/item';
+
+const ITEMS: Item[] = [
+    { name: 'National Offen', subItems: [
+            { name: 'Bundesliga Männer', gender: 'männlich', link: 'League.aspx?Season=2026&LeagueID=1', isFavorite: false, status: 'in 5 Tagen' },
+            { name: 'Bundesliga Frauen', gender: 'weiblich', link: 'League.aspx?Season=2026&LeagueID=2', isFavorite: false }
+        ] },
+    { name: 'Bayern', subItems: [
+            { name: 'Oberliga Bayern', gender: 'männlich', link: 'League.aspx?Season=2026&LeagueID=3', isFavorite: false }
+        ] }
+];
 
 describe('OverviewComponent', () => {
-  let component: OverviewComponent;
-  let fixture: ComponentFixture<OverviewComponent>;
-  let overviewService: jasmine.SpyObj<OverviewService>;
-  let favoritesService: jasmine.SpyObj<FavoritesService>;
-  let router: jasmine.SpyObj<Router>;
+    let fixture: ComponentFixture<OverviewComponent>;
+    let component: OverviewComponent;
+    let overview: MockedObject<OverviewService>;
 
-  const mockItems: Item[] = [
-    {
-      name: 'Bundesliga',
-      subItems: [
-        {name: 'Bundesliga Männer', link: 'link1', gender: 'Männer', isFavorite: false},
-        {name: 'Bundesliga Frauen', link: 'link2', gender: 'Frauen', isFavorite: true}
-      ]
-    },
-    {
-      name: 'Oberliga',
-      subItems: [
-        {name: 'Oberliga Nord', link: 'link3', gender: 'Männer', isFavorite: false}
-      ]
+    function setup(items$ = of(ITEMS)) {
+        localStorage.removeItem('favorites');
+        overview = {
+            getItems: vi.fn().mockName("OverviewService.getItems")
+        } as unknown as MockedObject<OverviewService>;
+        overview.getItems.mockReturnValue(items$);
+        TestBed.configureTestingModule({
+            imports: [OverviewComponent],
+            providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting(), { provide: OverviewService, useValue: overview }]
+        });
+        fixture = TestBed.createComponent(OverviewComponent);
+        component = fixture.componentInstance;
+        fixture.detectChanges();
     }
-  ];
 
-  beforeEach(async () => {
-    const overviewServiceSpy = jasmine.createSpyObj('OverviewService', ['getItems', 'parseHtmlToItems']);
-    const favoritesServiceSpy = jasmine.createSpyObj('FavoritesService', ['updateCount']);
-    const routerSpy = jasmine.createSpyObj('Router', ['navigate']);
-
-    const seasonServiceMock = {
-      currentSeason: signal('2025'),
-      availableSeasons: signal(['2025']),
-      seasonsLoaded: signal(false),
-      isCurrentSeason: true,
-      getSeasonLabel: () => '2025/2026',
-      isLive: () => true,
-      setSeason: jasmine.createSpy('setSeason'),
-      loadAvailableSeasons: jasmine.createSpy('loadAvailableSeasons').and.returnValue(Promise.resolve())
-    };
-
-    await TestBed.configureTestingModule({
-      imports: [
-        OverviewComponent,
-        HttpClientTestingModule,
-        BrowserAnimationsModule
-      ],
-      providers: [
-        {provide: OverviewService, useValue: overviewServiceSpy},
-        {provide: FavoritesService, useValue: favoritesServiceSpy},
-        {provide: Router, useValue: routerSpy},
-        {provide: SeasonService, useValue: seasonServiceMock}
-      ]
-    })
-      .compileComponents();
-
-    overviewService = TestBed.inject(OverviewService) as jasmine.SpyObj<OverviewService>;
-    favoritesService = TestBed.inject(FavoritesService) as jasmine.SpyObj<FavoritesService>;
-    router = TestBed.inject(Router) as jasmine.SpyObj<Router>;
-
-    // Setup default mock responses - getItems now returns Observable<Item[]>
-    overviewService.getItems.and.returnValue(of(mockItems));
-
-    // Mock localStorage
-    let store: { [key: string]: string } = {};
-    spyOn(localStorage, 'getItem').and.callFake((key: string) => store[key] || null);
-    spyOn(localStorage, 'setItem').and.callFake((key: string, value: string) => {
-      store[key] = value;
+    it('lists the categories with the first one expanded', () => {
+        setup();
+        expect(component.isLoading()).toBe(false);
+        expect(component.totalCount()).toBe(3);
+        expect(component.isOpen(ITEMS[0])).toBe(true);
+        expect(component.isOpen(ITEMS[1])).toBe(false);
+        expect(fixture.nativeElement.textContent).toContain('Bundesliga Männer');
+        expect(fixture.nativeElement.textContent).not.toContain('Oberliga Bayern');
     });
 
-    fixture = TestBed.createComponent(OverviewComponent);
-    component = fixture.componentInstance;
-  });
-
-  it('should create', () => {
-    expect(component).toBeTruthy();
-  });
-
-  describe('ngOnInit', () => {
-    it('should load items on initialization', () => {
-      fixture.detectChanges();
-
-      expect(overviewService.getItems).toHaveBeenCalled();
-      expect(component.items.length).toBe(2);
-      expect(component.isLoading).toBe(false);
+    it('searches league and category names and opens all matches', () => {
+        setup();
+        component.onSearch('bayern');
+        expect(component.filteredItems().map(i => i.name)).toEqual(['Bayern']);
+        expect(component.isOpen(ITEMS[1])).toBe(true);
+        component.onSearch('gibt es nicht');
+        expect(component.resultCount()).toBe(0);
     });
 
-    it('should set filteredItems to all items initially', () => {
-      fixture.detectChanges();
-
-      expect(component.filteredItems.length).toBe(2);
-      expect(component.filteredItems).toEqual(component.items);
-    });
-  });
-
-  describe('favorites getter', () => {
-    it('should return all favorite subItems', () => {
-      // Setup localStorage mit Favoriten vor fixture.detectChanges()
-      const favoritesData = JSON.stringify([
-        {name: 'Bundesliga Frauen', link: 'link2', gender: 'Frauen', isFavorite: true}
-      ]);
-      (localStorage.getItem as jasmine.Spy).and.returnValue(favoritesData);
-
-      fixture.detectChanges();
-
-      const favorites = component.favorites;
-      expect(favorites.length).toBe(1);
-      expect(favorites[0].name).toBe('Bundesliga Frauen');
+    it('filters by gender', () => {
+        setup();
+        component.setGender('w');
+        expect(component.filteredItems().flatMap(i => i.subItems).map(s => s.name)).toEqual(['Bundesliga Frauen']);
     });
 
-    it('should return empty array when no favorites', () => {
-      const noFavItems: Item[] = [
-        {
-          name: 'Test',
-          subItems: [
-            {name: 'Item 1', link: 'link1', isFavorite: false, gender: 'Männer'},
-          ]
-        }
-      ];
-      overviewService.getItems.and.returnValue(of(noFavItems));
-      fixture.detectChanges();
-
-      expect(component.favorites.length).toBe(0);
-    });
-  });
-
-  describe('filterItems', () => {
-    beforeEach(() => {
-      fixture.detectChanges();
+    it('normalises gender labels', () => {
+        expect(genderOf('männlich')).toBe('m');
+        expect(genderOf('Frauen')).toBe('w');
+        expect(genderOf('mixed')).toBe('x');
+        expect(genderOf('')).toBe('');
     });
 
-    it('should show all items when search term is empty', () => {
-      component.searchTerm = '';
-      component.filterItems();
-
-      expect(component.filteredItems.length).toBe(2);
+    it('toggles favourites and lists them on top', () => {
+        setup();
+        component.toggleFavorite(ITEMS[0].subItems[1], false);
+        expect(TestBed.inject(FavoritesService).isFavorite('Bundesliga Frauen')).toBe(true);
+        expect(component.favorites().map(f => f.name)).toEqual(['Bundesliga Frauen']);
+        component.toggleFavorite(ITEMS[0].subItems[1], false);
+        expect(component.favorites()).toEqual([]);
     });
 
-    it('should filter items by name', () => {
-      component.searchTerm = 'Bundesliga Männer';
-      component.filterItems();
-
-      expect(component.filteredItems.length).toBe(1);
-      expect(component.filteredItems[0].name).toBe('Bundesliga');
-      expect(component.filteredItems[0].subItems.length).toBe(1);
+    it('offers a retry when the index cannot be loaded', () => {
+        setup(throwError(() => new Error('offline')));
+        expect(component.failed()).toBe(true);
+        overview.getItems.mockReturnValue(of(ITEMS));
+        component.retry();
+        fixture.detectChanges();
+        expect(component.failed()).toBe(false);
+        expect(overview.getItems).toHaveBeenCalledWith(true);
     });
-
-    it('should filter items by gender', () => {
-      component.searchTerm = 'Frauen';
-      component.filterItems();
-
-      expect(component.filteredItems.length).toBe(1);
-      expect(component.filteredItems[0].subItems[0].name).toBe('Bundesliga Frauen');
-    });
-
-    it('should be case insensitive', () => {
-      component.searchTerm = 'OBERLIGA';
-      component.filterItems();
-
-      expect(component.filteredItems.length).toBe(1);
-      expect(component.filteredItems[0].name).toBe('Oberliga');
-    });
-
-    it('should trim whitespace', () => {
-      component.searchTerm = '  Bundesliga  ';
-      component.filterItems();
-
-      expect(component.filteredItems.length).toBe(1);
-    });
-  });
-
-  describe('toggleFavorite', () => {
-    beforeEach(() => {
-      fixture.detectChanges();
-    });
-
-    it('should toggle favorite status', () => {
-      const subItem = component.items[0].subItems[0];
-      const initialStatus = subItem.isFavorite;
-
-      component.toggleFavorite(subItem);
-
-      expect(subItem.isFavorite).toBe(!initialStatus);
-    });
-
-    it('should save favorites to localStorage', () => {
-      const subItem = component.items[0].subItems[0];
-
-      component.toggleFavorite(subItem);
-
-      expect(localStorage.setItem).toHaveBeenCalledWith('favorites', jasmine.any(String));
-    });
-
-    it('should update favorites service count', () => {
-      const subItem = component.items[0].subItems[0];
-
-      component.toggleFavorite(subItem);
-
-      expect(favoritesService.updateCount).toHaveBeenCalled();
-    });
-  });
-
-  describe('saveFavorites', () => {
-    beforeEach(() => {
-      fixture.detectChanges();
-    });
-
-    it('should save favorites to localStorage', () => {
-      component.saveFavorites();
-
-      expect(localStorage.setItem).toHaveBeenCalledWith('favorites', jasmine.any(String));
-    });
-
-    it('should update favorites service', () => {
-      component.saveFavorites();
-
-      expect(favoritesService.updateCount).toHaveBeenCalled();
-    });
-  });
-
-  describe('navigateToLiga', () => {
-    beforeEach(() => {
-      fixture.detectChanges();
-    });
-
-    it('should navigate to liga with correct params', () => {
-      const subItem: SubItem = {name: 'Test Liga', link: 'test.aspx?param=123', isFavorite: false, gender: "Männer"};
-
-      component.navigateToLiga(subItem);
-
-      expect(router.navigate).toHaveBeenCalledWith(['/liga'], {queryParams: {param: 'test.aspx?param=123'}});
-    });
-  });
-
-  describe('loadFavorites', () => {
-    it('should load favorites from localStorage', () => {
-      const storedFavorites = JSON.stringify([
-        {name: 'Bundesliga Männer', link: 'link1', gender: 'Männer'}
-      ]);
-      localStorage.setItem('favorites', storedFavorites);
-
-      fixture.detectChanges();
-
-      const favorite = component.items[0].subItems.find(si => si.link === 'link1');
-      expect(favorite?.isFavorite).toBe(true);
-    });
-  });
 });

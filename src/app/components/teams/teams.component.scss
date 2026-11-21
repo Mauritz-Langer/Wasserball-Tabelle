@@ -1,0 +1,120 @@
+:host { display: block; }
+
+.followed {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding-right: 10px;
+
+  .row {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .meta {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+}
+
+.big {
+  width: 36px;
+  height: 36px;
+}
+
+.first > .mat-icon { color: var(--star); }
+
+.hint {
+  font-size: 13px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.link {
+  border: 0;
+  background: none;
+  cursor: pointer;
+  font: inherit;
+}
+
+.hint-text {
+  margin: 10px 2px 0;
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
+.matches { margin-top: 8px; }
+
+.no-hit {
+  padding: 16px 14px;
+  color: var(--ink-2);
+}
+
+/* Teams to tap: two columns on phones, more on wide screens */
+.team-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+}
+
+.team-pick {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 52px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius-m);
+  background: var(--surface);
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+
+  &:hover { border-color: var(--line-strong); }
+
+  &.on {
+    border-color: var(--star);
+    background: var(--lane-soft);
+
+    .pick-add { color: var(--star); }
+  }
+}
+
+.pick-name {
+  flex: 1;
+  min-width: 0;
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
+.pick-add {
+  color: var(--primary-ink);
+}
+
+.done {
+  display: flex;
+  width: 100%;
+  margin-top: 12px;
+}
+
+.result-head {
+  margin: 14px 2px 6px;
+  font-size: 15px;
+  color: var(--ink-2);
+}
+
+.hit .logo-ph {
+  width: 32px;
+  height: 32px;
+}
+
+// Inside a row button: looks like the follow pill, the row is the target.
+.small-follow {
+  min-height: 34px;
+  padding: 0 12px 0 8px;
+  font-size: 13px;
+  pointer-events: none;
+}

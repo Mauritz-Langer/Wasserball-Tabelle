@@ -1,192 +1,368 @@
-import { Component, OnInit, OnDestroy, AfterViewInit, DestroyRef, ElementRef, inject, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, OnDestroy, OnInit, computed, effect, inject, signal, untracked } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { CommonModule } from '@angular/common';
+import { Title } from '@angular/platform-browser';
 import { FormsModule } from '@angular/forms';
-import { Subject, debounceTime, distinctUntilChanged } from 'rxjs';
+import { MatIcon } from '@angular/material/icon';
+import { MatMenuModule } from '@angular/material/menu';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { Games } from '../../models/games';
+import { Table } from '../../models/table';
+import { Scorer } from '../../models/scorer';
+import { LigaService, LeagueData } from '../../services/liga/liga.service';
+import { OverviewService } from '../../services/overview/overview.service';
+import { SeasonService } from '../../services/season/season.service';
+import { HistoryService } from '../../services/history/history.service';
+import { FavoritesService, LeagueRef } from '../../services/favorites/favorites.service';
+import { TeamFavoritesService } from '../../services/favorites/team-favorites.service';
+import { LiveTickerService } from '../../services/live-ticker/live-ticker.service';
+import { TrackingService } from '../../services/tracking/tracking.service';
+import { NavigationService } from '../../services/navigation/navigation.service';
+import { parseGameLink, gameKey } from '../../models/game-ref';
 import {
-  MatCell,
-  MatCellDef,
-  MatColumnDef,
-  MatHeaderCell, MatHeaderCellDef,
-  MatHeaderRow, MatHeaderRowDef,
-  MatRow, MatRowDef,
-  MatTable, MatTableDataSource
-} from "@angular/material/table";
-import { MatSort, MatSortModule } from "@angular/material/sort";
-import { Games } from "../../models/games";
-import { LigaService } from "../../services/liga/liga.service";
-import { MatTab, MatTabGroup, MatTabLabel } from "@angular/material/tabs";
-import { Table } from "../../models/table";
+  Outcome, dayKey, dayLabel, decimal, formOf, gameTime, involves, isPlayed, parseGameDate, refreshOnReturn
+} from '../../models/game-utils';
+import { downloadCalendar } from '../../models/ics';
+import { GameRowComponent } from '../game-row/game-row.component';
+import { LogoFallbackDirective } from '../../directives/logo-fallback.directive';
+import { teamInitial } from '../../models/game-utils';
+import { TeamIndexService } from '../../services/team-index/team-index.service';
 
-import { Scorer } from "../../models/scorer";
-import { animate, state, style, transition, trigger } from "@angular/animations";
-import { MatFormField, MatLabel, MatPrefix } from "@angular/material/form-field";
-import { MatInput } from "@angular/material/input";
-import { MatIcon } from "@angular/material/icon";
-import { MatCard, MatCardContent } from "@angular/material/card";
-import { MatButton, MatIconButton } from "@angular/material/button";
-import { MatTooltip } from "@angular/material/tooltip";
-import { MatSnackBar } from "@angular/material/snack-bar";
-import { SeasonService } from "../../services/season/season.service";
-import { TeamFavoritesService } from "../../services/favorites/team-favorites.service";
-import { LiveTickerService } from "../../services/live-ticker/live-ticker.service";
-import { parseGameLink, gameKey } from "../../models/game-ref";
+type Tab = 'spiele' | 'tabelle' | 'torschuetzen';
+type GamesView = 'alle' | 'kommend' | 'ergebnisse' | 'meine';
+type SortKey = 'place' | 'team' | 'games' | 'wins' | 'draws' | 'losses' | 'goals' | 'goalDifference' | 'points';
 
+interface DayGroup { key: string; label: string; round: string; past: boolean; games: Games[]; }
+interface TableRow extends Table { form: Outcome[]; favorite: boolean; }
+interface ScorerRow extends Scorer { player: string; year: string; average: string; }
+
+const TABS: Tab[] = ['spiele', 'tabelle', 'torschuetzen'];
+const VIEWS: GamesView[] = ['alle', 'kommend', 'ergebnisse', 'meine'];
+const SCORER_PAGE = 40;
+
+/**
+ * League hub: fixtures and results, standings and top scorers of one league.
+ * Tab, filters and search live in the URL, so every state can be shared.
+ */
 @Component({
   selector: 'app-liga',
-  imports: [
-    CommonModule,
-    FormsModule,
-    MatTable,
-    MatColumnDef,
-    MatHeaderCell,
-    MatCell,
-    MatHeaderRow,
-    MatRow,
-    MatCellDef,
-    MatHeaderCellDef,
-    MatHeaderRowDef,
-    MatRowDef,
-    MatTabGroup,
-    MatTab,
-    MatTabLabel,
-    MatFormField,
-    MatInput,
-    MatLabel,
-    MatIcon,
-    MatCard,
-    MatCardContent,
-    RouterLink,
-    MatIconButton,
-    MatButton,
-    MatPrefix,
-    MatSortModule,
-    MatTooltip
-  ],
-  animations: [
-    trigger('detailExpand', [
-      state('collapsed,void', style({ height: '0px', minHeight: '0' })),
-      state('expanded', style({ height: '*' })),
-      transition('expanded <=> collapsed', animate('225ms cubic-bezier(0.4, 0.0, 0.2, 1)')),
-    ]),
-  ],
+  imports: [RouterLink, FormsModule, MatIcon, MatMenuModule, GameRowComponent, LogoFallbackDirective],
   templateUrl: './liga.component.html',
-  styleUrl: './liga.component.scss'
+  styleUrl: './liga.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class LigaComponent implements OnInit, AfterViewInit, OnDestroy {
+export class LigaComponent implements OnInit, OnDestroy {
   private route = inject(ActivatedRoute);
   private router = inject(Router);
+  private title = inject(Title);
   private ligaService = inject(LigaService);
+  private overviewService = inject(OverviewService);
   private snackBar = inject(MatSnackBar);
-  public seasonService = inject(SeasonService);
-  public teamFavorites = inject(TeamFavoritesService);
-  public liveTicker = inject(LiveTickerService);
+  private tracking = inject(TrackingService);
+  private destroyRef = inject(DestroyRef);
+  private navigation = inject(NavigationService);
+  seasonService = inject(SeasonService);
+  favorites = inject(FavoritesService);
+  teamFavorites = inject(TeamFavoritesService);
+  liveTicker = inject(LiveTickerService);
+  teamIndex = inject(TeamIndexService);
 
-
-  ligaName: string = '';
-  isLoading = true;
-  isRefreshing = false;
+  readonly param = signal<string | null>(null);
+  readonly data = signal<LeagueData | null>(null);
+  readonly isLoading = signal(true);
+  readonly isRefreshing = signal(false);
+  readonly failed = signal(false);
 
   // UI state mirrored in the URL for shareable/bookmarkable deep links.
-  activeTabIndex = 0;
-  gamesFilter = '';
-  scorerFilter = '';
-  private readonly tabNames = ['spiele', 'tabelle', 'torschuetzen'];
-  private currentLeagueParam: string | null = null;
-  private pendingGamesFilter = '';
-  private pendingScorerFilter = '';
-  private readonly gamesFilter$ = new Subject<string>();
-  private readonly scorerFilter$ = new Subject<string>();
-  private destroyRef = inject(DestroyRef);
+  readonly tab = signal<Tab>('spiele');
+  readonly view = signal<GamesView>('alle');
+  readonly teamFilter = signal('');
+  readonly scorerSearch = signal('');
+  readonly scorerTeam = signal('');
+  readonly scorerLimit = signal(SCORER_PAGE);
+  readonly sort = signal<{ key: SortKey; dir: 1 | -1 }>({ key: 'place', dir: 1 });
 
-  displayedColumnsGames: string[] = ['start', 'homeImage', 'home', 'guest', 'guestImage', 'location', 'result'];
-  dataSourceGames: MatTableDataSource<Games> = new MatTableDataSource();
-  displayedColumnsTable: string[] = ['place', 'image', 'team', 'games', 'wins', 'draws', 'losses', 'goals', 'goalDifference', 'points', 'form', 'expand'];
-  dataSourceTable: MatTableDataSource<Table> = new MatTableDataSource();
-  displayedColumnsScorer = ['place', 'player', 'team', 'goals', 'games'];
-  dataSourceScorer: MatTableDataSource<Scorer> = new MatTableDataSource();
+  /** The league as listed in the index (clean name + gender), if known. */
+  private readonly indexEntry = signal<LeagueRef | null>(null);
+  private holdsTicker = false;
+  private loadedAt = 0;
+  private stopReturnRefresh?: () => void;
+  /** Scroll to the next matchday once after the first load (not on "back"). */
+  private jumpPending = this.router.currentNavigation()?.trigger !== 'popstate';
 
-  expandedElement: Table | null = null;
-  expandedGames: Games[] = [];
+  readonly games = computed(() => this.data()?.games ?? []);
+  readonly hasGames = computed(() => this.games().length > 0);
+  readonly hasTable = computed(() => (this.data()?.table.length ?? 0) > 0);
+  readonly hasScorers = computed(() => (this.data()?.scorers.length ?? 0) > 0);
 
-  // Gruppierte Spiele nach Spieltag
-  groupedGames: Map<string, Games[]> = new Map();
+  readonly tabs = computed(() => [
+    ...(this.hasGames() ? [{ id: 'spiele' as Tab, label: 'Spiele' }] : []),
+    ...(this.hasTable() ? [{ id: 'tabelle' as Tab, label: 'Tabelle' }] : []),
+    ...(this.hasScorers() ? [{ id: 'torschuetzen' as Tab, label: 'Torschützen' }] : [])
+  ]);
 
-  readonly tableContainer = viewChild<ElementRef<HTMLElement>>('tableContainer');
-  readonly tableSort = viewChild(MatSort);
+  /** The requested tab, or the first one that has data. */
+  readonly activeTab = computed<Tab | null>(() => {
+    const tabs = this.tabs();
+    return tabs.find(t => t.id === this.tab())?.id ?? tabs[0]?.id ?? null;
+  });
 
-  private scrollSetupTimer?: ReturnType<typeof setTimeout>;
-  private scrollEl: HTMLElement | null = null;
-  private scrollHandler: (() => void) | null = null;
-  private connectedLive = false;
+  readonly league = computed<LeagueRef>(() =>
+    this.indexEntry() ?? { name: this.data()?.name ?? '', gender: '', link: this.param() ?? '' });
 
-  /** Inserted by Angular inject() migration for backwards compatibility */
-  constructor(...args: unknown[]);
+  readonly leagueName = computed(() => this.indexEntry()?.name || this.data()?.name || '');
+  readonly isFavorite = computed(() => this.favorites.leagues().some(l => l.name === this.league().name));
+
+  readonly teams = computed(() => {
+    const names = new Set<string>();
+    for (const g of this.games()) { names.add(g.home); names.add(g.guest); }
+    return [...names].filter(Boolean).sort((a, b) => a.localeCompare(b, 'de'));
+  });
+
+  readonly hasFavoriteTeams = computed(() => {
+    const favs = this.teamFavorites.teams();
+    return favs.length > 0 && this.teams().some(t => favs.includes(t));
+  });
+
+  readonly upcomingCount = computed(() => this.games().filter(g => !isPlayed(g)).length);
+  readonly playedCount = computed(() => this.games().filter(g => isPlayed(g)).length);
+
+  readonly visibleGames = computed(() => {
+    const view = this.view();
+    const team = this.teamFilter();
+    const favs = this.teamFavorites.teams();
+    return this.games().filter(g =>
+      (!team || involves(g, team)) &&
+      (view !== 'kommend' || !isPlayed(g)) &&
+      (view !== 'ergebnisse' || isPlayed(g)) &&
+      (view !== 'meine' || favs.includes(g.home) || favs.includes(g.guest)));
+  });
+
+  /** Games grouped by calendar day; results view runs newest first. */
+  readonly groups = computed<DayGroup[]>(() => {
+    const today = dayKey(new Date());
+    const map = new Map<string, DayGroup>();
+    for (const game of this.visibleGames()) {
+      const date = parseGameDate(game.start);
+      const key = date ? dayKey(date) : 'offen';
+      let group = map.get(key);
+      if (!group) {
+        group = {
+          key,
+          label: date ? dayLabel(date) : 'Termin offen',
+          round: game.round ?? '',
+          past: !!date && key < today,
+          games: []
+        };
+        map.set(key, group);
+      } else if (group.round && game.round && group.round !== game.round) {
+        group.round = ''; // several rounds on one day: no single label
+      }
+      group.games.push(game);
+    }
+    const groups = [...map.values()];
+    for (const g of groups) g.games.sort((a, b) => gameTime(a) - gameTime(b));
+    const dir = this.view() === 'ergebnisse' ? -1 : 1;
+    return groups.sort((a, b) =>
+      a.key === 'offen' ? 1 : b.key === 'offen' ? -1 : dir * a.key.localeCompare(b.key));
+  });
+
+  /** First day that is today or later — the place to start reading. */
+  readonly nextGroupKey = computed(() => {
+    if (this.view() === 'ergebnisse') return null;
+    const groups = this.groups();
+    const idx = groups.findIndex(g => !g.past && g.key !== 'offen');
+    return idx > 0 ? groups[idx].key : null;
+  });
+
+  readonly tableRows = computed<TableRow[]>(() => {
+    const data = this.data();
+    if (!data) return [];
+    const favs = this.teamFavorites.teams();
+    const { key, dir } = this.sort();
+    const value = (row: Table): number | string => {
+      if (key === 'goals') return parseInt(String(row.goals).split(':')[0], 10) || 0;
+      if (key === 'team') return row.team.toLowerCase();
+      return row[key];
+    };
+    return data.table
+      .map(row => ({ ...row, form: formOf(data.games, row.team), favorite: favs.includes(row.team) }))
+      .sort((a, b) => {
+        const va = value(a), vb = value(b);
+        const cmp = typeof va === 'string' ? va.localeCompare(vb as string, 'de') : (va as number) - (vb as number);
+        return cmp !== 0 ? dir * cmp : a.place - b.place;
+      });
+  });
+
+  readonly scorerTeams = computed(() =>
+    [...new Set((this.data()?.scorers ?? []).map(s => s.team))].filter(Boolean).sort((a, b) => a.localeCompare(b, 'de')));
+
+  readonly scorerRows = computed<ScorerRow[]>(() => {
+    const term = this.scorerSearch().trim().toLowerCase();
+    const team = this.scorerTeam();
+    return (this.data()?.scorers ?? [])
+      .filter(s => (!team || s.team === team) &&
+        (!term || s.name.toLowerCase().includes(term) || s.team.toLowerCase().includes(term)))
+      .map(s => {
+        const m = s.name.match(/^(.*?)\s*\((\d{4})\)\s*$/);
+        return {
+          ...s,
+          player: m ? m[1] : s.name,
+          year: m ? m[2] : '',
+          average: s.games > 0 ? decimal(s.goals / s.games) : '–'
+        };
+      });
+  });
+
+  readonly shownScorers = computed(() => this.scorerRows().slice(0, this.scorerLimit()));
+
+  /** Games of this league that are being played right now. */
+  readonly liveCount = computed(() => {
+    if (!this.seasonService.isLive()) return 0;
+    const keys = this.liveTicker.liveNowKeys();
+    if (keys.size === 0) return 0;
+    return this.games().filter(g => {
+      const ref = parseGameLink(g.gameLink);
+      return !!ref && keys.has(gameKey(ref));
+    }).length;
+  });
+
+  private lastLiveCount = 0;
 
   constructor() {
-    // The "goals" column is a "scored:conceded" string and "team" should sort
-    // alphabetically; everything else is numeric.
-    this.dataSourceTable.sortingDataAccessor = (item: any, prop: string) => {
-      if (prop === 'goals') return parseInt(String(item.goals).split(':')[0], 10) || 0;
-      if (prop === 'team') return String(item.team).toLowerCase();
-      return item[prop];
-    };
+    // When a game of this league leaves the ticker's live state it has just
+    // ended: fetch the final result without the user having to ask.
+    effect(() => {
+      const count = this.liveCount();
+      untracked(() => {
+        if (count < this.lastLiveCount) setTimeout(() => this.refresh(), 4000);
+        this.lastLiveCount = count;
+      });
+    });
   }
 
   ngOnInit(): void {
-    // Debounce the search inputs so filtering doesn't run on every keystroke.
-    this.gamesFilter$.pipe(debounceTime(250), distinctUntilChanged(), takeUntilDestroyed(this.destroyRef))
-      .subscribe(v => this.applyGamesFilter(v));
-    this.scorerFilter$.pipe(debounceTime(250), distinctUntilChanged(), takeUntilDestroyed(this.destroyRef))
-      .subscribe(v => this.applyScorerFilter(v));
-
-    this.route.queryParams.subscribe(params => {
-      // Restore tab from the URL on every change (cheap, no refetch).
-      const tabIdx = this.tabNames.indexOf((params['tab'] || '').toLowerCase());
-      this.activeTabIndex = tabIdx >= 0 ? tabIdx : 0;
+    this.route.queryParams.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(params => {
+      const tab = String(params['tab'] || '').toLowerCase() as Tab;
+      this.tab.set(TABS.includes(tab) ? tab : 'spiele');
+      const view = String(params['ansicht'] || '').toLowerCase() as GamesView;
+      this.view.set(VIEWS.includes(view) ? view : 'alle');
+      this.teamFilter.set(params['team'] || '');
+      this.scorerSearch.set(params['sf'] || '');
 
       // Only (re)fetch league data when the league itself changes — not when we
       // ourselves update tab/filter query params.
-      const leagueParam = params['param'];
-      if (leagueParam !== this.currentLeagueParam) {
-        this.currentLeagueParam = leagueParam;
-        this.pendingGamesFilter = params['gf'] || '';
-        this.pendingScorerFilter = params['sf'] || '';
-        this.fetchLeague(leagueParam);
+      const leagueParam = params['param'] || null;
+      if (leagueParam !== this.param()) {
+        this.param.set(leagueParam);
+        if (leagueParam) this.fetchLeague(leagueParam);
+        else { this.isLoading.set(false); this.failed.set(true); }
       }
+    });
+
+    // Connect to the liveticker for the current season so games that are being
+    // played right now are flagged (and show their running score).
+    if (this.seasonService.isCurrentSeason) {
+      this.holdsTicker = true;
+      this.liveTicker.retain();
+      // Back in the app after a while: show current results without asking.
+      this.stopReturnRefresh = refreshOnReturn(() => this.loadedAt, () => this.refresh());
+    }
+  }
+
+  ngOnDestroy(): void {
+    if (this.holdsTicker) this.liveTicker.release();
+    this.stopReturnRefresh?.();
+  }
+
+  private fetchLeague(param: string, forceRefresh = false): void {
+    // An archive league opened by link: show it in its own season.
+    if (HistoryService.isHistoricalLeagueId(param)) this.seasonService.setSeason(param.slice(0, 4));
+
+    // Show what we already know right away; fresh data replaces it when it arrives.
+    const known = forceRefresh ? this.data() : this.ligaService.peek(param);
+    if (forceRefresh) this.isRefreshing.set(true);
+    else {
+      this.indexEntry.set(null);
+      this.data.set(known);
+      this.isLoading.set(!known);
+      if (known) this.resolveIndexEntry(param);
+    }
+    this.failed.set(false);
+
+    this.ligaService.fetchLeagueData(param, forceRefresh)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe({
+        next: data => {
+          if (param !== this.param()) return;
+          this.data.set(data);
+          this.loadedAt = Date.now();
+          this.isLoading.set(false);
+          this.isRefreshing.set(false);
+          this.title.setTitle(`${this.leagueName() || 'Liga'} – Wasserball Live`);
+          if (!this.indexEntry()) this.resolveIndexEntry(param);
+          this.jumpToNextOnce();
+        },
+        error: () => {
+          this.isLoading.set(false);
+          this.isRefreshing.set(false);
+          if (forceRefresh) this.snackBar.open('Aktualisieren fehlgeschlagen');
+          else if (!this.data()) this.failed.set(true);
+        }
+      });
+  }
+
+  /**
+   * Look the league up in the season index: it has the clean name favourites
+   * are matched by (the page header appends the gender).
+   */
+  private resolveIndexEntry(param: string): void {
+    this.overviewService.getItems().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: items => {
+        if (param !== this.param()) return;
+        const entry = items.flatMap(i => i.subItems).find(s => s.link === param);
+        if (entry) {
+          this.indexEntry.set({ name: entry.name, gender: entry.gender, link: entry.link });
+          this.title.setTitle(`${entry.name} – Wasserball Live`);
+        }
+        this.rememberVisit();
+      },
+      error: () => this.rememberVisit()
     });
   }
 
-  private fetchLeague(param: string, forceRefresh = false, keepContent = false): void {
-    if (keepContent) {
-      this.isRefreshing = true; // refresh: keep current content, just spin the button
-    } else {
-      this.isLoading = true;
-    }
-    // Connect to the liveticker for the current season so we can flag games
-    // that are being played right now (cross-link into the live view).
-    if (this.seasonService.isCurrentSeason) {
-      this.connectedLive = true;
-      this.liveTicker.connect();
-    }
-    this.ligaService.fetchLeagueData(param, forceRefresh).subscribe((data) => {
-      this.ligaName = data.name;
-      this.dataSourceGames.data = data.games;
-      this.dataSourceTable.data = data.table;
-      this.dataSourceScorer.data = data.scorers;
+  private rememberVisit(): void {
+    const league = this.league();
+    if (!league.name || !this.seasonService.isCurrentSeason) return;
+    this.favorites.addRecent(league);
+    for (const team of this.teams()) this.teamFavorites.noteLeague(team, league);
+  }
 
-      // Restore filters captured from the URL.
-      this.gamesFilter = this.pendingGamesFilter;
-      this.scorerFilter = this.pendingScorerFilter;
-      this.dataSourceGames.filter = this.gamesFilter.trim().toLowerCase();
-      this.dataSourceScorer.filter = this.scorerFilter.trim().toLowerCase();
+  private jumpToNextOnce(): void {
+    if (!this.jumpPending) return;
+    this.jumpPending = false;
+    if (this.activeTab() !== 'spiele' || this.view() !== 'alle') return;
+    const key = this.nextGroupKey();
+    if (key) setTimeout(() => this.scrollToDay(key, 'auto'), 0);
+  }
 
-      this.groupGamesByMatchday();
-      this.calculateForm();
-      this.isLoading = false;
-      this.isRefreshing = false;
-    });
+  scrollToDay(key: string, behavior: ScrollBehavior = 'smooth'): void {
+    document.getElementById('tag-' + key)?.scrollIntoView({ behavior, block: 'start' });
+  }
+
+  goBack(): void {
+    this.navigation.back('/ligen');
+  }
+
+  retry(): void {
+    const param = this.param();
+    if (param) this.fetchLeague(param);
+  }
+
+  /** Re-fetch live data, bypassing the session cache (keeps current content). */
+  refresh(): void {
+    const param = this.param();
+    if (param && !this.isRefreshing()) this.fetchLeague(param, true);
   }
 
   /** Persist UI state (tab/filters) in the URL without polluting history. */
@@ -199,475 +375,94 @@ export class LigaComponent implements OnInit, AfterViewInit, OnDestroy {
     });
   }
 
-  onTabChange(index: number): void {
-    this.activeTabIndex = index;
-    this.updateUrl({ tab: index > 0 ? this.tabNames[index] : null });
+  selectTab(tab: Tab): void {
+    this.tab.set(tab);
+    this.updateUrl({ tab: tab === 'spiele' ? null : tab });
   }
 
-  /** Re-fetch live data, bypassing the session cache (keeps current content). */
-  refresh(): void {
-    if (this.currentLeagueParam && !this.isRefreshing) {
-      this.fetchLeague(this.currentLeagueParam, true, true);
-    }
+  setView(view: GamesView): void {
+    this.view.set(view);
+    this.updateUrl({ ansicht: view === 'alle' ? null : view });
   }
 
-  ngAfterViewInit() {
-    // Enable column sorting on the standings table.
-    const sort = this.tableSort();
-    if (sort) {
-      this.dataSourceTable.sort = sort;
-    }
-
-    // Scroll-Progress-Funktionalität für die Tabelle mit ViewChild
-    this.scrollSetupTimer = setTimeout(() => {
-      const tableContainer = this.tableContainer();
-      if (tableContainer) {
-        const tableContainerEl = tableContainer.nativeElement;
-        const progressBar = document.querySelector('.scroll-progress .progress-bar') as HTMLElement;
-
-        if (progressBar) {
-          const updateScrollProgress = () => {
-            const scrollLeft = tableContainerEl.scrollLeft;
-            const scrollWidth = tableContainerEl.scrollWidth - tableContainerEl.clientWidth;
-            const scrollPercent = scrollWidth > 0 ? (scrollLeft / scrollWidth) * 100 : 0;
-            progressBar.style.width = Math.min(scrollPercent, 100) + '%';
-          };
-
-          tableContainerEl.addEventListener('scroll', updateScrollProgress);
-          // Keep references so we can detach on destroy.
-          this.scrollEl = tableContainerEl;
-          this.scrollHandler = updateScrollProgress;
-          updateScrollProgress();
-        }
-      }
-    }, 200);
+  setTeamFilter(team: string): void {
+    this.teamFilter.set(team);
+    this.updateUrl({ team: team || null });
   }
 
-  ngOnDestroy(): void {
-    if (this.scrollSetupTimer !== undefined) clearTimeout(this.scrollSetupTimer);
-    if (this.scrollEl && this.scrollHandler) {
-      this.scrollEl.removeEventListener('scroll', this.scrollHandler);
-    }
-    if (this.connectedLive) {
-      this.liveTicker.disconnect();
-    }
+  private scorerUrlTimer?: ReturnType<typeof setTimeout>;
+
+  onScorerSearch(term: string): void {
+    this.scorerSearch.set(term);
+    this.scorerLimit.set(SCORER_PAGE);
+    clearTimeout(this.scorerUrlTimer);
+    this.scorerUrlTimer = setTimeout(() => this.updateUrl({ sf: term.trim() || null }), 400);
   }
 
-  /** Shared game key for a Liga game (from its DSV gameLink), or '' if none. */
-  private liveKeyOf(game: Games): string {
-    const ref = parseGameLink(game.gameLink);
-    return ref ? gameKey(ref) : '';
+  setScorerTeam(team: string): void {
+    this.scorerTeam.set(team);
+    this.scorerLimit.set(SCORER_PAGE);
   }
 
-  /** Is this game being played right now (per the liveticker)? */
-  isGameLive(game: Games): boolean {
-    if (!this.seasonService.isCurrentSeason) return false;
-    const key = this.liveKeyOf(game);
-    return !!key && this.liveTicker.liveNowKeys().has(key);
+  showMoreScorers(): void {
+    this.scorerLimit.update(n => n + SCORER_PAGE);
   }
 
-  /** Number of games of this league currently live. */
-  get liveCount(): number {
-    return this.dataSourceGames.data.filter(g => this.isGameLive(g)).length;
+  sortBy(key: SortKey): void {
+    const current = this.sort();
+    // Text and rank ascend first; everything else starts with the highest value.
+    const first: 1 | -1 = key === 'place' || key === 'team' ? 1 : -1;
+    this.sort.set(current.key === key ? { key, dir: current.dir === 1 ? -1 : 1 } : { key, dir: first });
   }
 
-  /** Open the liveticker focused on this game. */
-  openLive(game: Games, event?: Event): void {
-    event?.stopPropagation();
-    const key = this.liveKeyOf(game);
-    this.router.navigate(['/live'], { queryParams: key ? { game: key } : {} });
+  ariaSort(key: SortKey): 'ascending' | 'descending' | 'none' {
+    const s = this.sort();
+    return s.key !== key ? 'none' : s.dir === 1 ? 'ascending' : 'descending';
   }
 
-  async navigateToMapsLink(element: Games, event: Event): Promise<void> {
-    event.preventDefault();
-    event.stopPropagation();
-
-    const locationLink = await this.ligaService.getLocationLink(element.gameLink);
-    if (locationLink) {
-      window.open(locationLink, '_blank');
-    }
+  toggleFavorite(): void {
+    const league = this.league();
+    if (!league.name) return;
+    const now = this.favorites.toggle(league);
+    this.tracking.track(now ? 'Favorite Added' : 'Favorite Removed', { leagueName: league.name });
+    this.snackBar.open(now ? 'Du folgst dieser Liga' : 'Liga entfernt', 'Rückgängig')
+      .onAction().subscribe(() => this.favorites.toggle(league));
   }
 
-  getGamesByRow(row: Table) {
-    this.expandedGames = this.dataSourceGames.data.filter(game => (game.home === row.team || game.guest === row.team) && game.result.includes(':'));
+  /** Export upcoming games (optionally of one team) as an iCalendar file. */
+  exportCalendar(): void {
+    const team = this.teamFilter();
+    const games = team ? this.games().filter(g => involves(g, team)) : this.games();
+    const count = downloadCalendar(games, this.leagueName(), team || this.leagueName());
+    this.snackBar.open(count
+      ? `${count} ${count === 1 ? 'Termin' : 'Termine'} als Kalenderdatei gespeichert`
+      : 'Es stehen keine Spiele mehr an');
   }
 
-  /**
-   * Canonical parser for the DSV date format "DD.MM.YY[YY][, HH:MM[ Uhr]]".
-   * Handles both 2- and 4-digit years; returns null when unparseable.
-   */
-  private parseGameDate(value: string): Date | null {
-    if (!value || !value.trim()) return null;
-    const [datePart, timePart] = value.replace(' Uhr', '').split(',').map(s => s.trim());
-    const d = datePart?.split('.');
-    if (!d || d.length < 3) return null;
-
-    const day = parseInt(d[0], 10);
-    const month = parseInt(d[1], 10) - 1;
-    let year = parseInt(d[2], 10);
-    if (Number.isNaN(day) || Number.isNaN(month) || Number.isNaN(year)) return null;
-    if (year < 100) year += 2000; // 2-digit year -> 20YY
-
-    let hours = 0, minutes = 0;
-    if (timePart) {
-      const t = timePart.split(':');
-      hours = parseInt(t[0], 10) || 0;
-      minutes = parseInt(t[1], 10) || 0;
-    }
-    return new Date(year, month, day, hours, minutes);
-  }
-
-  checkEventInPast(start: string): boolean {
-    const eventDate = this.parseGameDate(start);
-    return eventDate ? eventDate < new Date() : false;
-  }
-
-  /** Debounced: called on every keystroke; the actual filtering is throttled. */
-  onGamesFilterChange(): void {
-    this.gamesFilter$.next(this.gamesFilter);
-  }
-
-  onScorerFilterChange(): void {
-    this.scorerFilter$.next(this.scorerFilter);
-  }
-
-  clearGamesFilter(): void {
-    this.gamesFilter = '';
-    this.applyGamesFilter('');
-  }
-
-  clearScorerFilter(): void {
-    this.scorerFilter = '';
-    this.applyScorerFilter('');
-  }
-
-  private applyGamesFilter(value: string): void {
-    this.dataSourceGames.filter = value.trim().toLowerCase();
-    this.groupGamesByMatchday();
-    this.updateUrl({ gf: value || null });
-  }
-
-  private applyScorerFilter(value: string): void {
-    this.dataSourceScorer.filter = value.trim().toLowerCase();
-    this.updateUrl({ sf: value || null });
-  }
-
-  isGameWon(game: Games, teamName: string): boolean {
-    const resultParts = game.result.split(':');
-    if (resultParts.length !== 2) return false;
-
-    const homeGoals = parseInt(resultParts[0]);
-    const guestGoals = parseInt(resultParts[1]);
-
-    if (game.home === teamName) {
-      return homeGoals > guestGoals;
-    } else if (game.guest === teamName) {
-      return guestGoals > homeGoals;
-    }
-    return false;
-  }
-
-  isGameLost(game: Games, teamName: string): boolean {
-    const resultParts = game.result.split(':');
-    if (resultParts.length !== 2) return false;
-
-    const homeGoals = parseInt(resultParts[0]);
-    const guestGoals = parseInt(resultParts[1]);
-
-    if (game.home === teamName) {
-      return homeGoals < guestGoals;
-    } else if (game.guest === teamName) {
-      return guestGoals < homeGoals;
-    }
-    return false;
-  }
-
-  isGameDraw(game: Games): boolean {
-    const resultParts = game.result.split(':');
-    if (resultParts.length !== 2) return false;
-
-    const homeGoals = parseInt(resultParts[0]);
-    const guestGoals = parseInt(resultParts[1]);
-
-    return homeGoals === guestGoals;
-  }
-
-  navigateToGameDetails(game: Games): void {
-    // Nur navigieren, wenn ein gameLink vorhanden ist
-    if (game.gameLink) {
-      // Hole die aktuellen Liga-Parameter
-      const currentParams = this.route.snapshot.queryParams;
-
-      // Navigiere mit gameLink UND behalte die Liga-Parameter
-      this.router.navigate(['/game-details'], {
-        queryParams: {
-          param: game.gameLink,
-          ligaParam: currentParams['param'] // Speichere Liga-Parameter für Zurück-Navigation
-        }
-      });
-    }
-  }
-
-  /** Goals-per-game average for a scorer, German-formatted ("1,5" or "–"). */
-  goalAverage(goals: number, games: number): string {
-    if (!games || games <= 0) return '–';
-    return (goals / games).toFixed(1).replace('.', ',');
-  }
-
-  /** Whether a game already has a result (vs. an upcoming/unplayed game). */
-  isPlayed(game: Games): boolean {
-    const r = (game.result || '').trim();
-    return r !== '' && r !== '-' && r !== '- ' && r.includes(':');
-  }
-
-  /** Result class from the perspective of the user's favourite team (if any). */
-  favResultClass(game: Games): string {
-    if (!this.isPlayed(game)) return '';
-    const fav = this.teamFavorites.isFavorite(game.home) ? game.home
-      : this.teamFavorites.isFavorite(game.guest) ? game.guest : null;
-    if (!fav) return '';
-    if (this.isGameWon(game, fav)) return 'fav-won';
-    if (this.isGameLost(game, fav)) return 'fav-lost';
-    if (this.isGameDraw(game)) return 'fav-draw';
-    return '';
-  }
-
-  involvesFavorite(game: Games): boolean {
-    return this.teamFavorites.isFavorite(game.home) || this.teamFavorites.isFavorite(game.guest);
-  }
-
-  toggleTeamFavorite(teamName: string): void {
-    this.teamFavorites.toggle(teamName);
-    const nowFav = this.teamFavorites.isFavorite(teamName);
-    const msg = nowFav
-      ? `„${teamName}" als Lieblingsteam gemerkt`
-      : `„${teamName}" aus Favoriten entfernt`;
-    this.snackBar.open(msg, 'Rückgängig', { duration: 4000 })
-      .onAction().subscribe(() => this.teamFavorites.toggle(teamName));
-  }
-
-  isTeamGameFavorite(game: Games): boolean {
-    return this.teamFavorites.isFavorite(game.home) || this.teamFavorites.isFavorite(game.guest);
-  }
-
-  /** The soonest upcoming game involving one of the user's favourite teams. */
-  get nextFavoriteGame(): Games | null {
-    if (this.teamFavorites.teams().length === 0) return null;
-    const upcoming = this.dataSourceGames.data
-      .filter(g => this.isTeamGameFavorite(g) && !this.checkEventInPast(g.start))
-      .sort((a, b) =>
-        (this.parseGameDate(a.start)?.getTime() ?? 0) - (this.parseGameDate(b.start)?.getTime() ?? 0));
-    return upcoming[0] ?? null;
-  }
-
-  /** Open the cross-season statistics for a team in the analytics view. */
-  navigateToTeamStats(teamName: string): void {
-    if (!teamName) return;
-    this.router.navigate(['/analytics'], {
-      queryParams: { tab: 'teams', q: teamName }
-    });
-  }
-
-  /**
-   * Gruppiert Spiele nach Datum (Spieltag)
-   */
-  groupGamesByMatchday(): void {
-    this.groupedGames = new Map();
-    const games = this.dataSourceGames.filteredData;
-
-    games.forEach(game => {
-      // Extrahiere nur das Datum (ohne Uhrzeit) z.B. "04.10.24"
-      const splitResult = game.start.split(',');
-      const datePart = splitResult.length > 0 ? splitResult[0].trim() : game.start;
-
-      if (!this.groupedGames.has(datePart)) {
-        this.groupedGames.set(datePart, []);
-      }
-      this.groupedGames.get(datePart)!.push(game);
-    });
-  }
-
-  /**
-   * Gibt die Spieltage als sortiertes Array zurück
-   */
-  getMatchdays(): string[] {
-    return Array.from(this.groupedGames.keys()).sort((a, b) => {
-      // Konvertiere Datum-String in vergleichbare Form
-      const dateA = this.parseGermanDate(a);
-      const dateB = this.parseGermanDate(b);
-      return dateA.getTime() - dateB.getTime(); // Älteste zuerst (aufsteigend)
-    });
-  }
-
-  /**
-   * Parse deutsches Datum (DD.MM.YY)
-   */
-  private parseGermanDate(dateStr: string): Date {
-    return this.parseGameDate(dateStr) ?? new Date();
-  }
-
-  /**
-   * Prüft, ob ein Spieltag in der Vergangenheit liegt
-   */
-  isMatchdayInPast(matchday: string): boolean {
+  async share(): Promise<void> {
+    const shareData = { title: `Wasserball: ${this.leagueName()}`, url: window.location.href };
     try {
-      const matchdayDate = this.parseGermanDate(matchday);
-      const now = new Date();
-      now.setHours(0, 0, 0, 0); // Nur Datum vergleichen
-      return matchdayDate < now;
-    } catch {
-      return false;
-    }
-  }
-
-  /**
-   * Gibt Spiele für einen Spieltag zurück, sortiert nach Zeit (aufsteigend)
-   */
-  getGamesForMatchday(matchday: string): Games[] {
-    const games = this.groupedGames.get(matchday) || [];
-
-    // Sortiere Spiele nach Zeit (früheste/älteste zuerst)
-    return games.sort((a, b) => {
-      const timeA = this.extractTime(a.start);
-      const timeB = this.extractTime(b.start);
-      return timeA - timeB; // Aufsteigend
-    });
-  }
-
-  /**
-   * Extrahiert Zeit aus "DD.MM.YY, HH:MM Uhr" Format und gibt Minuten seit Mitternacht zurück
-   */
-  private extractTime(dateTimeStr: string): number {
-    const d = this.parseGameDate(dateTimeStr);
-    return d ? d.getHours() * 60 + d.getMinutes() : 0;
-  }
-
-  /**
-   * Parse deutsches Datum mit Uhrzeit (DD.MM.YY, HH:MM Uhr)
-   */
-  parseGermanDateWithTime(dateTimeStr: string): Date | null {
-    return this.parseGameDate(dateTimeStr);
-  }
-
-  /**
-   * Berechnet die Form (letzte 5 Spiele) für jedes Team
-   */
-  calculateForm(): void {
-    const games = this.dataSourceGames.data;
-
-    this.dataSourceTable.data.forEach(teamRow => {
-      // 1. Alle Spiele dieses Teams finden (nur gespielte Spiele mit Ergebnis)
-      const teamGames = games.filter(g =>
-        (g.home === teamRow.team || g.guest === teamRow.team) &&
-        g.result.includes(':') && g.result !== ' - '
-      );
-
-      // 2. Nach Datum sortieren (neueste zuerst)
-      teamGames.sort((a, b) => {
-        const dateA = this.parseGermanDateWithTime(a.start);
-        const dateB = this.parseGermanDateWithTime(b.start);
-        if (!dateA || !dateB) return 0;
-        return dateB.getTime() - dateA.getTime();
-      });
-
-      // 3. Die letzten 5 nehmen und Ergebnis auswerten
-      const last5 = teamGames.slice(0, 5).map(game => {
-        if (this.isGameWon(game, teamRow.team)) return 'W';
-        if (this.isGameDraw(game)) return 'D';
-        return 'L';
-      });
-
-      teamRow.form = last5;
-    });
-
-    // Trigger Change Detection für die Tabelle
-    this.dataSourceTable.data = [...this.dataSourceTable.data];
-  }
-
-  /**
-   * Exportiert Spiele als iCalendar (.ics) Datei
-   * @param teamName Optional: Nur Spiele eines bestimmten Teams exportieren
-   */
-  downloadCalendar(teamName?: string): void {
-    // Wenn teamName gesetzt ist, filtere nur dessen Spiele, sonst alle
-    const gamesToExport = teamName
-      ? this.dataSourceGames.data.filter(g => g.home === teamName || g.guest === teamName)
-      : this.dataSourceGames.data;
-
-    // Filter nur zukünftige Spiele
-    const futureGames = gamesToExport.filter(g => !this.checkEventInPast(g.start));
-
-    if (futureGames.length === 0) {
-      alert('Keine zukünftigen Spiele zum Exportieren gefunden.');
-      return;
-    }
-
-    let icsContent = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//WasserballTabelle//DE\nCALSCALE:GREGORIAN\nMETHOD:PUBLISH\n";
-
-    futureGames.forEach(game => {
-      const startDate = this.parseGermanDateWithTime(game.start);
-      if (!startDate) return;
-
-      // Annahme: Spiel dauert 90 Minuten
-      const endDate = new Date(startDate.getTime() + 90 * 60000);
-
-      // Formatieren für ICS: YYYYMMDDTHHmmssZ
-      const startStr = this.formatDateForICS(startDate);
-      const endStr = this.formatDateForICS(endDate);
-
-      // Eindeutige UID generieren
-      const uid = `${startStr}-${game.home.replace(/\s/g, '')}-${game.guest.replace(/\s/g, '')}@wasserball-tabelle.de`;
-
-      // DTSTAMP (Erstellungszeitpunkt)
-      const now = new Date();
-      const dtstamp = this.formatDateForICS(now);
-
-      icsContent += "BEGIN:VEVENT\n";
-      icsContent += `UID:${uid}\n`;
-      icsContent += `DTSTAMP:${dtstamp}\n`;
-      icsContent += `DTSTART:${startStr}\n`;
-      icsContent += `DTEND:${endStr}\n`;
-      icsContent += `SUMMARY:${game.home} vs. ${game.guest}\n`;
-      icsContent += `DESCRIPTION:Wasserball - ${this.ligaName}\\nErgebnis: ${game.result}\n`;
-      if (game.location) {
-        icsContent += `LOCATION:${game.location}\n`;
+      if (navigator.share) await navigator.share(shareData);
+      else {
+        await navigator.clipboard.writeText(shareData.url);
+        this.snackBar.open('Link kopiert');
       }
-      icsContent += "STATUS:CONFIRMED\n";
-      icsContent += "TRANSP:OPAQUE\n";
-      icsContent += "END:VEVENT\n";
-    });
-
-    icsContent += "END:VCALENDAR";
-
-    // Download auslösen
-    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    const filename = teamName
-      ? `spielplan_${teamName.replace(/\s/g, '_')}.ics`
-      : `spielplan_${this.ligaName.replace(/\s/g, '_')}.ics`;
-    link.download = filename;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
+    } catch (e: any) {
+      if (e?.name !== 'AbortError') this.snackBar.open('Teilen nicht möglich');
+    }
   }
 
-  /**
-   * Formatiert ein Datum für ICS-Format: YYYYMMDDTHHmmss
-   */
-  private formatDateForICS(date: Date): string {
-    const pad = (n: number) => n < 10 ? '0' + n : n.toString();
+  /** Link to the same league on the DSV site (live season only). */
+  readonly dsvUrl = computed(() => {
+    const param = this.param();
+    return param && /League\.aspx/i.test(param) ? 'https://dsvdaten.dsv.de/Modules/WB/' + param : null;
+  });
 
-    const year = date.getFullYear();
-    const month = pad(date.getMonth() + 1);
-    const day = pad(date.getDate());
-    const hours = pad(date.getHours());
-    const minutes = pad(date.getMinutes());
-    const seconds = pad(date.getSeconds());
+  initial(name: string): string {
+    return teamInitial(name);
+  }
 
-    return `${year}${month}${day}T${hours}${minutes}${seconds}`;
+  formLabel(o: Outcome): string {
+    return o === 'W' ? 'S' : o === 'D' ? 'U' : 'N';
   }
 }
-

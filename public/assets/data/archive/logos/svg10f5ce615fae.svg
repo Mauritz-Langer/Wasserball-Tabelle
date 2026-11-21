@@ -1,0 +1,26 @@
+<svg width="37.5" height="25" viewBox="0 0 60 40" preserveAspectRatio="xMidYMid meet" xmlns="http://www.w3.org/2000/svg">
+  <g id="Ebene_11" data-name="Ebene 11">
+    <path d="M15.97,18.73s-1.56,8.63,5.82,15.39l8.31,5.1s2.7-1.04,5.61-3.53l4.36-3.64s5.93-5.51,4.36-14.45l-28.48,1.14h.01Z" fill="#f08817"></path>
+    <path d="M16.91,2.73s12.68-4.85,26.61-.14c0,0-2.39,4.5-.31,10.64h-26.29s2.18-4.68,0-10.5h-.01Z" fill="#fff"></path>
+    <path d="M17.19,12.84l25.82-.03s1.66,2.7,1.66,6.24H15.77s.86-5.85,1.42-6.2Z" fill="#312663"></path>
+    <path d="M16.63,2.73s12.47-4.99,26.89-.14c0,0-2.63,5.13-.28,10.4,0,0,5.68,11.78-5.13,21.07,0,0-3.05,2.49-7.9,5.54l-6.93-4.44s-11.5-6.65-6.1-22.32c0,0,1.94-6.1-.55-10.12,0,0-.01,0-.01,0Z" fill="none" stroke="#312663" stroke-width=".66"></path>
+    <path d="M21.49,7.2h8v3.84s-1.98-.14-2.12-.55c0,0-2.43-.49,1.11-2.01,0,0-1.87,0-7,1.25v-2.53h.01Z" fill="#d61512"></path>
+    <path d="M21.58,6.26h8v-3.84s-1.98.14-2.12.55c0,0-2.43.49,1.11,2.01,0,0-1.87,0-7-1.25v2.53h.01Z" fill="#d61512"></path>
+    <path d="M38.8,6.32h-8v-3.84s1.98.14,2.12.55c0,0,2.43.49-1.11,2.01,0,0,1.87,0,7-1.25v2.53h-.01Z" fill="#d61512"></path>
+    <path d="M38.8,7.2h-8v3.84s1.98-.14,2.12-.55c0,0,2.43-.49-1.11-2.01,0,0,1.87,0,7,1.25v-2.53h-.01Z" fill="#d61512"></path>
+    <g>
+      <path d="M20.88,14.48h-1.35v-.96h3.87v.96h-1.37v4.09h-1.15s0-4.09,0-4.09Z" fill="#f08817"></path>
+      <path d="M25.4,18.57l-1.62-5.04h1.25l.62,2.14c.17.6.33,1.17.45,1.81h.02c.13-.61.29-1.2.46-1.78l.64-2.16h1.21l-1.7,5.04h-1.33.01Z" fill="#f08817"></path>
+      <path d="M31.82,18.57v-.69l.63-.56c1.06-.95,1.57-1.5,1.6-2.06,0-.39-.24-.71-.8-.71-.42,0-.79.21-1.04.4l-.32-.82c.36-.28.94-.5,1.6-.5,1.1,0,1.7.64,1.7,1.53,0,.82-.6,1.47-1.3,2.1l-.45.37h1.83v.95s-3.45,0-3.45,0Z" fill="#f08817"></path>
+      <path d="M35.97,18.57v-.69l.63-.56c1.06-.95,1.57-1.5,1.6-2.06,0-.39-.24-.71-.8-.71-.42,0-.79.21-1.04.4l-.32-.82c.36-.28.94-.5,1.6-.5,1.1,0,1.7.64,1.7,1.53,0,.82-.6,1.47-1.3,2.1l-.45.37h1.83v.95s-3.45,0-3.45,0Z" fill="#f08817"></path>
+    </g>
+    <polyline points="21.42 23.86 19.34 27.95 23.56 26.15" fill="none" stroke="#312663" stroke-linecap="round" stroke-linejoin="round" stroke-width=".66"></polyline>
+    <path d="M22.32,30.57l2.15-3.88s2.43,1.11,1.6,2.29c0,0-.9,1.94-2.49-.14l1.32,1.32s-.49,1.73.55,1.94" fill="none" stroke="#312663" stroke-linecap="round" stroke-linejoin="round" stroke-width=".66"></path>
+    <polyline points="30.01 28.29 27.52 28.29 26.83 32.38 29.73 32.38" fill="none" stroke="#312663" stroke-linecap="round" stroke-linejoin="round" stroke-width=".66"></polyline>
+    <line x1="27.24" y1="30.23" x2="29.67" y2="30.3" fill="none" stroke="#312663" stroke-linecap="round" stroke-linejoin="round" stroke-width=".66"></line>
+    <path d="M31.19,32.66v-4.3s2.43-.2,2.63,1.73c0,0,.55,2.56-2.63,2.56Z" fill="none" stroke="#312663" stroke-linecap="round" stroke-linejoin="round" stroke-width=".66"></path>
+    <polyline points="36.32 26.56 34.31 27.81 36.25 31.34 38.61 29.88" fill="none" stroke="#312663" stroke-linecap="round" stroke-linejoin="round" stroke-width=".66"></polyline>
+    <line x1="35.28" y1="29.47" x2="37.29" y2="28.22" fill="none" stroke="#312663" stroke-linecap="round" stroke-linejoin="round" stroke-width=".66"></line>
+    <polyline points="40.05 29.05 37.21 25.94 42 26.84 38.95 23.92" fill="none" stroke="#312663" stroke-linecap="round" stroke-linejoin="round" stroke-width=".66"></polyline>
+  </g>
+</svg>

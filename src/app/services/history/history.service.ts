@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { DatabaseService } from '../database/database.service';
+import { DatabaseService, seasonDb, detailsDb, logoUrl } from '../database/database.service';
 import { Item } from '../../models/item';
 import { Games } from '../../models/games';
 import { Table } from '../../models/table';
@@ -11,6 +11,11 @@ import { GameDetails, TeamDetails, Officials, PersonalFoul } from '../../models/
 })
 export class HistoryService {
     private db = inject(DatabaseService);
+
+    /** Archive ids start with the season: "2014_6" (league), "2014_6_2" (game). */
+    private seasonOf(id: string): string {
+        return String(id).slice(0, 4);
+    }
 
     /**
      * Infer category from league name for grouping in overview.
@@ -71,8 +76,8 @@ export class HistoryService {
     }
 
     async getOverviewItems(seasonId: string): Promise<Item[]> {
-        const leagues = await this.db.query(`
-            SELECT id, name, link_url FROM leagues
+        const leagues = await this.db.query(seasonDb(seasonId), `
+            SELECT id, name FROM leagues
             WHERE season_id = ?
             ORDER BY name
         `, [seasonId]);
@@ -139,13 +144,11 @@ export class HistoryService {
      */
     async getLeagueName(leagueId: string): Promise<string> {
         const row = await this.db.getOne(
-            `SELECT name, season_id FROM leagues WHERE id = ?`,
+            seasonDb(this.seasonOf(leagueId)),
+            `SELECT name FROM leagues WHERE id = ?`,
             [leagueId]
         );
-        if (row) {
-            return `${row.name} (Saison ${row.season_id})`;
-        }
-        return 'Historische Liga';
+        return row?.name ?? 'Historische Liga';
     }
 
     /**
@@ -153,27 +156,23 @@ export class HistoryService {
      */
     private async getTeamImageMap(leagueId: string): Promise<Map<string, string>> {
         const teamImages = new Map<string, string>();
-        // Logos are deduplicated into the `logos` table and referenced via
-        // `logo_hash`. COALESCE keeps it working on a raw (pre-slim) database
-        // where the image still lives inline in `image_url`.
+        // Logos are static image files, referenced by hash: the browser loads
+        // (and caches) only the ones that are actually shown.
         const entries = await this.db.query(
-            `SELECT te.team AS team, COALESCE(lo.data, te.image_url) AS image_url
-             FROM table_entries te
-             LEFT JOIN logos lo ON te.logo_hash = lo.hash
-             WHERE te.league_id = ? AND COALESCE(lo.data, te.image_url) IS NOT NULL
-               AND COALESCE(lo.data, te.image_url) != ''`,
+            seasonDb(this.seasonOf(leagueId)),
+            `SELECT team, logo_hash FROM table_entries WHERE league_id = ? AND logo_hash IS NOT NULL`,
             [leagueId]
         );
         for (const entry of entries) {
-            teamImages.set(entry.team, entry.image_url);
+            teamImages.set(entry.team, logoUrl(entry.logo_hash));
         }
         return teamImages;
     }
 
     async getGames(leagueId: string): Promise<Games[]> {
         const [rows, teamImages] = await Promise.all([
-            this.db.query(`
-                SELECT * FROM games WHERE league_id = ? ORDER BY start_time
+            this.db.query(seasonDb(this.seasonOf(leagueId)), `
+                SELECT * FROM games WHERE league_id = ?
             `, [leagueId]),
             this.getTeamImageMap(leagueId)
         ]);
@@ -191,18 +190,15 @@ export class HistoryService {
     }
 
     async getTable(leagueId: string): Promise<Table[]> {
-        const rows = await this.db.query(`
-      SELECT te.*, COALESCE(lo.data, te.image_url) AS resolved_image
-      FROM table_entries te
-      LEFT JOIN logos lo ON te.logo_hash = lo.hash
-      WHERE te.league_id = ? ORDER BY te.place
+        const rows = await this.db.query(seasonDb(this.seasonOf(leagueId)), `
+      SELECT * FROM table_entries WHERE league_id = ? ORDER BY seq
     `, [leagueId]);
 
         return rows.map(r => ({
             place: r.place,
             team: r.team,
             info: r.info || '',
-            imageUrl: r.resolved_image || '',
+            imageUrl: logoUrl(r.logo_hash),
             games: r.games_played,
             wins: r.wins,
             draws: r.draws,
@@ -214,8 +210,8 @@ export class HistoryService {
     }
 
     async getScorer(leagueId: string): Promise<Scorer[]> {
-        const rows = await this.db.query(`
-      SELECT * FROM scorers WHERE league_id = ? ORDER BY place
+        const rows = await this.db.query(seasonDb(this.seasonOf(leagueId)), `
+      SELECT * FROM scorers WHERE league_id = ? ORDER BY seq
     `, [leagueId]);
 
         return rows.map(r => ({
@@ -233,8 +229,17 @@ export class HistoryService {
      * "2014_6_2" or "2018_128_1_1". Live DSV links look like "Game.aspx?…" and
      * never match this.
      */
+    static isHistoricalLeagueId(id: string | null | undefined): boolean {
+        return !!id && /^\d{4}_\w+$/.test(id);
+    }
+
+    /**
+     * Archive game ids: season, LeagueID, optional group and round, game number,
+     * e.g. "2014_6_2", "2023_297_A_5" or "2025_298_P_12". DSV links
+     * ("Game.aspx?…") never match.
+     */
     static isHistoricalGameId(id: string): boolean {
-        return /^\d{4}(_\d+)+$/.test(id);
+        return /^\d{4}_\d+(_[A-Za-z0-9]+)*_\d+$/.test(id);
     }
 
     /**
@@ -243,19 +248,22 @@ export class HistoryService {
      * game-details component can render archive games identically.
      */
     async getGameDetails(gameId: string): Promise<GameDetails | null> {
-        const game = await this.db.getOne(`SELECT * FROM games WHERE id = ?`, [gameId]);
+        const season = this.seasonOf(gameId);
+        // Some seasons have no detail file (nothing recorded): the report then shows the basics.
+        const detail = (sql: string) => this.db.query(detailsDb(season), sql, [gameId]).catch(() => [] as any[]);
+        const game = await this.db.getOne(seasonDb(season), `SELECT * FROM games WHERE id = ?`, [gameId]);
         if (!game) return null;
 
-        // Per-game detail tables live in the lazily-loaded details.db; core
-        // fields (league name, team logos) come from the main DB.
+        // Per-game detail tables live in the season's details file, which is
+        // only downloaded now; core fields come from the season file.
         const [leagueName, quarters, officialRows, eventRows, teamDetailRows, lineupRows, teamImages] =
             await Promise.all([
                 this.getLeagueName(game.league_id),
-                this.db.queryDetails(`SELECT quarter, home_score, guest_score FROM game_quarter_scores WHERE game_id = ? ORDER BY quarter`, [gameId]),
-                this.db.queryDetails(`SELECT role, name FROM game_officials WHERE game_id = ?`, [gameId]),
-                this.db.queryDetails(`SELECT * FROM game_events WHERE game_id = ? ORDER BY id`, [gameId]),
-                this.db.queryDetails(`SELECT * FROM game_team_details WHERE game_id = ?`, [gameId]),
-                this.db.queryDetails(`SELECT * FROM game_lineups WHERE game_id = ? ORDER BY CAST(number AS INTEGER), name`, [gameId]),
+                detail(`SELECT quarter, home_score, guest_score FROM game_quarter_scores WHERE game_id = ? ORDER BY quarter`),
+                detail(`SELECT role, name FROM game_officials WHERE game_id = ?`),
+                detail(`SELECT * FROM game_events WHERE game_id = ? ORDER BY seq`),
+                detail(`SELECT * FROM game_team_details WHERE game_id = ?`),
+                detail(`SELECT * FROM game_lineups WHERE game_id = ? ORDER BY CAST(number AS INTEGER), name`),
                 this.getTeamImageMap(game.league_id)
             ]);
 
@@ -310,7 +318,10 @@ export class HistoryService {
                 guestScore: e.guest_score ?? 0,
                 player: e.player || '',
                 eventType: e.event_type || '',
-                goalNumber: e.goal_number ?? undefined
+                goalNumber: e.goal_number ?? undefined,
+                // Only in data from the liveticker (update-archive.js --via-ticker).
+                side: e.side === 'home' || e.side === 'guest' ? e.side : undefined,
+                cap: e.cap || undefined
             })),
             notes: game.notes || undefined,
             videoLink: game.video_link || undefined,

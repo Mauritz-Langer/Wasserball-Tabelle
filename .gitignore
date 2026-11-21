@@ -45,7 +45,9 @@ Thumbs.db
 # The shipped SQLite DB + season index are produced by scrape-seasons.js +
 # slim-db.js. Keep them out of git history; generate them in the build/deploy
 # pipeline. Remove the line below if you prefer to commit the slim DB instead.
-/public/assets/data/
+/public/assets/data/*
+# The browser archive (build-archive.js output) is deployed from git.
+!/public/assets/data/archive/
 /src/assets/data/
 # Local scraper seed + debug output (large, regenerable)
 /combined-seasons.html
@@ -54,3 +56,6 @@ Thumbs.db
 *.db-shm
 *.db-wal
 /waterpolo.db
+
+# Local DSV page cache and database backups (scripts/update-archive.js)
+/.cache/

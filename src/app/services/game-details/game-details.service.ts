@@ -76,8 +76,11 @@ export class GameDetailsService {
     const statistics = this.parseStatistics(doc);
 
     const notes = this.getTextContent(doc, 'ContentSection__noteLabel');
-    const videoLink = this.getAttribute(doc, 'ContentSection__videolinkHyperLink', 'href');
-    const protocolLink = this.getAttribute(doc, 'ContentSection__protocolLinkButton', 'href');
+    // Only real URLs: DSV renders the protocol as a javascript: postback and
+    // the video link without href when there is none.
+    const httpOnly = (href: string | null) => (href && /^https?:\/\//i.test(href) ? href : null);
+    const videoLink = httpOnly(this.getAttribute(doc, 'ContentSection__videolinkHyperLink', 'href'));
+    const protocolLink = httpOnly(this.getAttribute(doc, 'ContentSection__protocolLinkButton', 'href'));
     const endGameTime = this.getTextContent(doc, 'ContentSection__endgameLabel');
     const organizer = this.getTextContent(doc, 'ContentSection__organizerLabel');
 
@@ -200,14 +203,7 @@ export class GameDetailsService {
           const imgSrc = (childNode as Element).getAttribute('src');
           if (!imgSrc) continue;
 
-          let logoUrl = '';
-          if (imgSrc.startsWith('data:')) {
-            logoUrl = imgSrc;
-          } else if (imgSrc.startsWith('http')) {
-            logoUrl = imgSrc;
-          } else {
-            logoUrl = 'https://dsvdaten.dsv.de' + (imgSrc.startsWith('/') ? '' : '/') + imgSrc;
-          }
+          const logoUrl = this.apiProxy.assetUrl(imgSrc);
 
           // Vor dem Doppelpunkt = Heim-Team, nach dem Doppelpunkt = Gast-Team
           if (!foundColon) {
@@ -509,7 +505,7 @@ export class GameDetailsService {
     let lastGuestScore = 0;
 
     // gameRepeater kann bis zu 100 Einträge haben (erweitert für größere Spiele)
-    for (let i = 0; i < 100; i++) {
+    for (let i = 0; i < 400; i++) {
       // Hole das time-Element direkt ohne getTextContent (um ':' nicht zu verlieren)
       const timeElement = doc.getElementById(`ContentSection__gameRepeater__timeLabel_${i}`);
 
@@ -551,7 +547,16 @@ export class GameDetailsService {
       // Wenn goals-Feld leer ist (bei Ausschlüssen, Strafen, etc.),
       // verwenden wir den letzten bekannten Spielstand
 
+      // Die Kappennummer steht in der Spalte des jeweiligen Teams.
+      const raw = (name: string) =>
+        doc.getElementById(`ContentSection__gameRepeater__${name}Label_${i}`)?.textContent?.trim() || '';
+      const homeCap = raw('home');
+      const guestCap = raw('guest');
+      const side = guestCap ? 'guest' : homeCap ? 'home' : undefined;
+
       events.push({
+        side,
+        cap: (guestCap || homeCap) || undefined,
         time,
         period: parseInt(period || '0'),
         homeScore,

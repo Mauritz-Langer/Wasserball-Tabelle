@@ -80,6 +80,10 @@ export interface GameEvent {
   player: string;
   eventType: string;
   goalNumber?: number;
+  /** Team the event belongs to (from the cap-number column), if known. */
+  side?: 'home' | 'guest';
+  /** Cap number of the player involved. */
+  cap?: string;
 }
 
 export interface GameStatistics {

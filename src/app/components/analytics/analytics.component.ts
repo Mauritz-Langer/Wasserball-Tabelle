@@ -1,708 +1,455 @@
-import { Component, OnInit, OnDestroy, inject, NgZone } from '@angular/core';
-import { ActivatedRoute, RouterLink } from '@angular/router';
-import { CommonModule } from '@angular/common';
-import { BaseChartDirective } from 'ng2-charts';
-import { ChartConfiguration, ChartType } from 'chart.js';
-import { MatCardModule } from '@angular/material/card';
-import { MatTabsModule } from '@angular/material/tabs';
-import { MatAutocompleteModule, MatAutocompleteSelectedEvent } from '@angular/material/autocomplete';
-import { MatInputModule } from '@angular/material/input';
-import { MatFormFieldModule } from '@angular/material/form-field';
-import { FormControl, ReactiveFormsModule } from '@angular/forms';
-import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { MatTooltipModule } from '@angular/material/tooltip';
-import { MatChipsModule } from '@angular/material/chips';
-import { MatSelectModule } from '@angular/material/select';
-import { map, startWith } from 'rxjs/operators';
-import { Observable } from 'rxjs';
+import { ChangeDetectionStrategy, Component, DestroyRef, OnInit, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+import { DecimalPipe } from '@angular/common';
+import { FormsModule } from '@angular/forms';
+import { MatIcon } from '@angular/material/icon';
 import {
-    AnalyticsService, Entity, Streak, BiggestWin, Journeyman, TopScorer,
-    LeagueCompetitiveness, TotalStats
+  AnalyticsService, Bucket, GameRecord, LeagueOption, LeagueProfile, LeagueTightness, LevelStat, MonthStat,
+  Outcomes, PlayerOption, PlayerProfile, ScorerRank, SeasonPoint, Streak, TeamGame, TeamOption, TeamProfile,
+  TeamRank, Totals, WDL
 } from '../../services/analytics/analytics.service';
-import { MatIconModule } from '@angular/material/icon';
-import { MatButtonToggleModule } from '@angular/material/button-toggle';
-import { MatButtonModule } from '@angular/material/button';
-import { ThemeService } from '../../services/theme/theme.service';
 import { SeasonService } from '../../services/season/season.service';
+import { TeamFavoritesService } from '../../services/favorites/team-favorites.service';
+import { LineChartComponent, LineSeries } from '../charts/line-chart.component';
+import { Column, ColumnChartComponent } from '../charts/column-chart.component';
 
+type Tab = 'ueberblick' | 'teams' | 'spieler' | 'ligen';
+type Board = 'tore' | 'schnitt' | 'talente' | 'vereine';
+
+interface Share { key: string; label: string; count: number; pct: number; }
+
+const TABS: { id: Tab; label: string }[] = [
+  { id: 'ueberblick', label: 'Überblick' },
+  { id: 'teams', label: 'Teams' },
+  { id: 'spieler', label: 'Spieler' },
+  { id: 'ligen', label: 'Ligen' }
+];
+/** Older links used English tab names. */
+const TAB_ALIASES: Record<string, Tab> = { overview: 'ueberblick', players: 'spieler', leagues: 'ligen' };
+const MONTHS = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
+const BOARD_PAGE = 10;
+
+const norm = (text: string) => text.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+
+/**
+ * Statistics across all archived seasons: an overview of the sport, and
+ * profiles for single teams, players and leagues. All figures are computed in
+ * the browser from one small archive file; tab and selection live in the URL.
+ */
 @Component({
-    selector: 'app-analytics',
-    standalone: true,
-    imports: [
-        CommonModule,
-        BaseChartDirective,
-        MatCardModule,
-        MatTabsModule,
-        MatAutocompleteModule,
-        MatInputModule,
-        MatFormFieldModule,
-        ReactiveFormsModule,
-        MatIconModule,
-        MatButtonToggleModule,
-        MatButtonModule,
-        RouterLink,
-        MatProgressSpinnerModule,
-        MatTooltipModule,
-        MatChipsModule,
-        MatSelectModule
-    ],
-    templateUrl: './analytics.component.html',
-    styleUrls: ['./analytics.component.scss']
+  selector: 'app-analytics',
+  imports: [RouterLink, FormsModule, DecimalPipe, MatIcon, LineChartComponent, ColumnChartComponent],
+  templateUrl: './analytics.component.html',
+  styleUrl: './analytics.component.scss',
+  changeDetection: ChangeDetectionStrategy.OnPush
 })
-export class AnalyticsComponent implements OnInit, OnDestroy {
-    private analyticsService = inject(AnalyticsService);
-    private themeService = inject(ThemeService);
-    private ngZone = inject(NgZone);
-    private route = inject(ActivatedRoute);
-    seasonService = inject(SeasonService);
+export class AnalyticsComponent implements OnInit {
+  private analytics = inject(AnalyticsService);
+  private route = inject(ActivatedRoute);
+  private router = inject(Router);
+  private destroyRef = inject(DestroyRef);
+  private teamFavorites = inject(TeamFavoritesService);
+  seasonService = inject(SeasonService);
 
-    // Entity name to auto-select once its tab's entity list has loaded
-    // (used by deep links like /analytics?tab=teams&q=Wfr.%20Spandau%2004).
-    private pendingEntityName: string | null = null;
+  readonly tabs = TABS;
+  readonly tab = signal<Tab>('ueberblick');
+  readonly failed = signal(false);
 
-    // Loading States
-    isLoading = true;
-    isLoadingEntity = false;
+  // ---- Overview ----
+  readonly seasons = signal<number[]>([]);
+  readonly season = signal<number | null>(null);
+  readonly overviewLoading = signal(true);
+  readonly totals = signal<Totals | null>(null);
+  readonly trend = signal<SeasonPoint[]>([]);
+  readonly outcomes = signal<Outcomes | null>(null);
+  readonly buckets = signal<Bucket[]>([]);
+  readonly topTeams = signal<TeamRank[]>([]);
+  readonly highScores = signal<GameRecord[]>([]);
+  readonly margins = signal<GameRecord[]>([]);
+  readonly streaks = signal<Streak[]>([]);
 
-    // Season filter
-    availableSeasons: string[] = [];
-    selectedSeason: string | undefined = undefined; // undefined = all seasons
+  // ---- Teams ----
+  readonly teamOptions = signal<TeamOption[]>([]);
+  readonly teamQuery = signal('');
+  readonly team = signal<TeamProfile | null>(null);
+  readonly teamLoading = signal(false);
 
-    // Search Controls
-    searchControl = new FormControl('');
-    filteredOptions: Observable<Entity[]> | undefined;
-    allEntities: Entity[] = [];
-    selectedEntity: Entity | null = null;
-    currentTabIndex = 0;
+  // ---- Players ----
+  readonly playerOptions = signal<PlayerOption[]>([]);
+  readonly playerQuery = signal('');
+  readonly player = signal<PlayerProfile | null>(null);
+  readonly playerLoading = signal(false);
+  readonly board = signal<Board>('tore');
+  readonly boardRows = signal<ScorerRank[]>([]);
+  readonly boardLimit = signal(BOARD_PAGE);
 
-    // KPI Stats
-    totalStats: TotalStats = { totalGames: 0, totalTeams: 0, totalGoals: 0, seasonsCount: 0 };
-    animatedGames = 0;
-    animatedTeams = 0;
-    animatedGoals = 0;
-    animatedSeasons = 0;
-    private animationFrameIds: number[] = [];
+  // ---- Leagues ----
+  readonly leagueOptions = signal<LeagueOption[]>([]);
+  readonly leagueQuery = signal('');
+  readonly league = signal<LeagueProfile | null>(null);
+  readonly leagueLoading = signal(false);
+  readonly levels = signal<LevelStat[]>([]);
+  readonly months = signal<MonthStat[]>([]);
+  readonly tightest = signal<LeagueTightness[]>([]);
 
-    // Chart Types
-    barChartType: ChartType = 'bar';
-    lineChartType: ChartType = 'line';
-    doughnutChartType: ChartType = 'doughnut';
+  private pendingTeamName: string | null = null;
+  private loaded = new Set<Tab>();
 
-    // --- Overview Charts ---
-    topTeamsChartData: ChartConfiguration['data'] = { labels: [], datasets: [] };
-    trendsChartData: ChartConfiguration['data'] = { labels: [], datasets: [] };
-    homeAdvantageChartData: ChartConfiguration['data'] = { labels: [], datasets: [] };
-    growthChartData: ChartConfiguration['data'] = { labels: [], datasets: [] };
-    goalDistributionData: ChartConfiguration['data'] = { labels: [], datasets: [] };
-    highestScoringGames: any[] = [];
-    winningStreaks: Streak[] = [];
+  // ---- Derived: overview ----------------------------------------------------
 
-    // Chart Options
-    topTeamsChartOptions: ChartConfiguration['options'] = {};
-    trendsChartOptions: ChartConfiguration['options'] = {};
-    growthChartOptions: ChartConfiguration['options'] = {};
-    goalDistributionOptions: ChartConfiguration['options'] = {};
-    doughnutOptions: any = {
-        responsive: true,
-        maintainAspectRatio: false,
-        cutout: '65%',
-        plugins: {
-            legend: { position: 'bottom', labels: { padding: 20, usePointStyle: true, pointStyle: 'circle' } }
-        }
-    };
+  /** Seasons with a comparable amount of data (trend lines skip the others). */
+  readonly fullSeasons = computed(() => this.trend().filter(t => !t.partial));
+  readonly partialSeasons = computed(() => this.trend().filter(t => t.partial).map(t => this.seasonLabel(t.season)));
+  readonly seasonLabels = computed(() => this.fullSeasons().map(t => this.seasonLabel(t.season)));
+  readonly goalsTrend = computed<LineSeries[]>(() => [{ name: 'Tore pro Spiel', values: this.fullSeasons().map(t => t.avgGoals) }]);
+  readonly homeTrend = computed<LineSeries[]>(() => [{ name: 'Heimsiege', values: this.fullSeasons().map(t => t.homeWinPct) }]);
+  readonly gamesPerSeason = computed<Column[]>(() =>
+    this.trend().map(t => ({ label: `${String(t.season).slice(2)}/${String(t.season + 1).slice(2)}`, value: t.games })));
+  readonly bucketColumns = computed<Column[]>(() => this.buckets().map(b => ({ label: b.label, value: b.count })));
 
-    // --- Team Charts ---
-    entityChartData: ChartConfiguration['data'] = { labels: [], datasets: [] };
-    entityChartOptions: ChartConfiguration['options'] = {};
-    entityChartTitle = '';
-    teamForm: any[] = [];
-    teamRivalsChartData: ChartConfiguration['data'] = { labels: [], datasets: [] };
-    teamGoalsPerSeasonData: ChartConfiguration['data'] = { labels: [], datasets: [] };
-    teamGoalsPerSeasonOptions: ChartConfiguration['options'] = {};
-    teamBiggestWins: BiggestWin[] = [];
-    homeAwayStats: any = null;
-    cleanSheets = 0;
-    scoringFailures = 0;
-    teamFavorites: any = null;
+  readonly avgGoals = computed(() => {
+    const t = this.totals();
+    return t && t.games ? t.goals / t.games : 0;
+  });
 
-    // --- League Charts ---
-    leagueComparisonChartData: ChartConfiguration['data'] = { labels: [], datasets: [] };
-    seasonalPatternChartData: ChartConfiguration['data'] = { labels: [], datasets: [] };
-    tightestLeagues: LeagueCompetitiveness[] = [];
-    selectedLeagueStats: any = null;
+  readonly outcomeShares = computed<Share[]>(() => {
+    const o = this.outcomes();
+    if (!o) return [];
+    const total = o.home + o.draw + o.away || 1;
+    return [
+      { key: 'home', label: 'Heimsiege', count: o.home, pct: o.home / total * 100 },
+      { key: 'draw', label: 'Unentschieden', count: o.draw, pct: o.draw / total * 100 },
+      { key: 'away', label: 'Auswärtssiege', count: o.away, pct: o.away / total * 100 }
+    ];
+  });
 
-    // --- Player Data ---
-    topScorers: any[] = [];
-    journeymen: Journeyman[] = [];
-    youngTalents: TopScorer[] = [];
-    leaderboardType: 'legends' | 'young' | 'journeyman' = 'legends';
-    readonly leaderboardPageSize = 10;
-    leaderboardLimit = 10;
-    playerEfficiencyData: ChartConfiguration['data'] = { labels: [], datasets: [] };
-    careerPath: any[] = [];
-    playerPersonalBest: any = null;
+  // ---- Derived: search suggestions -----------------------------------------
 
-    async ngOnInit() {
-        this.buildChartOptions();
-        this.isLoading = true;
-
-        try {
-            // Load available seasons
-            this.availableSeasons = await this.analyticsService.getAllSeasons();
-
-            await Promise.all([
-                this.loadTotalStats(),
-                this.loadTopTeams(),
-                this.loadTrends(),
-                this.loadHomeAdvantage(),
-                this.loadRecords(),
-                this.loadGrowth(),
-                this.loadWinningStreaks(),
-                this.loadGoalDistribution()
-            ]);
-        } finally {
-            this.isLoading = false;
-        }
-
-        this.setupSearch();
-        this.applyDeepLink();
+  private matches<T extends { name: string }>(options: T[], query: string, limit = 8): T[] {
+    const q = norm(query.trim());
+    if (q.length < 2) return [];
+    const starts: T[] = [], contains: T[] = [];
+    for (const o of options) {
+      const n = norm(o.name);
+      if (n.startsWith(q)) starts.push(o);
+      else if (n.includes(q)) contains.push(o);
+      if (starts.length >= limit) break;
     }
+    return [...starts, ...contains].slice(0, limit);
+  }
 
-    /**
-     * Support deep links such as ?tab=teams&q=<name> (also &tab=players /
-     * &tab=leagues). Switches to the requested tab and pre-selects the entity.
-     */
-    private applyDeepLink() {
-        const params = this.route.snapshot.queryParams;
-        const tab = (params['tab'] || '').toLowerCase();
-        const q = params['q'] || params['team'] || params['player'] || params['league'];
-        const tabIndex = tab === 'teams' || params['team'] ? 1
-            : tab === 'leagues' || params['league'] ? 2
-            : tab === 'players' || params['player'] ? 3
-            : 0;
-        if (tabIndex === 0) return;
+  readonly teamSuggestions = computed(() => this.matches(this.teamOptions(), this.teamQuery()));
+  readonly playerSuggestions = computed(() => this.matches(this.playerOptions(), this.playerQuery()));
+  readonly leagueSuggestions = computed(() => this.matches(this.leagueOptions(), this.leagueQuery()));
 
-        this.pendingEntityName = q ? String(q) : null;
-        this.currentTabIndex = tabIndex; // [selectedIndex] binding fires onTabChange
+  /** Followed teams that exist in the archive: shortcuts into the team tab. */
+  readonly myTeams = computed(() => {
+    const favs = new Set(this.teamFavorites.teams());
+    return this.teamOptions().filter(t => favs.has(t.name));
+  });
+
+  readonly popularTeams = computed(() => this.teamOptions().slice(0, 8));
+
+  // ---- Derived: team ---------------------------------------------------------
+
+  readonly teamSeasonLabels = computed(() => (this.team()?.seasons ?? []).map(s => this.seasonLabel(s.season)));
+  readonly teamWinRate = computed<LineSeries[]>(() =>
+    [{ name: 'Siegquote', values: (this.team()?.seasons ?? []).map(s => s.winRate) }]);
+  readonly teamGoals = computed<LineSeries[]>(() => {
+    const seasons = this.team()?.seasons ?? [];
+    const perGame = (n: number, games: number) => (games ? Math.round(n / games * 10) / 10 : null);
+    return [
+      { name: 'Erzielt', slot: 1, values: seasons.map(s => perGame(s.scored, s.games)) },
+      { name: 'Kassiert', slot: 2, values: seasons.map(s => perGame(s.conceded, s.games)) }
+    ];
+  });
+
+  // ---- Derived: player -------------------------------------------------------
+
+  readonly playerSeasonLabels = computed(() => (this.player()?.seasons ?? []).map(s => this.seasonLabel(s.season)));
+  readonly playerGoals = computed<Column[]>(() =>
+    (this.player()?.seasons ?? []).map(s => ({ label: `${String(s.season).slice(2)}/${String(s.season + 1).slice(2)}`, value: s.goals })));
+  readonly playerAvg = computed<LineSeries[]>(() =>
+    // Seasons with only one or two games say little about a scoring rate: gap.
+    [{ name: 'Tore pro Spiel', values: (this.player()?.seasons ?? []).map(s => (s.games >= 3 ? s.avg : null)) }]);
+
+  readonly boards: { id: Board; label: string; hint: string }[] = [
+    { id: 'tore', label: 'Meiste Tore', hint: 'Alle Saisons zusammen' },
+    { id: 'schnitt', label: 'Bester Schnitt', hint: 'Tore pro Spiel, mindestens 30 Spiele' },
+    { id: 'talente', label: 'Talente', hint: '21 Jahre und jünger' },
+    { id: 'vereine', label: 'Meiste Vereine', hint: 'Für wie viele Vereine getroffen' }
+  ];
+  readonly boardHint = computed(() => this.boards.find(b => b.id === this.board())?.hint ?? '');
+  readonly shownBoard = computed(() => this.boardRows().slice(0, this.boardLimit()));
+
+  // ---- Derived: leagues ------------------------------------------------------
+
+  readonly levelMax = computed(() => Math.max(1, ...this.levels().map(l => l.avgGoals)));
+  readonly monthColumns = computed<Column[]>(() =>
+    this.months().map(m => ({ label: MONTHS[m.month - 1] ?? String(m.month), value: m.avgGoals })));
+
+  readonly leagueShares = computed<Share[]>(() => {
+    const o = this.league()?.outcomes;
+    if (!o) return [];
+    const total = o.home + o.draw + o.away || 1;
+    return [
+      { key: 'home', label: 'Heimsiege', count: o.home, pct: o.home / total * 100 },
+      { key: 'draw', label: 'Unentschieden', count: o.draw, pct: o.draw / total * 100 },
+      { key: 'away', label: 'Auswärtssiege', count: o.away, pct: o.away / total * 100 }
+    ];
+  });
+
+  // ---- Lifecycle ----------------------------------------------------------------
+
+  ngOnInit(): void {
+    this.route.queryParams.pipe(takeUntilDestroyed(this.destroyRef)).subscribe(params => {
+      const raw = String(params['tab'] || '').toLowerCase();
+      const tab = (TABS.find(t => t.id === raw)?.id ?? TAB_ALIASES[raw] ?? 'ueberblick') as Tab;
+      this.tab.set(tab);
+      this.ensureTab(tab);
+
+      const teamId = Number(params['team']);
+      const playerId = Number(params['spielerId']);
+      const leagueNo = Number(params['liga']);
+      if (tab === 'teams') {
+        if (teamId) { if (this.team()?.id !== teamId) this.loadTeam(teamId); }
+        else if (params['q']) { this.pendingTeamName = String(params['q']); this.resolvePendingTeam(); }
+        else this.team.set(null);
+      }
+      if (tab === 'spieler') {
+        if (playerId) { if (this.player()?.id !== playerId) this.loadPlayer(playerId); }
+        else this.player.set(null);
+      }
+      if (tab === 'ligen') {
+        if (leagueNo) { if (this.league()?.no !== leagueNo) this.loadLeague(leagueNo); }
+        else this.league.set(null);
+      }
+    });
+  }
+
+  /** Load a tab's data the first time it is shown. */
+  private ensureTab(tab: Tab): void {
+    if (this.loaded.has(tab)) return;
+    this.loaded.add(tab);
+    const fail = (e: unknown) => { console.error(e); this.loaded.delete(tab); this.failed.set(true); };
+
+    switch (tab) {
+      case 'ueberblick':
+        Promise.all([
+          this.analytics.getSeasons().then(s => this.seasons.set(s)),
+          this.analytics.getSeasonTrend().then(t => this.trend.set(t)),
+          this.analytics.getWinningStreaks(5).then(s => this.streaks.set(s)),
+          this.loadSeasonFigures()
+        ]).catch(fail);
+        break;
+      case 'teams':
+        this.analytics.getTeams().then(t => { this.teamOptions.set(t); this.resolvePendingTeam(); }).catch(fail);
+        break;
+      case 'spieler':
+        this.analytics.getPlayers().then(p => this.playerOptions.set(p)).catch(fail);
+        this.loadBoard(this.board());
+        break;
+      case 'ligen':
+        Promise.all([
+          this.analytics.getLeagues().then(l => this.leagueOptions.set(l)),
+          this.analytics.getLevelComparison().then(l => this.levels.set(l)),
+          this.analytics.getMonthPattern().then(m => this.months.set(m)),
+          this.analytics.getTightestLeagues(8).then(t => this.tightest.set(t))
+        ]).catch(fail);
+        break;
     }
+  }
 
-    ngOnDestroy() {
-        this.animationFrameIds.forEach(id => cancelAnimationFrame(id));
+  retry(): void {
+    this.failed.set(false);
+    this.ensureTab(this.tab());
+  }
+
+  /** Figures that follow the season filter. */
+  private async loadSeasonFigures(): Promise<void> {
+    const season = this.season() ?? undefined;
+    this.overviewLoading.set(true);
+    try {
+      const [totals, outcomes, buckets, topTeams, highScores, margins] = await Promise.all([
+        this.analytics.getTotals(season),
+        this.analytics.getOutcomes(season),
+        this.analytics.getGoalBuckets(season),
+        this.analytics.getTopTeams(10, season),
+        this.analytics.getHighestScoringGames(5, season),
+        this.analytics.getBiggestMargins(5, season)
+      ]);
+      this.totals.set(totals);
+      this.outcomes.set(outcomes);
+      this.buckets.set(buckets);
+      this.topTeams.set(topTeams);
+      this.highScores.set(highScores);
+      this.margins.set(margins);
+    } finally {
+      this.overviewLoading.set(false);
     }
+  }
 
-    /** Handle season filter change */
-    async onSeasonChange(season: string) {
-        this.selectedSeason = season === '' ? undefined : season;
-        this.isLoading = true;
-        try {
-            await Promise.all([
-                this.loadTotalStats(),
-                this.loadTopTeams(),
-                this.loadTrends(),
-                this.loadHomeAdvantage(),
-                this.loadRecords(),
-                this.loadGrowth(),
-                this.loadWinningStreaks(),
-                this.loadGoalDistribution()
-            ]);
+  /** "Nur wenige Spiele archiviert: 2011/12 und 2025/26." */
+  readonly partialNote = computed(() => {
+    const list = this.partialSeasons();
+    if (!list.length) return '';
+    const names = list.length === 1 ? list[0] : `${list.slice(0, -1).join(', ')} und ${list[list.length - 1]}`;
+    return `Ohne ${names}: Aus ${list.length === 1 ? 'dieser Saison' : 'diesen Saisons'} sind nur wenige Spiele archiviert.`;
+  });
 
-            // Reload entity data if one is selected
-            if (this.selectedEntity) {
-                if (this.currentTabIndex === 1) {
-                    await this.loadTeamStats(this.selectedEntity.id);
-                } else if (this.currentTabIndex === 2) {
-                    await this.loadLeagueStats(this.selectedEntity.id);
-                } else if (this.currentTabIndex === 3) {
-                    await this.loadPlayerStats(this.selectedEntity.id);
-                }
-            }
-        } finally {
-            this.isLoading = false;
-        }
+  setSeason(value: string): void {
+    this.season.set(value ? Number(value) : null);
+    this.loadSeasonFigures().catch(e => { console.error(e); this.failed.set(true); });
+  }
+
+  // ---- Navigation -------------------------------------------------------------------
+
+  private go(params: Record<string, string | number | null>): void {
+    this.router.navigate([], { relativeTo: this.route, queryParams: params });
+  }
+
+  selectTab(tab: Tab): void {
+    this.go(tab === 'ueberblick' ? {} : { tab });
+  }
+
+  openTeam(id: number): void {
+    this.teamQuery.set('');
+    this.go({ tab: 'teams', team: id });
+  }
+
+  openPlayer(id: number): void {
+    this.playerQuery.set('');
+    this.go({ tab: 'spieler', spielerId: id });
+  }
+
+  openLeague(no: number): void {
+    this.leagueQuery.set('');
+    this.go({ tab: 'ligen', liga: no });
+  }
+
+  clearSelection(): void {
+    this.go({ tab: this.tab() });
+  }
+
+  /** Open an archived league in the league view (switches to its season). */
+  showLeagueInArchive(id: string, season: number): void {
+    this.seasonService.setSeason(String(season));
+    this.router.navigate(['/liga'], { queryParams: { param: id } });
+  }
+
+  /** A league of the season DSV serves live cannot be opened from the archive. */
+  canOpenLeague(season: number): boolean {
+    return String(season) !== this.seasonService.liveSeason();
+  }
+
+  // ---- Loading entities -----------------------------------------------------------
+
+  /** Deep link by name (?tab=teams&q=…), e.g. from a team page. */
+  private resolvePendingTeam(): void {
+    const name = this.pendingTeamName;
+    const options = this.teamOptions();
+    if (!name || !options.length) return;
+    this.pendingTeamName = null;
+    const wanted = norm(name.trim());
+    const match = options.find(t => norm(t.name) === wanted) ?? options.find(t => norm(t.name).includes(wanted));
+    if (match) this.router.navigate([], { relativeTo: this.route, queryParams: { tab: 'teams', team: match.id }, replaceUrl: true });
+    else this.teamQuery.set(name);
+  }
+
+  private async loadTeam(id: number): Promise<void> {
+    this.teamLoading.set(true);
+    try {
+      this.team.set(await this.analytics.getTeamProfile(id));
+    } catch (e) {
+      console.error(e);
+      this.failed.set(true);
+    } finally {
+      this.teamLoading.set(false);
     }
+  }
 
-    // --- Chart Options Builder (Theme-aware) ---
-
-    private buildChartOptions() {
-        const gridColor = this.isDark() ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.06)';
-        const tickColor = this.isDark() ? 'rgba(255,255,255,0.6)' : 'rgba(0,0,0,0.5)';
-        const tooltipBg = this.isDark() ? '#2d2d2d' : '#fff';
-        const tooltipColor = this.isDark() ? '#fff' : '#333';
-
-        const base = (indexAxis: 'x' | 'y', legend: boolean, yTitle?: string): ChartConfiguration['options'] => ({
-            responsive: true,
-            maintainAspectRatio: false,
-            indexAxis,
-            interaction: { mode: 'index', intersect: false },
-            plugins: {
-                legend: {
-                    display: legend,
-                    labels: { color: tickColor, usePointStyle: true, pointStyle: 'circle', padding: 16 }
-                },
-                tooltip: {
-                    backgroundColor: tooltipBg,
-                    titleColor: tooltipColor,
-                    bodyColor: tooltipColor,
-                    borderColor: gridColor,
-                    borderWidth: 1,
-                    cornerRadius: 8,
-                    padding: 12,
-                    displayColors: true,
-                    usePointStyle: true
-                }
-            },
-            scales: {
-                x: {
-                    grid: { color: gridColor, drawTicks: false },
-                    ticks: { color: tickColor, padding: 8 },
-                    border: { display: false }
-                },
-                y: {
-                    grid: { color: gridColor, drawTicks: false },
-                    ticks: { color: tickColor, padding: 8 },
-                    border: { display: false },
-                    title: yTitle ? { display: true, text: yTitle, color: tickColor, padding: 8 } : undefined
-                }
-            }
-        });
-
-        this.topTeamsChartOptions = base('y', false);
-        this.trendsChartOptions = base('x', true, 'Tore pro Spiel');
-        this.growthChartOptions = base('x', true, 'Anzahl Spiele');
-        this.goalDistributionOptions = base('x', false, 'Anzahl Spiele');
-        this.entityChartOptions = base('x', true);
-        this.teamGoalsPerSeasonOptions = base('x', true, 'Tore');
+  private async loadPlayer(id: number): Promise<void> {
+    this.playerLoading.set(true);
+    try {
+      this.player.set(await this.analytics.getPlayerProfile(id));
+    } catch (e) {
+      console.error(e);
+      this.failed.set(true);
+    } finally {
+      this.playerLoading.set(false);
     }
+  }
 
-    private isDark(): boolean {
-        return this.themeService.effectiveTheme() === 'dark';
+  private async loadLeague(no: number): Promise<void> {
+    this.leagueLoading.set(true);
+    try {
+      this.league.set(await this.analytics.getLeagueProfile(no));
+    } catch (e) {
+      console.error(e);
+      this.failed.set(true);
+    } finally {
+      this.leagueLoading.set(false);
     }
+  }
 
-    // --- KPI Animation ---
-
-    private animateValue(target: number, property: 'animatedGames' | 'animatedTeams' | 'animatedGoals' | 'animatedSeasons') {
-        const duration = 1500;
-        const startTime = performance.now();
-
-        const step = (currentTime: number) => {
-            const elapsed = currentTime - startTime;
-            const progress = Math.min(elapsed / duration, 1);
-            const eased = 1 - Math.pow(1 - progress, 3);
-            this[property] = Math.round(target * eased);
-
-            if (progress < 1) {
-                const id = requestAnimationFrame((t) => this.ngZone.run(() => step(t)));
-                this.animationFrameIds.push(id);
-            }
-        };
-
-        this.ngZone.runOutsideAngular(() => {
-            const id = requestAnimationFrame((t) => this.ngZone.run(() => step(t)));
-            this.animationFrameIds.push(id);
-        });
+  async loadBoard(board: Board): Promise<void> {
+    this.board.set(board);
+    this.boardLimit.set(BOARD_PAGE);
+    const load = {
+      tore: () => this.analytics.getTopScorers(50),
+      schnitt: () => this.analytics.getMostEfficient(50),
+      talente: () => this.analytics.getYoungTalents(50),
+      vereine: () => this.analytics.getJourneymen(50)
+    }[board];
+    try {
+      this.boardRows.set(await load());
+    } catch (e) {
+      console.error(e);
+      this.failed.set(true);
     }
+  }
 
-    // --- Search ---
+  showMoreBoard(): void {
+    this.boardLimit.update(n => n + BOARD_PAGE);
+  }
 
-    setupSearch() {
-        this.filteredOptions = this.searchControl.valueChanges.pipe(
-            startWith(''),
-            map(value => {
-                const name = typeof value === 'string' ? value : (value as any)?.name;
-                return name ? this._filter(name) : this.allEntities.slice(0, 50);
-            }),
-        );
+  // ---- Formatting -----------------------------------------------------------------
+
+  seasonLabel(season: number): string {
+    return `${season}/${String((season + 1) % 100).padStart(2, '0')}`;
+  }
+
+  /** "2024-03-09" -> "09.03.2024" */
+  day(value: string | null): string {
+    const m = value?.match(/^(\d{4})-(\d{2})-(\d{2})/);
+    return m ? `${m[3]}.${m[2]}.${m[1]}` : '';
+  }
+
+  pct(part: number, total: number): number {
+    return total ? Math.round(part / total * 100) : 0;
+  }
+
+  resultLabel(result: TeamGame['result']): string {
+    return result === 'W' ? 'S' : result === 'D' ? 'U' : 'N';
+  }
+
+  /** Widths of a wins/draws/losses bar. */
+  wdl(rec: WDL): { w: number; d: number; l: number } {
+    const total = rec.games || 1;
+    return { w: rec.wins / total * 100, d: rec.draws / total * 100, l: rec.losses / total * 100 };
+  }
+
+  /** Value shown at the right of a leaderboard row. */
+  boardValue(row: ScorerRank): string {
+    switch (this.board()) {
+      case 'schnitt': return row.avg.toFixed(2).replace('.', ',');
+      case 'vereine': return String(row.clubs);
+      default: return String(row.goals);
     }
+  }
 
-    private _filter(name: string): Entity[] {
-        const filterValue = name.toLowerCase();
-        return this.allEntities.filter(o => o.name.toLowerCase().includes(filterValue)).slice(0, 50);
-    }
-
-    displayFn(entity: Entity): string {
-        return entity?.name ?? '';
-    }
-
-    async onTabChange(event: any) {
-        this.currentTabIndex = event.index;
-        this.selectedEntity = null;
-        this.searchControl.setValue('');
-        this.resetCharts();
-
-        if (this.currentTabIndex === 1) {
-            this.allEntities = await this.analyticsService.getAllTeams();
-        } else if (this.currentTabIndex === 2) {
-            this.allEntities = await this.analyticsService.getAllLeagues();
-            this.loadLeagueComparisons();
-        } else if (this.currentTabIndex === 3) {
-            this.allEntities = await this.analyticsService.getAllPlayers();
-            await this.loadLeaderboardData();
-        }
-
-        this.searchControl.setValue('');
-        await this.applyPendingSelection();
-    }
-
-    /** Select the deep-linked entity once its list is loaded (see applyDeepLink). */
-    private async applyPendingSelection() {
-        if (!this.pendingEntityName) return;
-        const name = this.pendingEntityName.trim().toLowerCase();
-        this.pendingEntityName = null;
-        const entity = this.allEntities.find(e => e.name.trim().toLowerCase() === name)
-            || this.allEntities.find(e => e.name.toLowerCase().includes(name));
-        if (entity) {
-            this.searchControl.setValue(entity as any);
-            await this.selectEntity(entity);
-        }
-    }
-
-    resetCharts() {
-        this.entityChartData = { labels: [], datasets: [] };
-        this.teamForm = [];
-        this.teamRivalsChartData = { labels: [], datasets: [] };
-        this.teamGoalsPerSeasonData = { labels: [], datasets: [] };
-        this.selectedLeagueStats = null;
-        this.teamFavorites = null;
-        this.playerPersonalBest = null;
-        this.homeAwayStats = null;
-        this.cleanSheets = 0;
-        this.scoringFailures = 0;
-        this.teamBiggestWins = [];
-        this.careerPath = [];
-    }
-
-    async onOptionSelected(event: MatAutocompleteSelectedEvent) {
-        await this.selectEntity(event.option.value);
-    }
-
-    private async selectEntity(entity: Entity) {
-        this.selectedEntity = entity;
-        this.isLoadingEntity = true;
-
-        try {
-            if (this.currentTabIndex === 1) {
-                await this.loadTeamStats(entity.id);
-            } else if (this.currentTabIndex === 2) {
-                await this.loadLeagueStats(entity.id);
-            } else if (this.currentTabIndex === 3) {
-                await this.loadPlayerStats(entity.id);
-            }
-        } finally {
-            this.isLoadingEntity = false;
-        }
-    }
-
-    // --- Loading: Overview ---
-
-    private async loadTotalStats() {
-        this.totalStats = await this.analyticsService.getTotalStats(this.selectedSeason);
-        this.animateValue(this.totalStats.totalGames, 'animatedGames');
-        this.animateValue(this.totalStats.totalTeams, 'animatedTeams');
-        this.animateValue(this.totalStats.totalGoals, 'animatedGoals');
-        this.animateValue(this.totalStats.seasonsCount, 'animatedSeasons');
-    }
-
-    private async loadTopTeams() {
-        const teams = await this.analyticsService.getTopTeams(20, this.selectedSeason);
-        const colors = teams.map(t => {
-            const v = t.winRate;
-            if (v < 50) return `rgba(255, ${Math.round(5.1 * v)}, 0, 0.8)`;
-            return `rgba(${Math.round(255 - 5.1 * (v - 50))}, 255, 0, 0.8)`;
-        });
-
-        this.topTeamsChartData = {
-            labels: teams.map(t => t.name),
-            datasets: [{
-                data: teams.map(t => t.winRate),
-                label: 'Siegquote (%)',
-                backgroundColor: colors,
-                borderRadius: 6,
-                borderSkipped: false
-            }]
-        };
-    }
-
-    private async loadTrends() {
-        const trends = await this.analyticsService.getTrendsOverTime();
-        this.trendsChartData = {
-            labels: trends.map(t => t.season_id),
-            datasets: [{
-                data: trends.map(t => t.avgGoals),
-                label: 'Ø Tore pro Spiel',
-                fill: true,
-                backgroundColor: 'rgba(59, 130, 246, 0.15)',
-                borderColor: 'rgba(59, 130, 246, 1)',
-                borderWidth: 2,
-                tension: 0.4,
-                pointRadius: 3,
-                pointHoverRadius: 6,
-                pointBackgroundColor: 'rgba(59, 130, 246, 1)'
-            }]
-        };
-    }
-
-    private async loadHomeAdvantage() {
-        const stats = await this.analyticsService.getHomeAdvantage(this.selectedSeason);
-        const order = ['Heimsieg', 'Auswärtssieg', 'Unentschieden'];
-        const sorted = order.map(label => stats.find(s => s.result === label) || { result: label, count: 0 });
-        const total = sorted.reduce((acc, curr) => acc + curr.count, 0);
-
-        this.homeAdvantageChartData = {
-            labels: sorted.map(s => `${s.result} (${Math.round(s.count / total * 100)}%)`),
-            datasets: [{
-                data: sorted.map(s => s.count),
-                backgroundColor: ['rgba(34, 197, 94, 0.85)', 'rgba(59, 130, 246, 0.85)', 'rgba(156, 163, 175, 0.7)'],
-                hoverBackgroundColor: ['rgba(34, 197, 94, 1)', 'rgba(59, 130, 246, 1)', 'rgba(156, 163, 175, 1)'],
-                borderWidth: 0,
-                hoverOffset: 8
-            }]
-        };
-    }
-
-    private async loadRecords() {
-        this.highestScoringGames = await this.analyticsService.getHighestScoringGames(5, this.selectedSeason);
-    }
-
-    private async loadGrowth() {
-        const growth = await this.analyticsService.getSeasonGrowth();
-        this.growthChartData = {
-            labels: growth.map(g => g.season),
-            datasets: [{
-                data: growth.map(g => g.games),
-                label: 'Spiele',
-                borderColor: 'rgba(139, 92, 246, 1)',
-                backgroundColor: 'rgba(139, 92, 246, 0.15)',
-                fill: true,
-                tension: 0.4,
-                borderWidth: 2,
-                pointRadius: 3,
-                pointHoverRadius: 6,
-                pointBackgroundColor: 'rgba(139, 92, 246, 1)'
-            }]
-        };
-    }
-
-    private async loadWinningStreaks() {
-        this.winningStreaks = await this.analyticsService.getWinningStreaks(5);
-    }
-
-    private async loadGoalDistribution() {
-        const dist = await this.analyticsService.getGoalDistribution(this.selectedSeason);
-        const colors = [
-            'rgba(59, 130, 246, 0.7)', 'rgba(34, 197, 94, 0.7)', 'rgba(245, 158, 11, 0.7)',
-            'rgba(239, 68, 68, 0.7)', 'rgba(139, 92, 246, 0.7)', 'rgba(236, 72, 153, 0.7)',
-            'rgba(20, 184, 166, 0.7)'
-        ];
-        this.goalDistributionData = {
-            labels: dist.map(d => d.bucket),
-            datasets: [{
-                data: dist.map(d => d.count),
-                label: 'Spiele',
-                backgroundColor: dist.map((_, i) => colors[i % colors.length]),
-                borderRadius: 6,
-                borderSkipped: false
-            }]
-        };
-    }
-
-    // --- Loading: Team ---
-
-    private async loadTeamStats(teamId: string) {
-        const [stats, form, rivals, od, biggestWins, homeAway, sheets, failures, favorites, goalsPerSeason] =
-            await Promise.all([
-                this.analyticsService.getTeamStatsHistory(teamId),
-                this.analyticsService.getTeamForm(teamId),
-                this.analyticsService.getTeamRivals(teamId),
-                this.analyticsService.getTeamOffenseDefense(teamId),
-                this.analyticsService.getTeamBiggestWins(teamId),
-                this.analyticsService.getTeamHomeAwayStats(teamId),
-                this.analyticsService.getTeamCleanSheets(teamId),
-                this.analyticsService.getTeamScoringFailures(teamId),
-                this.analyticsService.getTeamFavoriteOpponents(teamId),
-                this.analyticsService.getTeamGoalsPerSeason(teamId)
-            ]);
-
-        this.entityChartData = {
-            labels: stats.map(s => s.season),
-            datasets: [{
-                data: stats.map(s => s.winRate),
-                label: 'Siegquote (%)',
-                borderColor: 'rgba(59, 130, 246, 1)',
-                backgroundColor: 'rgba(59, 130, 246, 0.15)',
-                fill: true, tension: 0.4, borderWidth: 2,
-                pointRadius: 4, pointHoverRadius: 7,
-                pointBackgroundColor: 'rgba(59, 130, 246, 1)'
-            }]
-        };
-
-        this.teamForm = form;
-
-        this.teamRivalsChartData = {
-            labels: rivals.map(r => r.opponent),
-            datasets: [
-                { data: rivals.map(r => r.wins), label: 'Siege', backgroundColor: 'rgba(34, 197, 94, 0.7)', borderRadius: 4, borderSkipped: false },
-                { data: rivals.map(r => r.draws), label: 'Remis', backgroundColor: 'rgba(156, 163, 175, 0.5)', borderRadius: 4, borderSkipped: false },
-                { data: rivals.map(r => r.losses), label: 'Niederlagen', backgroundColor: 'rgba(239, 68, 68, 0.7)', borderRadius: 4, borderSkipped: false }
-            ]
-        };
-
-        this.teamGoalsPerSeasonData = {
-            labels: goalsPerSeason.map(g => g.season),
-            datasets: [
-                {
-                    data: goalsPerSeason.map(g => g.scored), label: 'Erzielte Tore',
-                    borderColor: 'rgba(34, 197, 94, 1)', backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                    fill: true, tension: 0.4, borderWidth: 2, pointRadius: 4, pointHoverRadius: 7,
-                    pointBackgroundColor: 'rgba(34, 197, 94, 1)'
-                },
-                {
-                    data: goalsPerSeason.map(g => g.conceded), label: 'Kassierte Tore',
-                    borderColor: 'rgba(239, 68, 68, 1)', backgroundColor: 'rgba(239, 68, 68, 0.1)',
-                    fill: true, tension: 0.4, borderWidth: 2, pointRadius: 4, pointHoverRadius: 7,
-                    pointBackgroundColor: 'rgba(239, 68, 68, 1)'
-                }
-            ]
-        };
-
-        this.teamBiggestWins = biggestWins;
-        this.homeAwayStats = homeAway;
-        this.cleanSheets = sheets;
-        this.scoringFailures = failures;
-        this.teamFavorites = favorites;
-    }
-
-    // --- Loading: Player ---
-
-    private async loadPlayerStats(playerId: string) {
-        const [stats, effic, career, personalBest] = await Promise.all([
-            this.analyticsService.getPlayerStatsHistory(playerId),
-            this.analyticsService.getPlayerEfficiency(playerId),
-            this.analyticsService.getPlayerTeams(playerId),
-            this.analyticsService.getPlayerPersonalBest(playerId)
-        ]);
-
-        this.entityChartTitle = 'Tore pro Saison';
-        this.entityChartData = {
-            labels: stats.map(s => s.season),
-            datasets: [{
-                data: stats.map(s => s.goals), label: 'Tore',
-                backgroundColor: 'rgba(245, 158, 11, 0.7)', borderColor: 'rgba(245, 158, 11, 1)',
-                borderWidth: 1, borderRadius: 6, borderSkipped: false
-            }]
-        };
-
-        this.playerEfficiencyData = {
-            labels: effic.map(e => e.season),
-            datasets: [{
-                data: effic.map(e => e.avg), label: 'Ø Tore pro Spiel',
-                borderColor: 'rgba(245, 158, 11, 1)', backgroundColor: 'rgba(245, 158, 11, 0.15)',
-                tension: 0.4, fill: true, borderWidth: 2, pointRadius: 4, pointHoverRadius: 7,
-                pointBackgroundColor: 'rgba(245, 158, 11, 1)'
-            }]
-        };
-
-        this.careerPath = career;
-        this.playerPersonalBest = personalBest;
-    }
-
-    // --- Loading: League ---
-
-    private async loadLeagueStats(leagueId: string) {
-        this.selectedLeagueStats = await this.analyticsService.getLeagueDetails(leagueId);
-    }
-
-    private async loadLeagueComparisons() {
-        const [comp, seasonal] = await Promise.all([
-            this.analyticsService.getLeagueComparison(),
-            this.analyticsService.getSeasonalPatterns()
-        ]);
-
-        const gradientColors = [
-            'rgba(239, 68, 68, 0.7)', 'rgba(59, 130, 246, 0.7)', 'rgba(245, 158, 11, 0.7)',
-            'rgba(34, 197, 94, 0.7)', 'rgba(139, 92, 246, 0.7)', 'rgba(236, 72, 153, 0.7)'
-        ];
-
-        this.leagueComparisonChartData = {
-            labels: comp.map(c => c.level),
-            datasets: [{
-                data: comp.map(c => c.avgGoals), label: 'Ø Tore pro Spiel',
-                backgroundColor: gradientColors.slice(0, comp.length),
-                borderRadius: 6, borderSkipped: false
-            }]
-        };
-
-        const monthNames = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'];
-        const dataPoints = Array.from({ length: 12 }, (_, i) => {
-            const m = seasonal.find(s => s.month === i + 1);
-            return m ? m.avgGoals : 0;
-        });
-
-        this.seasonalPatternChartData = {
-            labels: monthNames,
-            datasets: [{
-                data: dataPoints, label: 'Ø Tore pro Spiel',
-                borderColor: 'rgba(245, 158, 11, 1)', backgroundColor: 'rgba(245, 158, 11, 0.15)',
-                fill: true, tension: 0.4, borderWidth: 2, pointRadius: 4, pointHoverRadius: 7,
-                pointBackgroundColor: 'rgba(245, 158, 11, 1)'
-            }]
-        };
-
-        this.tightestLeagues = await this.analyticsService.getTightestLeagues(10);
-    }
-
-    // --- Loading: Leaderboard ---
-
-    async loadLeaderboardData() {
-        this.leaderboardLimit = this.leaderboardPageSize;
-        const [scorers, journeymen, young] = await Promise.all([
-            this.analyticsService.getTopScorersAllTime(50),
-            this.analyticsService.getPlayerJourneymen(50),
-            this.analyticsService.getYoungTalents(50)
-        ]);
-        this.topScorers = scorers;
-        this.journeymen = journeymen;
-        this.youngTalents = young;
-    }
-
-    setLeaderboardType(type: 'legends' | 'young' | 'journeyman') {
-        this.leaderboardType = type;
-        this.leaderboardLimit = this.leaderboardPageSize; // reset paging on switch
-    }
-
-    /** Number of leaderboard rows in the active list (for the "show more" button). */
-    get currentLeaderboardCount(): number {
-        if (this.leaderboardType === 'young') return this.youngTalents.length;
-        if (this.leaderboardType === 'journeyman') return this.journeymen.length;
-        return this.topScorers.length;
-    }
-
-    showMoreLeaderboard(): void {
-        this.leaderboardLimit += this.leaderboardPageSize;
-    }
-
-    // --- Helpers ---
-
-    getRankBadge(index: number): string {
-        return index < 3 ? ['🥇', '🥈', '🥉'][index] : `${index + 1}`;
-    }
-
-    getRankClass(index: number): string {
-        return index < 3 ? ['gold', 'silver', 'bronze'][index] : '';
-    }
-
-    getFormIcon(result: string): string {
-        return result === 'W' ? '✓' : result === 'L' ? '✗' : '—';
-    }
-
-    getHomeWinRate(): number {
-        if (!this.homeAwayStats) return 0;
-        const t = this.homeAwayStats.home.w + this.homeAwayStats.home.d + this.homeAwayStats.home.l;
-        return t > 0 ? Math.round(100 * this.homeAwayStats.home.w / t) : 0;
-    }
-
-    getAwayWinRate(): number {
-        if (!this.homeAwayStats) return 0;
-        const t = this.homeAwayStats.away.w + this.homeAwayStats.away.d + this.homeAwayStats.away.l;
-        return t > 0 ? Math.round(100 * this.homeAwayStats.away.w / t) : 0;
-    }
+  boardUnit(): string {
+    return this.board() === 'schnitt' ? 'pro Spiel' : this.board() === 'vereine' ? 'Vereine' : 'Tore';
+  }
 }

@@ -1,754 +1,588 @@
-<div class="analytics-container fade-in">
-
-    <!-- KPI HEADER -->
-    <div class="page-header">
-        <button mat-icon-button class="back-button" routerLink="/" aria-label="Zurück zur Startseite">
-            <mat-icon>arrow_back</mat-icon>
-        </button>
-        <div>
-            <h1 class="page-title">📊 Statistik Dashboard</h1>
-            <p class="page-subtitle">Tiefe Einblicke in 15 Jahre Wasserball-Daten</p>
-        </div>
+<div class="page stats">
+  <div class="page-head">
+    <div class="titles">
+      <h1>Statistik</h1>
+      <span class="sub">Alle archivierten Saisons seit 2011, berechnet auf deinem Gerät</span>
     </div>
+  </div>
 
-    <!-- Season Filter -->
-    <div class="season-filter-row">
-        <mat-form-field appearance="outline" class="season-filter-field">
-            <mat-label>Saison filtern</mat-label>
-            <mat-select [value]="selectedSeason ?? ''" (selectionChange)="onSeasonChange($event.value)">
-                <mat-option value="">Alle Saisons</mat-option>
-                @for (season of availableSeasons; track season) {
-                <mat-option [value]="season">
-                    Saison {{ season }}
-                    @if (seasonService.isLive(season)) {
-                    <span style="color: #4caf50; font-weight: 600; margin-left: 4px;">● LIVE</span>
-                    }
-                </mat-option>
+  <div class="tabs-sticky">
+    <div class="seg" role="tablist">
+      @for (t of tabs; track t.id) {
+        <button role="tab" [class.on]="tab() === t.id" [attr.aria-selected]="tab() === t.id"
+          (click)="selectTab(t.id)">{{ t.label }}</button>
+      }
+    </div>
+  </div>
+
+  @if (failed()) {
+    <div class="empty">
+      <mat-icon>cloud_off</mat-icon>
+      <h2>Statistik nicht verfügbar</h2>
+      <p>Das Archiv konnte nicht geladen werden. Prüfe deine Verbindung und versuche es noch einmal.</p>
+      <button class="btn primary" (click)="retry()">Erneut laden</button>
+    </div>
+  } @else {
+    @switch (tab()) {
+
+      <!-- ======================= Überblick ======================= -->
+      @case ('ueberblick') {
+        <div class="filter-row">
+          <select class="select" [ngModel]="season() ?? ''" (ngModelChange)="setSeason($event)" aria-label="Saison wählen">
+            <option value="">Alle Saisons</option>
+            @for (s of seasons(); track s) { <option [value]="s">Saison {{ seasonLabel(s) }}</option> }
+          </select>
+        </div>
+
+        @if (!totals()) {
+          <div class="skeleton-list" aria-busy="true" aria-label="Lade Statistik">
+            <div class="skeleton figures-skeleton"></div>
+            @for (i of [1,2,3]; track i) { <div class="skeleton chart-skeleton"></div> }
+          </div>
+        } @else {
+          <div class="panel figures" [class.dim]="overviewLoading()">
+            <div class="figure"><b class="num">{{ totals()!.games | number }}</b><span>Spiele</span></div>
+            <div class="figure"><b class="num">{{ totals()!.goals | number }}</b><span>Tore</span></div>
+            <div class="figure"><b class="num">{{ avgGoals() | number: '1.1-1' }}</b><span>Tore pro Spiel</span></div>
+            <div class="figure"><b class="num">{{ totals()!.teams | number }}</b><span>Teams</span></div>
+          </div>
+
+          @if (outcomeShares().length) {
+            <section class="section">
+              <div class="section-head"><h2>Wer gewinnt?</h2></div>
+              <div class="panel panel-pad">
+                <div class="share" role="img"
+                  [attr.aria-label]="'Heimsiege ' + pct(outcomes()!.home, totals()!.games) + ' Prozent, Unentschieden ' + pct(outcomes()!.draw, totals()!.games) + ' Prozent, Auswärtssiege ' + pct(outcomes()!.away, totals()!.games) + ' Prozent'">
+                  @for (s of outcomeShares(); track s.key) {
+                    @if (s.count > 0) { <i [class]="s.key" [style.flex-grow]="s.count"></i> }
+                  }
+                </div>
+                <ul class="legend">
+                  @for (s of outcomeShares(); track s.key) {
+                    <li><i [class]="s.key"></i>{{ s.label }} <b class="num">{{ s.pct | number: '1.0-0' }} %</b></li>
+                  }
+                </ul>
+              </div>
+            </section>
+          }
+
+          @if (!season() && trend().length > 1) {
+            <section class="section">
+              <div class="section-head"><h2>Tore pro Spiel</h2><span class="hint">je Saison</span></div>
+              <div class="panel panel-pad">
+                <app-line-chart [labels]="seasonLabels()" [series]="goalsTrend()" [decimals]="1" [zeroBased]="false"
+                  title="Tore pro Spiel" />
+              </div>
+              @if (partialNote()) { <p class="note">{{ partialNote() }}</p> }
+            </section>
+          }
+
+          <section class="section">
+            <div class="section-head"><h2>So viele Tore fallen</h2><span class="hint">Spiele nach Toren insgesamt</span></div>
+            <div class="panel panel-pad">
+              <app-column-chart [columns]="bucketColumns()" title="Spiele nach Gesamttoren" unit=" Spiele" />
+            </div>
+          </section>
+
+          @if (topTeams().length) {
+            <section class="section">
+              <div class="section-head">
+                <h2>Höchste Siegquote</h2>
+                <span class="hint">ab {{ season() ? 6 : 30 }} Spielen</span>
+              </div>
+              <div class="panel rows">
+                @for (t of topTeams(); track t.id; let i = $index) {
+                  <button class="rank" (click)="openTeam(t.id)">
+                    <span class="rank-no num">{{ i + 1 }}</span>
+                    <span class="rank-main">
+                      <span class="rank-name">{{ t.name }}</span>
+                      <span class="hbar" aria-hidden="true"><i [style.width.%]="t.winRate"></i></span>
+                      <span class="rank-sub num">{{ t.games }} Spiele, Ø {{ t.avgScored | number: '1.1-1' }}:{{ t.avgConceded | number: '1.1-1' }} Tore</span>
+                    </span>
+                    <span class="rank-value num">{{ t.winRate | number: '1.0-0' }}<small> %</small></span>
+                  </button>
                 }
-            </mat-select>
-        </mat-form-field>
-        @if (selectedSeason) {
-        <span class="season-filter-badge">
-            <mat-icon>filter_list</mat-icon>
-            Saison {{ selectedSeason }}
-        </span>
+              </div>
+            </section>
+          }
+
+          <section class="section">
+            <div class="section-head"><h2>Torreichste Spiele</h2></div>
+            <div class="panel rows">
+              @for (g of highScores(); track g.id) {
+                <a class="record" routerLink="/game-details" [queryParams]="{ param: g.id }">
+                  <span class="record-main">
+                    <span class="record-teams">{{ g.home }} – {{ g.guest }}</span>
+                    <span class="record-sub">{{ g.league }}@if (day(g.day)) {, {{ day(g.day) }}}</span>
+                  </span>
+                  <span class="record-score num">{{ g.hs }}:{{ g.gs }}</span>
+                  <span class="record-value num">{{ g.hs + g.gs }}<small> Tore</small></span>
+                </a>
+              }
+            </div>
+          </section>
+
+          <section class="section">
+            <div class="section-head"><h2>Höchste Siege</h2></div>
+            <div class="panel rows">
+              @for (g of margins(); track g.id) {
+                <a class="record" routerLink="/game-details" [queryParams]="{ param: g.id }">
+                  <span class="record-main">
+                    <span class="record-teams">{{ g.home }} – {{ g.guest }}</span>
+                    <span class="record-sub">{{ g.league }}@if (day(g.day)) {, {{ day(g.day) }}}</span>
+                  </span>
+                  <span class="record-score num">{{ g.hs }}:{{ g.gs }}</span>
+                  <span class="record-value num">+{{ g.hs > g.gs ? g.hs - g.gs : g.gs - g.hs }}</span>
+                </a>
+              }
+            </div>
+          </section>
+
+          @if (!season()) {
+            @if (streaks().length) {
+              <section class="section">
+                <div class="section-head"><h2>Längste Siegesserien</h2></div>
+                <div class="panel rows">
+                  @for (s of streaks(); track s.teamId) {
+                    <button class="rank" (click)="openTeam(s.teamId)">
+                      <span class="rank-main">
+                        <span class="rank-name">{{ s.team }}</span>
+                        <span class="rank-sub num">{{ day(s.from) }} bis {{ day(s.to) }}</span>
+                      </span>
+                      <span class="rank-value num">{{ s.count }}<small> Siege</small></span>
+                    </button>
+                  }
+                </div>
+              </section>
+            }
+
+            @if (trend().length > 1) {
+              <section class="section">
+                <div class="section-head"><h2>Heimvorteil</h2><span class="hint">Anteil Heimsiege je Saison</span></div>
+                <div class="panel panel-pad">
+                  <app-line-chart [labels]="seasonLabels()" [series]="homeTrend()" unit=" %" [decimals]="0"
+                    [zeroBased]="false" title="Anteil Heimsiege" />
+                </div>
+                @if (partialNote()) { <p class="note">{{ partialNote() }}</p> }
+              </section>
+
+              <section class="section">
+                <div class="section-head"><h2>Archivierte Spiele</h2><span class="hint">je Saison</span></div>
+                <div class="panel panel-pad">
+                  <app-column-chart [columns]="gamesPerSeason()" title="Archivierte Spiele je Saison" unit=" Spiele" />
+                </div>
+              </section>
+            }
+          }
         }
-    </div>
+      }
 
-    <div class="kpi-row">
-        <div class="kpi-card">
-            <mat-icon class="kpi-icon blue">sports_water_polo</mat-icon>
-            <div class="kpi-content">
-                <span class="kpi-value">{{ animatedGames | number }}</span>
-                <span class="kpi-label">Spiele gesamt</span>
-            </div>
-        </div>
-        <div class="kpi-card">
-            <mat-icon class="kpi-icon green">groups</mat-icon>
-            <div class="kpi-content">
-                <span class="kpi-value">{{ animatedTeams | number }}</span>
-                <span class="kpi-label">Teams</span>
-            </div>
-        </div>
-        <div class="kpi-card">
-            <mat-icon class="kpi-icon amber">sports_score</mat-icon>
-            <div class="kpi-content">
-                <span class="kpi-value">{{ animatedGoals | number }}</span>
-                <span class="kpi-label">Tore erzielt</span>
-            </div>
-        </div>
-        <div class="kpi-card">
-            <mat-icon class="kpi-icon purple">calendar_month</mat-icon>
-            <div class="kpi-content">
-                <span class="kpi-value">{{ animatedSeasons }}</span>
-                <span class="kpi-label">Saisons</span>
-            </div>
-        </div>
-    </div>
+      <!-- ======================= Teams ======================= -->
+      @case ('teams') {
+        <label class="search">
+          <mat-icon>search</mat-icon>
+          <input type="search" [ngModel]="teamQuery()" (ngModelChange)="teamQuery.set($event)"
+            placeholder="Team suchen, z. B. Spandau" autocomplete="off" aria-label="Team suchen">
+          @if (teamQuery()) {
+            <button class="icon-btn" (click)="teamQuery.set('')" aria-label="Suche leeren"><mat-icon>close</mat-icon></button>
+          }
+        </label>
 
-    <!-- LOADING STATE -->
-    @if (isLoading) {
-    <div class="loading-container">
-        <mat-spinner diameter="48"></mat-spinner>
-        <p>Daten werden geladen...</p>
-    </div>
-    } @else {
+        @if (teamQuery().trim().length >= 2) {
+          <div class="panel rows suggestions">
+            @for (t of teamSuggestions(); track t.id) {
+              <button class="row" (click)="openTeam(t.id)">
+                <span class="grow"><span class="title">{{ t.name }}</span></span>
+                <span class="meta num">{{ t.games }} Spiele</span>
+              </button>
+            } @empty {
+              <p class="no-hit">Kein Team mit diesem Namen im Archiv.</p>
+            }
+          </div>
+        } @else if (teamLoading()) {
+          <div class="skeleton-list" aria-busy="true">
+            <div class="skeleton figures-skeleton"></div><div class="skeleton chart-skeleton"></div>
+          </div>
+        } @else if (team(); as t) {
+          <div class="entity-head">
+            <h2>{{ t.name }}</h2>
+            <button class="btn small" (click)="clearSelection()">Anderes Team</button>
+          </div>
 
-    <mat-tab-group animationDuration="200ms" [selectedIndex]="currentTabIndex" (selectedTabChange)="onTabChange($event)" class="custom-tabs">
+          <div class="panel figures">
+            <div class="figure"><b class="num">{{ t.total.games | number }}</b><span>Spiele</span></div>
+            <div class="figure"><b class="num">{{ t.total.winRate | number: '1.0-0' }} %</b><span>Siegquote</span></div>
+            <div class="figure"><b class="num" [class.long]="t.total.scored >= 1000">{{ t.total.scored | number }}:{{ t.total.conceded | number }}</b><span>Tore</span></div>
+            <div class="figure"><b class="num">{{ t.longestWinStreak }}</b><span>Siege in Folge</span></div>
+          </div>
 
-        <!-- ═══════════════════════════════════ TAB 1: OVERVIEW ═══════════════════════════════════ -->
-        <mat-tab label="Übersicht">
-            <div class="tab-content">
-
-                <!-- Hero: Top Teams -->
-                <mat-card class="chart-card hero-card mat-elevation-z2 fade-in">
-                    <mat-card-header>
-                        <mat-icon mat-card-avatar class="card-icon">emoji_events</mat-icon>
-                        <mat-card-title>Top 20 Teams nach Siegquote</mat-card-title>
-                        <mat-card-subtitle>Teams mit der besten historischen Bilanz (min. 20 Spiele)</mat-card-subtitle>
-                    </mat-card-header>
-                    <mat-card-content>
-                        <div class="canvas-container canvas-tall">
-                            <canvas baseChart [data]="topTeamsChartData" [options]="topTeamsChartOptions"
-                                [type]="barChartType"></canvas>
-                        </div>
-                    </mat-card-content>
-                </mat-card>
-
-                <div class="charts-grid">
-                    <!-- Trends -->
-                    <mat-card class="chart-card mat-elevation-z2 fade-in">
-                        <mat-card-header>
-                            <mat-icon mat-card-avatar class="card-icon">trending_up</mat-icon>
-                            <mat-card-title>Tore pro Spiel</mat-card-title>
-                            <mat-card-subtitle>Entwicklung über die Saisons</mat-card-subtitle>
-                        </mat-card-header>
-                        <mat-card-content>
-                            <div class="canvas-container">
-                                <canvas baseChart [data]="trendsChartData" [options]="trendsChartOptions"
-                                    [type]="lineChartType"></canvas>
-                            </div>
-                        </mat-card-content>
-                    </mat-card>
-
-                    <!-- Growth -->
-                    <mat-card class="chart-card mat-elevation-z2 fade-in">
-                        <mat-card-header>
-                            <mat-icon mat-card-avatar class="card-icon">show_chart</mat-icon>
-                            <mat-card-title>Wachstum der Liga</mat-card-title>
-                            <mat-card-subtitle>Anzahl Spiele pro Saison</mat-card-subtitle>
-                        </mat-card-header>
-                        <mat-card-content>
-                            <div class="canvas-container">
-                                <canvas baseChart [data]="growthChartData" [options]="growthChartOptions"
-                                    [type]="lineChartType"></canvas>
-                            </div>
-                        </mat-card-content>
-                    </mat-card>
-
-                    <!-- Doughnut: Home Advantage -->
-                    <mat-card class="chart-card mat-elevation-z2 fade-in">
-                        <mat-card-header>
-                            <mat-icon mat-card-avatar class="card-icon">home</mat-icon>
-                            <mat-card-title>Heimvorteil</mat-card-title>
-                            <mat-card-subtitle>Verteilung der Spielausgänge</mat-card-subtitle>
-                        </mat-card-header>
-                        <mat-card-content>
-                            <div class="canvas-container doughnut-container">
-                                <canvas baseChart [data]="homeAdvantageChartData" [options]="doughnutOptions"
-                                    [type]="doughnutChartType"></canvas>
-                            </div>
-                        </mat-card-content>
-                    </mat-card>
-
-                    <!-- Goal Distribution -->
-                    <mat-card class="chart-card mat-elevation-z2 fade-in">
-                        <mat-card-header>
-                            <mat-icon mat-card-avatar class="card-icon">bar_chart</mat-icon>
-                            <mat-card-title>Tor-Verteilung</mat-card-title>
-                            <mat-card-subtitle>Wie viele Tore fallen pro Spiel?</mat-card-subtitle>
-                        </mat-card-header>
-                        <mat-card-content>
-                            <div class="canvas-container">
-                                <canvas baseChart [data]="goalDistributionData" [options]="goalDistributionOptions"
-                                    [type]="barChartType"></canvas>
-                            </div>
-                        </mat-card-content>
-                    </mat-card>
+          <section class="section">
+            <div class="section-head"><h2>Bilanz</h2></div>
+            <div class="panel panel-pad wdl-list">
+              @for (row of [{ label: 'Gesamt', rec: t.total }, { label: 'Heim', rec: t.home }, { label: 'Auswärts', rec: t.away }]; track row.label) {
+                <div class="wdl-row">
+                  <span class="wdl-label">{{ row.label }}</span>
+                  <span class="wdl-text num">{{ row.rec.wins }} S, {{ row.rec.draws }} U, {{ row.rec.losses }} N</span>
+                  <span class="wdl-bar" aria-hidden="true">
+                    @if (row.rec.wins) { <i class="w" [style.flex-grow]="row.rec.wins"></i> }
+                    @if (row.rec.draws) { <i class="d" [style.flex-grow]="row.rec.draws"></i> }
+                    @if (row.rec.losses) { <i class="l" [style.flex-grow]="row.rec.losses"></i> }
+                  </span>
                 </div>
-
-                <!-- Records & Streaks Row -->
-                <div class="highlight-row">
-                    <!-- Records -->
-                    <mat-card class="chart-card mat-elevation-z2 fade-in">
-                        <mat-card-header>
-                            <mat-icon mat-card-avatar class="card-icon amber">military_tech</mat-icon>
-                            <mat-card-title>Tor-Rekorde</mat-card-title>
-                            <mat-card-subtitle>Die torreichsten Spiele aller Zeiten</mat-card-subtitle>
-                        </mat-card-header>
-                        <mat-card-content>
-                            <div class="ranked-list">
-                                @for (game of highestScoringGames; track game.date; let i = $index) {
-                                <div class="ranked-item">
-                                    <span class="rank-badge" [class]="getRankClass(i)">{{ getRankBadge(i) }}</span>
-                                    <div class="ranked-content">
-                                        <div class="ranked-primary">
-                                            <span class="ranked-value">{{ game.totalGoals }} Tore</span>
-                                            <span class="ranked-score">{{ game.score }}</span>
-                                        </div>
-                                        <div class="ranked-secondary">{{ game.home }} vs {{ game.guest }}</div>
-                                        <div class="ranked-meta">{{ game.date | date:'dd.MM.yyyy' }}</div>
-                                    </div>
-                                </div>
-                                }
-                            </div>
-                        </mat-card-content>
-                    </mat-card>
-
-                    <!-- Winning Streaks -->
-                    <mat-card class="chart-card mat-elevation-z2 fade-in">
-                        <mat-card-header>
-                            <mat-icon mat-card-avatar class="card-icon red">local_fire_department</mat-icon>
-                            <mat-card-title>Längste Siegesserien</mat-card-title>
-                            <mat-card-subtitle>Unaufhaltsame Teams</mat-card-subtitle>
-                        </mat-card-header>
-                        <mat-card-content>
-                            <div class="ranked-list">
-                                @for (streak of winningStreaks; track streak.team; let i = $index) {
-                                <div class="ranked-item">
-                                    <span class="rank-badge" [class]="getRankClass(i)">{{ getRankBadge(i) }}</span>
-                                    <div class="ranked-content">
-                                        <div class="ranked-primary">
-                                            <span class="ranked-value">{{ streak.count }} Siege</span>
-                                        </div>
-                                        <div class="ranked-secondary">{{ streak.team }}</div>
-                                    </div>
-                                </div>
-                                }
-                            </div>
-                        </mat-card-content>
-                    </mat-card>
-                </div>
-
+              }
             </div>
-        </mat-tab>
+          </section>
 
-        <!-- ═══════════════════════════════════ TAB 2: TEAMS ═══════════════════════════════════ -->
-        <mat-tab label="Teams">
-            <ng-template matTabContent>
-                <div class="tab-content">
-                    <div class="search-container">
-                        <mat-form-field appearance="outline" class="w-100">
-                            <mat-label>Team suchen</mat-label>
-                            <input type="text" placeholder="z.B. Spandau 04" matInput [formControl]="searchControl"
-                                [matAutocomplete]="auto">
-                            <mat-autocomplete #auto="matAutocomplete" [displayWith]="displayFn"
-                                (optionSelected)="onOptionSelected($event)">
-                                @for (option of filteredOptions | async; track option.id) {
-                                <mat-option [value]="option">{{option.name}}</mat-option>
-                                }
-                            </mat-autocomplete>
-                            <mat-icon matSuffix>search</mat-icon>
-                        </mat-form-field>
-                    </div>
+          @if (t.seasons.length > 1) {
+            <section class="section">
+              <div class="section-head"><h2>Siegquote</h2><span class="hint">je Saison</span></div>
+              <div class="panel panel-pad">
+                <app-line-chart [labels]="teamSeasonLabels()" [series]="teamWinRate()" unit=" %" title="Siegquote" />
+              </div>
+            </section>
 
-                    @if (isLoadingEntity) {
-                    <div class="loading-container">
-                        <mat-spinner diameter="40"></mat-spinner>
-                        <p>Team-Daten werden geladen...</p>
-                    </div>
-                    } @else if (selectedEntity) {
+            <section class="section">
+              <div class="section-head"><h2>Tore pro Spiel</h2><span class="hint">erzielt und kassiert</span></div>
+              <div class="panel panel-pad">
+                <app-line-chart [labels]="teamSeasonLabels()" [series]="teamGoals()" [decimals]="1" title="Tore pro Spiel" />
+              </div>
+            </section>
+          }
 
-                    <!-- Team Header -->
-                    <div class="entity-header fade-in">
-                        <h2>{{ selectedEntity.name }}</h2>
-                    </div>
+          @if (t.rivals.length) {
+            <section class="section">
+              <div class="section-head"><h2>Häufigste Gegner</h2></div>
+              <div class="panel rows">
+                @for (r of t.rivals; track r.id) {
+                  <button class="rank" (click)="openTeam(r.id)">
+                    <span class="rank-main">
+                      <span class="rank-name">{{ r.name }}</span>
+                      <span class="wdl-bar" aria-hidden="true">
+                        @if (r.wins) { <i class="w" [style.flex-grow]="r.wins"></i> }
+                        @if (r.draws) { <i class="d" [style.flex-grow]="r.draws"></i> }
+                        @if (r.losses) { <i class="l" [style.flex-grow]="r.losses"></i> }
+                      </span>
+                      <span class="rank-sub num">{{ r.wins }} S, {{ r.draws }} U, {{ r.losses }} N</span>
+                    </span>
+                    <span class="rank-value num">{{ r.games }}<small> Spiele</small></span>
+                  </button>
+                }
+              </div>
+              @if (t.favourite || t.nemesis) {
+                <p class="note">
+                  @if (t.favourite; as f) { Lieblingsgegner: <b>{{ f.name }}</b> ({{ f.wins }} Siege). }
+                  @if (t.nemesis; as n) { Angstgegner: <b>{{ n.name }}</b> ({{ n.losses }} Niederlagen). }
+                </p>
+              }
+            </section>
+          }
 
-                    <!-- Hero: Goals Per Season -->
-                    <mat-card class="chart-card hero-card mat-elevation-z2 fade-in">
-                        <mat-card-header>
-                            <mat-icon mat-card-avatar class="card-icon">compare_arrows</mat-icon>
-                            <mat-card-title>Tore pro Saison</mat-card-title>
-                            <mat-card-subtitle>Erzielte vs. kassierte Tore im Verlauf</mat-card-subtitle>
-                        </mat-card-header>
-                        <mat-card-content>
-                            <div class="canvas-container">
-                                <canvas baseChart [data]="teamGoalsPerSeasonData" [options]="teamGoalsPerSeasonOptions"
-                                    [type]="lineChartType"></canvas>
-                            </div>
-                        </mat-card-content>
-                    </mat-card>
-
-                    <div class="charts-grid">
-                        <!-- Win Rate History -->
-                        <mat-card class="chart-card mat-elevation-z2 fade-in">
-                            <mat-card-header>
-                                <mat-icon mat-card-avatar class="card-icon">timeline</mat-icon>
-                                <mat-card-title>Historische Siegquote</mat-card-title>
-                                <mat-card-subtitle>Entwicklung über die Jahre</mat-card-subtitle>
-                            </mat-card-header>
-                            <mat-card-content>
-                                <div class="canvas-container">
-                                    <canvas baseChart [data]="entityChartData" [options]="entityChartOptions"
-                                        [type]="lineChartType"></canvas>
-                                </div>
-                            </mat-card-content>
-                        </mat-card>
-
-                        <!-- Rivals -->
-                        <mat-card class="chart-card mat-elevation-z2 fade-in">
-                            <mat-card-header>
-                                <mat-icon mat-card-avatar class="card-icon">people</mat-icon>
-                                <mat-card-title>Gegner-Bilanz</mat-card-title>
-                                <mat-card-subtitle>Häufigste Gegner (S/U/N)</mat-card-subtitle>
-                            </mat-card-header>
-                            <mat-card-content>
-                                <div class="canvas-container">
-                                    <canvas baseChart [data]="teamRivalsChartData" [options]="entityChartOptions"
-                                        [type]="barChartType"></canvas>
-                                </div>
-                            </mat-card-content>
-                        </mat-card>
-                    </div>
-
-                    <!-- Stats Row: Home/Away + Key Metrics + Favorites -->
-                    <div class="stats-row">
-                        <!-- Home/Away -->
-                        @if (homeAwayStats) {
-                        <mat-card class="chart-card stat-card mat-elevation-z2 fade-in">
-                            <mat-card-header>
-                                <mat-icon mat-card-avatar class="card-icon">swap_horiz</mat-icon>
-                                <mat-card-title>Heim vs. Auswärts</mat-card-title>
-                            </mat-card-header>
-                            <mat-card-content>
-                                <div class="split-stats">
-                                    <div class="split-col">
-                                        <div class="split-header">
-                                            <mat-icon>home</mat-icon>
-                                            <span>Heim</span>
-                                        </div>
-                                        <div class="split-value green">{{ getHomeWinRate() }}%</div>
-                                        <div class="split-details">
-                                            <span class="win">{{ homeAwayStats.home.w }}S</span>
-                                            <span class="draw">{{ homeAwayStats.home.d }}U</span>
-                                            <span class="loss">{{ homeAwayStats.home.l }}N</span>
-                                        </div>
-                                    </div>
-                                    <div class="split-divider"></div>
-                                    <div class="split-col">
-                                        <div class="split-header">
-                                            <mat-icon>flight</mat-icon>
-                                            <span>Auswärts</span>
-                                        </div>
-                                        <div class="split-value blue">{{ getAwayWinRate() }}%</div>
-                                        <div class="split-details">
-                                            <span class="win">{{ homeAwayStats.away.w }}S</span>
-                                            <span class="draw">{{ homeAwayStats.away.d }}U</span>
-                                            <span class="loss">{{ homeAwayStats.away.l }}N</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </mat-card-content>
-                        </mat-card>
-                        }
-
-                        <!-- Key Metrics -->
-                        <mat-card class="chart-card stat-card mat-elevation-z2 fade-in">
-                            <mat-card-header>
-                                <mat-icon mat-card-avatar class="card-icon">shield</mat-icon>
-                                <mat-card-title>Schlüsselwerte</mat-card-title>
-                            </mat-card-header>
-                            <mat-card-content>
-                                <div class="key-metrics">
-                                    <div class="metric-item good">
-                                        <span class="metric-value">{{ cleanSheets }}</span>
-                                        <span class="metric-label">Weiße Westen</span>
-                                        <span class="metric-sub">Spiele ohne Gegentor</span>
-                                    </div>
-                                    <div class="metric-item bad">
-                                        <span class="metric-value">{{ scoringFailures }}</span>
-                                        <span class="metric-label">Ohne eigenes Tor</span>
-                                        <span class="metric-sub">Torlose Spiele</span>
-                                    </div>
-                                </div>
-                            </mat-card-content>
-                        </mat-card>
-
-                        <!-- Favorites / Nightmares -->
-                        @if (teamFavorites) {
-                        <mat-card class="chart-card stat-card mat-elevation-z2 fade-in">
-                            <mat-card-header>
-                                <mat-icon mat-card-avatar class="card-icon">favorite</mat-icon>
-                                <mat-card-title>Gegner-Check</mat-card-title>
-                            </mat-card-header>
-                            <mat-card-content>
-                                <div class="split-stats">
-                                    <div class="split-col">
-                                        <div class="split-header green-text">❤️ Lieblingsgegner</div>
-                                        <div class="split-team">{{ teamFavorites.favorite.name }}</div>
-                                        <div class="split-count green">{{ teamFavorites.favorite.count }} Siege</div>
-                                    </div>
-                                    <div class="split-divider"></div>
-                                    <div class="split-col">
-                                        <div class="split-header red-text">👻 Angstgegner</div>
-                                        <div class="split-team">{{ teamFavorites.nightmare.name }}</div>
-                                        <div class="split-count red">{{ teamFavorites.nightmare.count }} Niederlagen
-                                        </div>
-                                    </div>
-                                </div>
-                            </mat-card-content>
-                        </mat-card>
-                        }
-                    </div>
-
-                    <!-- Form & Biggest Wins -->
-                    <div class="highlight-row">
-                        <!-- Form Guide -->
-                        <mat-card class="chart-card mat-elevation-z2 fade-in">
-                            <mat-card-header>
-                                <mat-icon mat-card-avatar class="card-icon">sports</mat-icon>
-                                <mat-card-title>Aktuelle Form</mat-card-title>
-                                <mat-card-subtitle>Die letzten 10 Spiele</mat-card-subtitle>
-                            </mat-card-header>
-                            <mat-card-content>
-                                <div class="form-guide">
-                                    @for (match of teamForm; track match.date) {
-                                    <div class="form-item" [class]="match.result">
-                                        <span class="result-icon">{{ getFormIcon(match.result) }}</span>
-                                        <div class="match-info">
-                                            <span class="opponent">vs {{ match.opponent }}</span>
-                                            <span class="score">{{ match.score }}</span>
-                                        </div>
-                                    </div>
-                                    }
-                                </div>
-                            </mat-card-content>
-                        </mat-card>
-
-                        <!-- Biggest Wins -->
-                        <mat-card class="chart-card mat-elevation-z2 fade-in">
-                            <mat-card-header>
-                                <mat-icon mat-card-avatar class="card-icon amber">emoji_events</mat-icon>
-                                <mat-card-title>Sternstunden</mat-card-title>
-                                <mat-card-subtitle>Höchste Siege</mat-card-subtitle>
-                            </mat-card-header>
-                            <mat-card-content>
-                                <div class="ranked-list">
-                                    @for (game of teamBiggestWins; track game.date; let i = $index) {
-                                    <div class="ranked-item">
-                                        <span class="rank-badge" [class]="getRankClass(i)">{{ getRankBadge(i)
-                                            }}</span>
-                                        <div class="ranked-content">
-                                            <div class="ranked-primary">
-                                                <span class="ranked-value">+{{ game.diff }}</span>
-                                                <span class="ranked-score">{{ game.score }}</span>
-                                            </div>
-                                            <div class="ranked-secondary">vs {{ game.opponent }}</div>
-                                            <div class="ranked-meta">{{ game.date | date:'dd.MM.yy' }}</div>
-                                        </div>
-                                    </div>
-                                    }
-                                </div>
-                            </mat-card-content>
-                        </mat-card>
-                    </div>
-
-                    } @else {
-                    <div class="empty-state fade-in">
-                        <mat-icon>search</mat-icon>
-                        <h3>Team suchen</h3>
-                        <p>Wähle ein Team aus der Suche, um detaillierte Statistiken zu sehen.</p>
-                    </div>
-                    }
+          @for (block of [{ title: 'Höchste Siege', games: t.biggestWins }, { title: 'Höchste Niederlagen', games: t.heaviestDefeats }, { title: 'Letzte Spiele im Archiv', games: t.recent }]; track block.title) {
+            @if (block.games.length) {
+              <section class="section">
+                <div class="section-head"><h2>{{ block.title }}</h2></div>
+                <div class="panel rows">
+                  @for (g of block.games; track g.id) {
+                    <a class="record" routerLink="/game-details" [queryParams]="{ param: g.id }">
+                      <span class="form"><i [class]="g.result">{{ resultLabel(g.result) }}</i></span>
+                      <span class="record-main">
+                        <span class="record-teams">{{ g.home ? 'gegen' : 'bei' }} {{ g.opponent }}</span>
+                        <span class="record-sub">{{ g.league }}@if (day(g.day)) {, {{ day(g.day) }}}</span>
+                      </span>
+                      <span class="record-value num">{{ g.own }}:{{ g.other }}</span>
+                    </a>
+                  }
                 </div>
-            </ng-template>
-        </mat-tab>
+              </section>
+            }
+          }
+        } @else {
+          @if (myTeams().length) {
+            <section class="section">
+              <div class="section-head"><h2>Meine Teams</h2></div>
+              <div class="panel rows">
+                @for (t of myTeams(); track t.id) {
+                  <button class="row" (click)="openTeam(t.id)">
+                    <mat-icon class="fav-star">star</mat-icon>
+                    <span class="grow"><span class="title">{{ t.name }}</span></span>
+                    <span class="meta num">{{ t.games }} Spiele</span>
+                  </button>
+                }
+              </div>
+            </section>
+          }
+          <section class="section">
+            <div class="section-head"><h2>Teams mit den meisten Spielen</h2></div>
+            @if (popularTeams().length) {
+              <div class="panel rows">
+                @for (t of popularTeams(); track t.id) {
+                  <button class="row" (click)="openTeam(t.id)">
+                    <span class="grow"><span class="title">{{ t.name }}</span></span>
+                    <span class="meta num">{{ t.games }} Spiele</span>
+                  </button>
+                }
+              </div>
+            } @else {
+              <div class="skeleton-list" aria-busy="true">
+                @for (i of [1,2,3,4]; track i) { <div class="skeleton skeleton-line"></div> }
+              </div>
+            }
+          </section>
+        }
+      }
 
-        <!-- ═══════════════════════════════════ TAB 3: LEAGUES ═══════════════════════════════════ -->
-        <mat-tab label="Ligen">
-            <ng-template matTabContent>
-                <div class="tab-content">
+      <!-- ======================= Spieler ======================= -->
+      @case ('spieler') {
+        <label class="search">
+          <mat-icon>search</mat-icon>
+          <input type="search" [ngModel]="playerQuery()" (ngModelChange)="playerQuery.set($event)"
+            placeholder="Spieler*in suchen (Nachname zuerst)" autocomplete="off" aria-label="Spieler suchen">
+          @if (playerQuery()) {
+            <button class="icon-btn" (click)="playerQuery.set('')" aria-label="Suche leeren"><mat-icon>close</mat-icon></button>
+          }
+        </label>
 
-                    <div class="search-container">
-                        <mat-form-field appearance="outline" class="w-100">
-                            <mat-label>Liga suchen</mat-label>
-                            <input type="text" placeholder="z.B. Bundesliga 2024" matInput
-                                [formControl]="searchControl" [matAutocomplete]="autoLeague">
-                            <mat-autocomplete #autoLeague="matAutocomplete" [displayWith]="displayFn"
-                                (optionSelected)="onOptionSelected($event)">
-                                @for (option of filteredOptions | async; track option.id) {
-                                <mat-option [value]="option">{{option.name}}</mat-option>
-                                }
-                            </mat-autocomplete>
-                            <mat-icon matSuffix>search</mat-icon>
-                        </mat-form-field>
-                    </div>
+        @if (playerQuery().trim().length >= 2) {
+          <div class="panel rows suggestions">
+            @for (p of playerSuggestions(); track p.id) {
+              <button class="row" (click)="openPlayer(p.id)">
+                <span class="grow">
+                  <span class="title">{{ p.name }}</span>
+                  @if (p.birthYear) { <span class="meta num">Jahrgang {{ p.birthYear }}</span> }
+                </span>
+                <span class="meta num">{{ p.goals }} Tore</span>
+              </button>
+            } @empty {
+              <p class="no-hit">Niemand mit diesem Namen im Archiv. Namen stehen dort als „Nachname, Vorname“.</p>
+            }
+          </div>
+        } @else if (playerLoading()) {
+          <div class="skeleton-list" aria-busy="true">
+            <div class="skeleton figures-skeleton"></div><div class="skeleton chart-skeleton"></div>
+          </div>
+        } @else if (player(); as p) {
+          <div class="entity-head">
+            <h2>{{ p.name }}</h2>
+            <button class="btn small" (click)="clearSelection()">Andere Person</button>
+          </div>
 
-                    <!-- Liga Detail -->
-                    @if (isLoadingEntity) {
-                    <div class="loading-container">
-                        <mat-spinner diameter="40"></mat-spinner>
-                        <p>Liga-Daten werden geladen...</p>
-                    </div>
-                    } @else if (selectedEntity && selectedLeagueStats) {
-                    <mat-card class="chart-card hero-card mat-elevation-z2 fade-in">
-                        <mat-card-header>
-                            <mat-icon mat-card-avatar class="card-icon">leaderboard</mat-icon>
-                            <mat-card-title>{{ selectedEntity.name }}</mat-card-title>
-                            <mat-card-subtitle>Liga-Statistiken</mat-card-subtitle>
-                        </mat-card-header>
-                        <mat-card-content>
-                            <div class="league-kpis">
-                                <div class="league-kpi">
-                                    <span class="league-kpi-value">{{ selectedLeagueStats.avgGoals }}</span>
-                                    <span class="league-kpi-label">Ø Tore/Spiel</span>
-                                </div>
-                                <div class="league-kpi">
-                                    <span class="league-kpi-value">{{ selectedLeagueStats.maxGoals }}</span>
-                                    <span class="league-kpi-label">Max. Tore</span>
-                                </div>
-                                <div class="league-kpi">
-                                    <span class="league-kpi-value">{{ selectedLeagueStats.games }}</span>
-                                    <span class="league-kpi-label">Spiele</span>
-                                </div>
-                                <div class="league-kpi">
-                                    <span class="league-kpi-value green">{{ selectedLeagueStats.homeWins }}</span>
-                                    <span class="league-kpi-label">Heimsiege</span>
-                                </div>
-                                <div class="league-kpi">
-                                    <span class="league-kpi-value">{{ selectedLeagueStats.draws }}</span>
-                                    <span class="league-kpi-label">Remis</span>
-                                </div>
-                                <div class="league-kpi">
-                                    <span class="league-kpi-value blue">{{ selectedLeagueStats.awayWins }}</span>
-                                    <span class="league-kpi-label">Auswärtssiege</span>
-                                </div>
-                            </div>
-                        </mat-card-content>
-                    </mat-card>
-                    }
+          <div class="panel figures">
+            <div class="figure"><b class="num">{{ p.goals | number }}</b><span>Tore</span></div>
+            <div class="figure"><b class="num">{{ p.games | number }}</b><span>Spiele</span></div>
+            <div class="figure"><b class="num">{{ p.avg | number: '1.2-2' }}</b><span>Tore pro Spiel</span></div>
+            <div class="figure"><b class="num">{{ p.birthYear ?? '–' }}</b><span>Jahrgang</span></div>
+          </div>
 
-                    <!-- General League Charts -->
-                    <div class="section-header">
-                        <h3>Liga-Vergleich & Saisonale Muster</h3>
-                    </div>
+          @if (p.best; as best) {
+            <p class="note">
+              Beste Saison: <b>{{ best.goals }} Tore</b> in {{ best.games }} Spielen,
+              {{ seasonLabel(best.season) }} für {{ best.club }}.
+            </p>
+          }
 
-                    <div class="charts-grid">
-                        <mat-card class="chart-card mat-elevation-z2 fade-in">
-                            <mat-card-header>
-                                <mat-icon mat-card-avatar class="card-icon">assessment</mat-icon>
-                                <mat-card-title>Tore nach Liga-Level</mat-card-title>
-                                <mat-card-subtitle>Wo fallen die meisten Tore?</mat-card-subtitle>
-                            </mat-card-header>
-                            <mat-card-content>
-                                <div class="canvas-container">
-                                    <canvas baseChart [data]="leagueComparisonChartData"
-                                        [options]="entityChartOptions" [type]="barChartType"></canvas>
-                                </div>
-                            </mat-card-content>
-                        </mat-card>
+          @if (p.seasons.length > 1) {
+            <section class="section">
+              <div class="section-head"><h2>Tore</h2><span class="hint">je Saison</span></div>
+              <div class="panel panel-pad">
+                <app-column-chart [columns]="playerGoals()" title="Tore je Saison" unit=" Tore" />
+              </div>
+            </section>
+            <section class="section">
+              <div class="section-head"><h2>Tore pro Spiel</h2><span class="hint">je Saison</span></div>
+              <div class="panel panel-pad">
+                <app-line-chart [labels]="playerSeasonLabels()" [series]="playerAvg()" [decimals]="2" title="Tore pro Spiel" />
+              </div>
+            </section>
+          }
 
-                        <mat-card class="chart-card mat-elevation-z2 fade-in">
-                            <mat-card-header>
-                                <mat-icon mat-card-avatar class="card-icon">date_range</mat-icon>
-                                <mat-card-title>Saison-Verlauf</mat-card-title>
-                                <mat-card-subtitle>Torschnitt nach Monaten</mat-card-subtitle>
-                            </mat-card-header>
-                            <mat-card-content>
-                                <div class="canvas-container">
-                                    <canvas baseChart [data]="seasonalPatternChartData"
-                                        [options]="entityChartOptions" [type]="lineChartType"></canvas>
-                                </div>
-                            </mat-card-content>
-                        </mat-card>
-                    </div>
-
-                    <!-- Tightest Leagues -->
-                    <mat-card class="chart-card mat-elevation-z2 fade-in" style="max-width: 700px;">
-                        <mat-card-header>
-                            <mat-icon mat-card-avatar class="card-icon red">bolt</mat-icon>
-                            <mat-card-title>Spannung pur</mat-card-title>
-                            <mat-card-subtitle>Ligen mit den knappsten Ergebnissen</mat-card-subtitle>
-                        </mat-card-header>
-                        <mat-card-content>
-                            <div class="ranked-list">
-                                @for (league of tightestLeagues; track league.name; let i = $index) {
-                                <div class="ranked-item">
-                                    <span class="rank-badge" [class]="getRankClass(i)">{{ getRankBadge(i) }}</span>
-                                    <div class="ranked-content">
-                                        <div class="ranked-primary">
-                                            <span class="ranked-value">Ø {{ league.avgDiff }} Diff.</span>
-                                        </div>
-                                        <div class="ranked-secondary">{{ league.name }}</div>
-                                        <div class="ranked-meta">{{ league.games }} Spiele</div>
-                                    </div>
-                                </div>
-                                }
-                            </div>
-                        </mat-card-content>
-                    </mat-card>
+          <section class="section">
+            <div class="section-head"><h2>Stationen</h2><span class="hint num">{{ p.clubs.length }} {{ p.clubs.length === 1 ? 'Verein' : 'Vereine' }}</span></div>
+            <div class="panel rows">
+              @for (sp of p.spells; track sp.season + sp.club) {
+                <div class="record static">
+                  <span class="station-season num">{{ seasonLabel(sp.season) }}</span>
+                  <span class="record-main">
+                    <span class="record-teams">{{ sp.club }}</span>
+                    <span class="record-sub">
+                      @for (lg of sp.leagues; track lg.id; let last = $last) {
+                        @if (canOpenLeague(sp.season)) {
+                          <button class="link" (click)="showLeagueInArchive(lg.id, sp.season)">{{ lg.name }}</button>
+                        } @else {
+                          <span>{{ lg.name }}</span>
+                        }@if (!last) {<span>, </span>}
+                      }
+                    </span>
+                  </span>
+                  <span class="record-value num">{{ sp.goals }}<small> in {{ sp.games }}</small></span>
                 </div>
-            </ng-template>
-        </mat-tab>
+              }
+            </div>
+            <p class="note">Tore und Spiele laut Torschützenlisten des DSV, je Wettbewerb einmal gezählt.</p>
+          </section>
+        } @else {
+          <section class="section">
+            <div class="chips" role="group" aria-label="Rangliste wählen">
+              @for (b of boards; track b.id) {
+                <button class="chip" [class.on]="board() === b.id" (click)="loadBoard(b.id)">{{ b.label }}</button>
+              }
+            </div>
+            <p class="board-hint">{{ boardHint() }}</p>
+            @if (boardRows().length) {
+              <div class="panel rows">
+                @for (row of shownBoard(); track row.id; let i = $index) {
+                  <button class="rank" (click)="openPlayer(row.id)">
+                    <span class="rank-no num">{{ i + 1 }}</span>
+                    <span class="rank-main">
+                      <span class="rank-name">{{ row.name }}</span>
+                      <span class="rank-sub num">
+                        {{ row.goals }} Tore in {{ row.games }} Spielen, {{ row.seasons }} {{ row.seasons === 1 ? 'Saison' : 'Saisons' }}@if (row.birthYear) {, Jg. {{ row.birthYear }}}
+                      </span>
+                    </span>
+                    <span class="rank-value num">{{ boardValue(row) }}<small> {{ boardUnit() }}</small></span>
+                  </button>
+                }
+              </div>
+              @if (boardRows().length > shownBoard().length) {
+                <button class="btn more-btn" (click)="showMoreBoard()">Weitere anzeigen</button>
+              }
+            } @else {
+              <div class="skeleton-list" aria-busy="true">
+                @for (i of [1,2,3,4,5]; track i) { <div class="skeleton skeleton-line"></div> }
+              </div>
+            }
+          </section>
+        }
+      }
 
-        <!-- ═══════════════════════════════════ TAB 4: PLAYERS ═══════════════════════════════════ -->
-        <mat-tab label="Spieler">
-            <ng-template matTabContent>
-                <div class="tab-content">
-                    <div class="search-container">
-                        <mat-form-field appearance="outline" class="w-100">
-                            <mat-label>Spieler suchen</mat-label>
-                            <input type="text" placeholder="Name des Spielers" matInput [formControl]="searchControl"
-                                [matAutocomplete]="autoPlayer">
-                            <mat-autocomplete #autoPlayer="matAutocomplete" [displayWith]="displayFn"
-                                (optionSelected)="onOptionSelected($event)">
-                                @for (option of filteredOptions | async; track option.id) {
-                                <mat-option [value]="option">{{option.name}}</mat-option>
-                                }
-                            </mat-autocomplete>
-                            <mat-icon matSuffix>search</mat-icon>
-                        </mat-form-field>
-                    </div>
+      <!-- ======================= Ligen ======================= -->
+      @case ('ligen') {
+        <label class="search">
+          <mat-icon>search</mat-icon>
+          <input type="search" [ngModel]="leagueQuery()" (ngModelChange)="leagueQuery.set($event)"
+            placeholder="Liga suchen, z. B. Bundesliga" autocomplete="off" aria-label="Liga suchen">
+          @if (leagueQuery()) {
+            <button class="icon-btn" (click)="leagueQuery.set('')" aria-label="Suche leeren"><mat-icon>close</mat-icon></button>
+          }
+        </label>
 
-                    @if (isLoadingEntity) {
-                    <div class="loading-container">
-                        <mat-spinner diameter="40"></mat-spinner>
-                        <p>Spieler-Daten werden geladen...</p>
-                    </div>
-                    } @else if (selectedEntity) {
+        @if (leagueQuery().trim().length >= 2) {
+          <div class="panel rows suggestions">
+            @for (l of leagueSuggestions(); track l.no) {
+              <button class="row" (click)="openLeague(l.no)">
+                <span class="grow"><span class="title">{{ l.name }}</span></span>
+                <span class="meta num">{{ seasonLabel(l.season) }}</span>
+              </button>
+            } @empty {
+              <p class="no-hit">Keine Liga mit diesem Namen im Archiv.</p>
+            }
+          </div>
+        } @else if (leagueLoading()) {
+          <div class="skeleton-list" aria-busy="true"><div class="skeleton figures-skeleton"></div></div>
+        } @else if (league(); as l) {
+          <div class="entity-head">
+            <div>
+              <h2>{{ l.name }}</h2>
+              <span class="sub">Saison {{ seasonLabel(l.season) }}</span>
+            </div>
+            <button class="btn small" (click)="clearSelection()">Andere Liga</button>
+          </div>
 
-                    <div class="entity-header fade-in">
-                        <h2>{{ selectedEntity.name }}</h2>
-                    </div>
+          <div class="panel figures">
+            <div class="figure"><b class="num">{{ l.games | number }}</b><span>Spiele</span></div>
+            <div class="figure"><b class="num">{{ l.goals | number }}</b><span>Tore</span></div>
+            <div class="figure"><b class="num">{{ l.avgGoals | number: '1.1-1' }}</b><span>Tore pro Spiel</span></div>
+            <div class="figure"><b class="num">{{ l.maxGoals }}</b><span>meiste Tore in einem Spiel</span></div>
+          </div>
 
-                    <div class="charts-grid">
-                        <!-- Goals per Season -->
-                        <mat-card class="chart-card mat-elevation-z2 fade-in">
-                            <mat-card-header>
-                                <mat-icon mat-card-avatar class="card-icon">sports_score</mat-icon>
-                                <mat-card-title>{{ entityChartTitle }}</mat-card-title>
-                                <mat-card-subtitle>Torausbeute pro Saison</mat-card-subtitle>
-                            </mat-card-header>
-                            <mat-card-content>
-                                <div class="canvas-container">
-                                    <canvas baseChart [data]="entityChartData" [options]="entityChartOptions"
-                                        [type]="barChartType"></canvas>
-                                </div>
-                            </mat-card-content>
-                        </mat-card>
-
-                        <!-- Efficiency -->
-                        <mat-card class="chart-card mat-elevation-z2 fade-in">
-                            <mat-card-header>
-                                <mat-icon mat-card-avatar class="card-icon">speed</mat-icon>
-                                <mat-card-title>Effizienz</mat-card-title>
-                                <mat-card-subtitle>Durchschnittliche Tore pro Spiel</mat-card-subtitle>
-                            </mat-card-header>
-                            <mat-card-content>
-                                <div class="canvas-container">
-                                    <canvas baseChart [data]="playerEfficiencyData" [options]="entityChartOptions"
-                                        [type]="lineChartType"></canvas>
-                                </div>
-                            </mat-card-content>
-                        </mat-card>
-                    </div>
-
-                    <!-- Career Timeline -->
-                    @if (careerPath.length > 0) {
-                    <mat-card class="chart-card mat-elevation-z2 fade-in" style="max-width: 700px;">
-                        <mat-card-header>
-                            <mat-icon mat-card-avatar class="card-icon purple">route</mat-icon>
-                            <mat-card-title>Karriere-Pfad</mat-card-title>
-                            <mat-card-subtitle>Vereins-Historie</mat-card-subtitle>
-                        </mat-card-header>
-                        <mat-card-content>
-                            <div class="timeline">
-                                @for (station of careerPath; track station.season) {
-                                <div class="timeline-item">
-                                    <div class="timeline-dot"></div>
-                                    <div class="timeline-date">{{ station.season }}</div>
-                                    <div class="timeline-content">
-                                        <div class="timeline-team">{{ station.team }}</div>
-                                        <div class="timeline-league">{{ station.league }}</div>
-                                    </div>
-                                </div>
-                                }
-                            </div>
-                        </mat-card-content>
-                    </mat-card>
-                    }
-
-                    } @else {
-                    <!-- Leaderboard (no player selected) -->
-                    <div class="leaderboard-section fade-in">
-                        <div class="leaderboard-header">
-                            <h3>🏆 Spieler-Highlights</h3>
-                            <mat-button-toggle-group [value]="leaderboardType"
-                                (change)="setLeaderboardType($event.value)" appearance="legacy">
-                                <mat-button-toggle value="legends">🏅 Legenden</mat-button-toggle>
-                                <mat-button-toggle value="young">⭐ Talente</mat-button-toggle>
-                                <mat-button-toggle value="journeyman">🌍 Wanderer</mat-button-toggle>
-                            </mat-button-toggle-group>
-                        </div>
-
-                        <mat-card class="mat-elevation-z2">
-                            <mat-card-content>
-                                <div class="table-responsive">
-                                    <table class="leaderboard-table">
-                                        <thead>
-                                            <tr>
-                                                <th class="rank-col">#</th>
-                                                <th>Name</th>
-                                                @if (leaderboardType === 'journeyman') {
-                                                <th>Vereine</th>
-                                                <th>Stationen</th>
-                                                } @else {
-                                                <th>Tore</th>
-                                                <th>Spiele</th>
-                                                <th>Ø</th>
-                                                }
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            @if (leaderboardType === 'legends') {
-                                            @for (player of topScorers | slice:0:leaderboardLimit; track player.name; let i = $index) {
-                                            <tr>
-                                                <td class="rank-col">
-                                                    <span class="rank-badge small" [class]="getRankClass(i)">{{
-                                                        getRankBadge(i) }}</span>
-                                                </td>
-                                                <td class="player-name">{{ player.name }}</td>
-                                                <td class="highlight">{{ player.totalGoals }}</td>
-                                                <td>{{ player.games }}</td>
-                                                <td>{{ player.avg }}</td>
-                                            </tr>
-                                            }
-                                            }
-                                            @if (leaderboardType === 'young') {
-                                            @for (player of youngTalents | slice:0:leaderboardLimit; track player.name; let i = $index) {
-                                            <tr>
-                                                <td class="rank-col">
-                                                    <span class="rank-badge small" [class]="getRankClass(i)">{{
-                                                        getRankBadge(i) }}</span>
-                                                </td>
-                                                <td class="player-name">{{ player.name }}</td>
-                                                <td class="highlight">{{ player.totalGoals }}</td>
-                                                <td>{{ player.games }}</td>
-                                                <td>{{ player.avg }}</td>
-                                            </tr>
-                                            }
-                                            }
-                                            @if (leaderboardType === 'journeyman') {
-                                            @for (player of journeymen | slice:0:leaderboardLimit; track player.name; let i = $index) {
-                                            <tr>
-                                                <td class="rank-col">
-                                                    <span class="rank-badge small" [class]="getRankClass(i)">{{
-                                                        getRankBadge(i) }}</span>
-                                                </td>
-                                                <td class="player-name">{{ player.name }}</td>
-                                                <td class="highlight">{{ player.clubs }}</td>
-                                                <td class="teams-cell">{{ player.teams_list }}</td>
-                                            </tr>
-                                            }
-                                            }
-                                        </tbody>
-                                    </table>
-                                    @if (currentLeaderboardCount > leaderboardLimit) {
-                                    <div class="leaderboard-more">
-                                        <button mat-stroked-button (click)="showMoreLeaderboard()">
-                                            Mehr anzeigen
-                                        </button>
-                                    </div>
-                                    }
-                                </div>
-                            </mat-card-content>
-                        </mat-card>
-                    </div>
-                    }
+          @if (l.games > 0) {
+            <section class="section">
+              <div class="section-head"><h2>Wer gewinnt?</h2></div>
+              <div class="panel panel-pad">
+                <div class="share" aria-hidden="true">
+                  @for (s of leagueShares(); track s.key) {
+                    @if (s.count > 0) { <i [class]="s.key" [style.flex-grow]="s.count"></i> }
+                  }
                 </div>
-            </ng-template>
-        </mat-tab>
+                <ul class="legend">
+                  @for (s of leagueShares(); track s.key) {
+                    <li><i [class]="s.key"></i>{{ s.label }} <b class="num">{{ s.count }}</b></li>
+                  }
+                </ul>
+              </div>
+            </section>
+          }
 
-    </mat-tab-group>
+          @if (l.scorers.length) {
+            <section class="section">
+              <div class="section-head"><h2>Beste Torschützen</h2></div>
+              <div class="panel rows">
+                @for (s of l.scorers; track s.id + s.club; let i = $index) {
+                  <button class="rank" (click)="openPlayer(s.id)">
+                    <span class="rank-no num">{{ i + 1 }}</span>
+                    <span class="rank-main">
+                      <span class="rank-name">{{ s.name }}</span>
+                      <span class="rank-sub num">{{ s.club }}, {{ s.games }} Spiele</span>
+                    </span>
+                    <span class="rank-value num">{{ s.goals }}<small> Tore</small></span>
+                  </button>
+                }
+              </div>
+            </section>
+          }
+
+          @if (canOpenLeague(l.season)) {
+            <div class="btn-row open-league">
+              <button class="btn primary" (click)="showLeagueInArchive(l.id, l.season)">
+                <mat-icon>table_chart</mat-icon>Tabelle und Spiele öffnen
+              </button>
+            </div>
+          }
+        } @else {
+          @if (levels().length) {
+            <section class="section">
+              <div class="section-head"><h2>Tore pro Spiel nach Spielklasse</h2></div>
+              <div class="panel panel-pad level-list">
+                @for (lv of levels(); track lv.level) {
+                  <div class="level">
+                    <span class="level-name">{{ lv.level }}</span>
+                    <span class="hbar" aria-hidden="true"><i [style.width.%]="lv.avgGoals / levelMax() * 100"></i></span>
+                    <span class="level-value num">{{ lv.avgGoals | number: '1.1-1' }}</span>
+                    <span class="level-sub num">{{ lv.games | number }} Spiele</span>
+                  </div>
+                }
+              </div>
+            </section>
+          } @else {
+            <div class="skeleton-list" aria-busy="true"><div class="skeleton chart-skeleton"></div></div>
+          }
+
+          @if (months().length) {
+            <section class="section">
+              <div class="section-head"><h2>Tore pro Spiel im Jahresverlauf</h2><span class="hint">nach Monat</span></div>
+              <div class="panel panel-pad">
+                <app-column-chart [columns]="monthColumns()" [decimals]="1" title="Tore pro Spiel nach Monat" />
+              </div>
+            </section>
+          }
+
+          @if (tightest().length) {
+            <section class="section">
+              <div class="section-head"><h2>Die engsten Ligen</h2><span class="hint">kleinster Torabstand im Schnitt</span></div>
+              <div class="panel rows">
+                @for (t of tightest(); track t.no) {
+                  <button class="rank" (click)="openLeague(t.no)">
+                    <span class="rank-main">
+                      <span class="rank-name">{{ t.name }}</span>
+                      <span class="rank-sub num">{{ seasonLabel(t.season) }}, {{ t.games }} Spiele</span>
+                    </span>
+                    <span class="rank-value num">{{ t.avgDiff | number: '1.1-1' }}<small> Tore</small></span>
+                  </button>
+                }
+              </div>
+            </section>
+          }
+        }
+      }
     }
+  }
 </div>

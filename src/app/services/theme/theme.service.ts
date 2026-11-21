@@ -24,7 +24,7 @@ export class ThemeService {
       const theme = this.currentTheme();
       this.applyTheme(theme);
       this.saveTheme(theme);
-    }, { allowSignalWrites: true });
+    });
 
     // Lausche auf System-Theme-Änderungen
     if (window.matchMedia) {
@@ -47,8 +47,8 @@ export class ThemeService {
       return savedTheme;
     }
 
-    // 2. Fallback auf Light Mode (nicht Auto)
-    return 'light';
+    // 2. Ohne gespeicherte Wahl folgt die App dem System
+    return 'auto';
   }
 
   /**
@@ -66,6 +66,13 @@ export class ThemeService {
 
     // Update effective theme signal
     this.effectiveTheme.set(effectiveTheme);
+    this.updateThemeColor(effectiveTheme);
+  }
+
+  /** Browser-UI (Statusleiste, Adressleiste) an das Theme anpassen. */
+  private updateThemeColor(theme: 'light' | 'dark'): void {
+    document.querySelector('meta[name="theme-color"]')
+      ?.setAttribute('content', theme === 'dark' ? '#06141c' : '#edf2f4');
   }
 
   /**
@@ -92,6 +99,7 @@ export class ThemeService {
     const body = document.body;
     body.classList.remove('light-theme', 'dark-theme');
     body.classList.add(`${effectiveTheme}-theme`);
+    this.updateThemeColor(effectiveTheme);
   }
 
   /**
@@ -130,6 +138,12 @@ export class ThemeService {
    */
   public isDarkMode(): boolean {
     return this.currentTheme() === 'dark';
+  }
+
+  /** Light → Dark → System. */
+  public cycleTheme(): void {
+    const order: Theme[] = ['light', 'dark', 'auto'];
+    this.setTheme(order[(order.indexOf(this.currentTheme()) + 1) % order.length]);
   }
 }
 
