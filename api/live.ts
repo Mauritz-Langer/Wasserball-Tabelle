@@ -3,6 +3,8 @@ export const config = {
 };
 
 const TARGET = 'https://lizenz.dsv.de';
+/** Longest an idle /poll is held upstream (edge limit for a response: 25 s). */
+const POLL_HOLD_MS = 20_000;
 
 // Stateless reverse proxy for the DSV Wasserball liveticker (SignalR 2.x) which
 // lives on lizenz.dsv.de and sends no CORS headers — so the browser must reach
@@ -16,6 +18,10 @@ export default async function handler(request: Request) {
   let targetPath = url.searchParams.get('path') || url.pathname.replace('/api/live', '');
   if (!targetPath || targetPath === '/') {
     return new Response('Missing path', { status: 400 });
+  }
+  // Only the SignalR endpoints — not an open relay to lizenz.dsv.de.
+  if (!targetPath.startsWith('/signalr/')) {
+    return new Response('Forbidden path', { status: 403 });
   }
 
   // Forward every query param except our internal "path".
@@ -40,6 +46,16 @@ export default async function handler(request: Request) {
     init.body = await request.text();
   }
 
+  // Edge functions must respond within 25 s, but the hub holds an idle
+  // longPolling /poll open far longer. End such a poll ourselves before that
+  // limit with an empty 200: the client reads it as "no messages" and polls
+  // again with the same cursor, so nothing is lost (instead of a 504 that the
+  // client counts as a failure and answers with a full reconnect).
+  const isPoll = /\/signalr\/poll$/i.test(targetPath);
+  const upstream = new AbortController();
+  const pollTimer = isPoll ? setTimeout(() => upstream.abort(), POLL_HOLD_MS) : null;
+  init.signal = upstream.signal;
+
   try {
     const response = await fetch(targetUrl, init);
     const body = await response.text();
@@ -51,6 +67,11 @@ export default async function handler(request: Request) {
       },
     });
   } catch (error) {
+    if (isPoll && upstream.signal.aborted) {
+      return new Response('', { status: 200, headers: { 'Cache-Control': 'no-store' } });
+    }
     return new Response('Live proxy error: ' + (error as Error).message, { status: 502 });
+  } finally {
+    if (pollTimer) clearTimeout(pollTimer);
   }
 }
