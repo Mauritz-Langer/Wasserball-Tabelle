@@ -154,18 +154,6 @@ function main() {
     }
   }
 
-  // --- 4. Emit a tiny season index ------------------------------------------
-  // Lets the app populate the season dropdown without downloading the whole
-  // database. The (multi-MB) DB is then only fetched when a user actually
-  // opens an archive season.
-  const seasonRows = sqlite(
-    `SELECT DISTINCT season_id FROM leagues ORDER BY season_id DESC;`
-  );
-  const seasons = seasonRows ? seasonRows.split('\n').filter(Boolean) : [];
-  const indexPath = path.join(path.dirname(DB_PATH), 'seasons.json');
-  fs.writeFileSync(indexPath, JSON.stringify({ seasons }));
-  console.log(`Wrote season index (${seasons.length} seasons) -> ${indexPath}`);
-
   const sizeAfter = fileSize(DB_PATH);
   console.log(
     `Done. ${mb(sizeBefore)} MB -> ${mb(sizeAfter)} MB ` +

@@ -2,6 +2,10 @@ export const config = {
   runtime: 'edge',
 };
 
+// The edge runtime provides process.env; declared here so the function
+// type-checks with the app's tsconfig (no @types/node needed).
+declare const process: { env: Record<string, string | undefined> };
+
 // Cross-origin callers are restricted to an allowlist so the proxy can't be
 // abused by arbitrary third-party sites to scrape DSV through us. Same-origin
 // requests (the app itself) send no Origin header and are always allowed.

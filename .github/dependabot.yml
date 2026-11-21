@@ -12,13 +12,11 @@ updates:
     groups:
       angular-core:
         patterns:
-          - "@angular/animations"
           - "@angular/common"
           - "@angular/compiler"
           - "@angular/core"
           - "@angular/forms"
           - "@angular/platform-browser"
-          - "@angular/platform-browser-dynamic"
           - "@angular/router"
         update-types:
           - "minor"
@@ -32,7 +30,7 @@ updates:
           - "patch"
       angular-devkit:
         patterns:
-          - "@angular-devkit/*"
+          - "@angular/build"
           - "@angular/cli"
           - "@angular/compiler-cli"
         update-types:

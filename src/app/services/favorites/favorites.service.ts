@@ -1,6 +1,4 @@
 import { Injectable, computed, signal } from '@angular/core';
-import { toObservable } from '@angular/core/rxjs-interop';
-import { Observable } from 'rxjs';
 
 /** A league the user follows or has opened. */
 export interface LeagueRef {
@@ -31,9 +29,6 @@ export class FavoritesService {
   readonly recent = this._recent.asReadonly();
   readonly count = computed(() => this._leagues().length);
 
-  /** Kept for consumers that still use the observable API. */
-  readonly favoritesCount$: Observable<number> = toObservable(this.count);
-
   private read(key: string): LeagueRef[] {
     try {
       const parsed = JSON.parse(localStorage.getItem(key) || '[]');
@@ -52,15 +47,6 @@ export class FavoritesService {
     } catch {
       /* storage unavailable – keep in-memory only */
     }
-  }
-
-  /** Re-read favourites from storage (e.g. after another tab changed them). */
-  updateCount(): void {
-    this._leagues.set(this.read(FAVORITES_KEY));
-  }
-
-  getCount(): number {
-    return this.count();
   }
 
   isFavorite(name: string): boolean {

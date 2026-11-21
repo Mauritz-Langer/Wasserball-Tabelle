@@ -2,17 +2,17 @@
 
 ## Projektübersicht
 
-Dies ist eine Angular 19-Webanwendung zur Anzeige von Wasserball-Ligen, Spielplänen, Tabellen und Torschützenlisten. Die App scrapt Daten von der DSV (Deutscher Schwimm-Verband) Website und bereitet sie benutzerfreundlich auf.
+Dies ist eine Angular 22-Webanwendung zur Anzeige von Wasserball-Ligen, Spielplänen, Tabellen und Torschützenlisten. Die App scrapt Daten von der DSV (Deutscher Schwimm-Verband) Website und bereitet sie benutzerfreundlich auf.
 
 ## Technologie-Stack
 
 ### Frontend
-- **Framework**: Angular 19 (Standalone Components)
+- **Framework**: Angular 22 (Standalone Components)
 - **UI-Bibliothek**: Angular Material 19
 - **Styling**: SCSS
 - **Animationen**: Angular Animations
 - **HTTP-Client**: Angular HttpClient mit RxJS
-- **TypeScript**: Version 5.5
+- **TypeScript**: Version 6.0
 
 ### Backend/API
 - **Proxy**: Vercel Edge Functions (Production) / Angular Dev Proxy (Development)
@@ -22,7 +22,7 @@ Dies ist eine Angular 19-Webanwendung zur Anzeige von Wasserball-Ligen, Spielpl�
 ### Build & Deployment
 - **Build-Tool**: Angular CLI
 - **Deployment**: Vercel
-- **Testing**: Jasmine & Karma
+- **Testing**: Vitest (jsdom)
 
 ## Projektstruktur
 
@@ -216,7 +216,7 @@ ng serve
 
 ### Testing
 ```bash
-ng test  # Unit Tests mit Karma
+ng test  # Unit Tests mit Vitest
 ```
 
 ### Build
@@ -366,5 +366,5 @@ Bei Fragen zum Projekt:
 ---
 
 **Letzte Aktualisierung**: November 2025
-**Angular Version**: 19.0.0
-**Node Version**: Empfohlen LTS (20.x oder höher)
+**Angular Version**: 22
+**Node Version**: 24.15 oder höher

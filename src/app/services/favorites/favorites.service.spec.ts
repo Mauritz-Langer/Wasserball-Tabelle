@@ -18,7 +18,7 @@ describe('FavoritesService', () => {
     });
 
     it('starts empty', () => {
-        expect(service.getCount()).toBe(0);
+        expect(service.count()).toBe(0);
         expect(service.leagues()).toEqual([]);
     });
 
@@ -28,20 +28,20 @@ describe('FavoritesService', () => {
         expect(JSON.parse(localStorage.getItem('favorites')!)).toEqual([league]);
 
         expect(service.toggle(league)).toBe(false);
-        expect(service.getCount()).toBe(0);
+        expect(service.count()).toBe(0);
         expect(JSON.parse(localStorage.getItem('favorites')!)).toEqual([]);
     });
 
     it('reads favourites saved by earlier versions (with isFavorite flag)', () => {
         localStorage.setItem('favorites', JSON.stringify([{ ...league, isFavorite: true }]));
-        service.updateCount();
+        service = new FavoritesService(); // re-reads storage
         expect(service.leagues()).toEqual([league]);
     });
 
     it('survives corrupt storage', () => {
         localStorage.setItem('favorites', '{nope');
-        service.updateCount();
-        expect(service.getCount()).toBe(0);
+        service = new FavoritesService(); // re-reads storage
+        expect(service.count()).toBe(0);
     });
 
     it('keeps the most recent leagues first, without duplicates', () => {
@@ -55,13 +55,5 @@ describe('FavoritesService', () => {
         service.toggle({ ...league, link: 'League.aspx?Season=2025&LeagueID=1' });
         service.reconcile([league]);
         expect(service.leagues()[0].link).toBe(league.link);
-    });
-
-    it('emits the count as an observable', async () => {
-        service.toggle(league);
-        service.favoritesCount$.subscribe(count => {
-            expect(count).toBe(1);
-            ;
-        });
     });
 });

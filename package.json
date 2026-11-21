@@ -8,10 +8,11 @@
     "watch": "ng build --watch --configuration development",
     "test": "ng test",
     "scrape": "node scripts/scrape-seasons.js",
+    "normalize-db": "node scripts/normalize-db.js",
     "slim-db": "node scripts/slim-db.js",
     "update-archive": "node scripts/update-archive.js",
     "build-archive": "node scripts/build-archive.js",
-    "data": "node scripts/scrape-seasons.js && node scripts/slim-db.js && node scripts/build-archive.js"
+    "data": "npm run scrape && npm run normalize-db && npm run slim-db && npm run build-archive"
   },
   "private": true,
   "browser": {

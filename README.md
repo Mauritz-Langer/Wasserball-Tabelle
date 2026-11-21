@@ -186,22 +186,30 @@ deploys them from git); the large intermediate `seasons.db` / `details.db` are
 not (see `.gitignore`). Regenerate everything with:
 
 ```bash
-# 1. Scrape DSV into a full SQLite DB (needs combined-seasons.html as the seed)
+# 1. Scrape DSV into public/assets/data/seasons.db (needs combined-seasons.html as the seed)
 npm run scrape
 
-# 2. Slim the DB: deduplicate logos, split into seasons.db + details.db
-npm run slim-db
+# 2. Normalize: score/date fields, teams/players/venues tables, indexes
+npm run normalize-db
 
-# 3. Optional: complete/repair the archive from DSV (cached, rate-limit aware;
-#    plan only without --run, needs a backup in .cache/backup/)
-npm run update-archive -- --run
+# 3. Slim the DB: deduplicate logos, split off details.db
+npm run slim-db
 
 # 4. Build the files the browser downloads into public/assets/data/archive/
 npm run build-archive
 ```
 
-`npm run data` runs steps 1, 2 and 4 in one go. The scripts use the `sqlite3`
-CLI / `node:sqlite` (no native node modules). Loading is staged so download
+`npm run data` runs steps 1–4 (a full rebuild). For routine updates of an
+existing archive use the rate-limit-aware updater instead (plan only without
+`--run`; needs a backup in `.cache/backup/`), then rebuild the archive:
+
+```bash
+npm run update-archive -- --run
+npm run build-archive
+```
+
+Scrape and normalize use `better-sqlite3`; the other steps use the `sqlite3`
+CLI or `node:sqlite`. Loading is staged so download
 size and mobile RAM stay small:
 
 - `archive/archive.json` — manifest, fetched at startup for the season picker.

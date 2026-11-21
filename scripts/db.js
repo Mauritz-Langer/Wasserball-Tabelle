@@ -2,7 +2,7 @@ const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs-extra');
 
-const DB_PATH = path.join(__dirname, '../src/assets/data/seasons.db');
+const DB_PATH = path.join(__dirname, '../public/assets/data/seasons.db');
 
 function initDB() {
   fs.ensureDirSync(path.dirname(DB_PATH));

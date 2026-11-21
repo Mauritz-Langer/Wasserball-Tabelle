@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 
 /**
- * Vollständige Atomare Daten-Migration
+ * Vollständige Atomare Daten-Migration (Pipeline-Schritt 2: nach scrape-seasons.js,
+ * vor slim-db.js). Legt u. a. teams/players/venues und home_team_id/player_id an,
+ * die build-archive.js voraussetzt. Arbeitet auf public/assets/data/seasons.db.
  *
  * Führt ALLE identifizierten Verbesserungen durch:
  * 1. Performance: Indizes, Duplikate entfernen
@@ -16,8 +18,8 @@ const Database = require('better-sqlite3');
 const path = require('path');
 const fs = require('fs-extra');
 
-const DB_PATH = path.join(__dirname, '../src/assets/data/seasons.db');
-const BACKUP_PATH = path.join(__dirname, `../src/assets/data/seasons.db.backup.${Date.now()}`);
+const DB_PATH = path.join(__dirname, '../public/assets/data/seasons.db');
+const BACKUP_PATH = path.join(__dirname, `../.cache/backup/seasons.db.pre-normalize.${Date.now()}`);
 
 // Konfiguration
 const CONFIG = {
@@ -48,6 +50,7 @@ console.log('');
 // Backup erstellen
 if (CONFIG.createBackup) {
     console.log('📦 Step 1: Creating Backup...');
+    fs.ensureDirSync(path.dirname(BACKUP_PATH));
     fs.copyFileSync(DB_PATH, BACKUP_PATH);
     const backupSizeMB = (fs.statSync(BACKUP_PATH).size / 1024 / 1024).toFixed(1);
     console.log(`   ✅ Backup created: ${BACKUP_PATH} (${backupSizeMB} MB)`);

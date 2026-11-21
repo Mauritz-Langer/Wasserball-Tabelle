@@ -1,5 +1,5 @@
 import { Injectable, inject } from '@angular/core';
-import { lastValueFrom, Observable } from "rxjs";
+import { Observable } from "rxjs";
 import { HttpClient } from "@angular/common/http";
 import { Games } from "../../models/games";
 import { Table } from "../../models/table";
@@ -208,13 +208,6 @@ export class LigaService {
       });
     }
     return games;
-  }
-
-  async getLocationLink(link: string): Promise<string> {
-    const htmlResponse = await lastValueFrom(this.getItems(link));
-    const parser = new DOMParser();
-    const docGame: any = parser.parseFromString(htmlResponse, 'text/html');
-    return docGame.getElementById('ContentSection__googleHyperLink')?.getAttribute('href') || '';
   }
 
   parseHtmlToTable(html: string): Table[] {

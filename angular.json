@@ -31,9 +31,7 @@
                 "input": "public",
                 "ignore": [
                   "assets/data/*.db",
-                  "assets/data/seasons.json",
-                  "**/.DS_Store",
-                  "assets/sql-wasm.wasm"
+                  "**/.DS_Store"
                 ]
               },
               {

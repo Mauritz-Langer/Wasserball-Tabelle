@@ -297,23 +297,6 @@ describe('LigaService', () => {
         });
     });
 
-    describe('getLocationLink', () => {
-        it('liefert die Google-Link-URL aus dem Spielbericht', async () => {
-            const htmlPage = `
-        <a id="ContentSection__googleHyperLink" href="https://maps.google.com/?q=Berlin">Map</a>
-      `;
-            vi.spyOn(service as any, 'getItems').mockReturnValue(of(htmlPage));
-            const link = await service.getLocationLink('GameDetails.aspx?id=123');
-            expect(link).toBe('https://maps.google.com/?q=Berlin');
-        });
-
-        it('gibt leeren String zurück, wenn kein Link vorhanden', async () => {
-            vi.spyOn(service as any, 'getItems').mockReturnValue(of('<div>leer</div>'));
-            const link = await service.getLocationLink('GameDetails.aspx?id=456');
-            expect(link).toBe('');
-        });
-    });
-
     describe('parseLeague (aktuelle DSV-Struktur)', () => {
         const html = `
       <span id="ContentSection__headerLabel">Testliga männlich</span>
