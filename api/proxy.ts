@@ -10,7 +10,7 @@ declare const process: { env: Record<string, string | undefined> };
 // abused by arbitrary third-party sites to scrape DSV through us. Same-origin
 // requests (the app itself) send no Origin header and are always allowed.
 // Configure extra origins via the ALLOWED_ORIGINS env var (comma-separated).
-const ALLOWED_ORIGINS = (process.env.ALLOWED_ORIGINS || '')
+const ALLOWED_ORIGINS = (process.env['ALLOWED_ORIGINS'] || '')
   .split(',')
   .map(s => s.trim())
   .filter(Boolean);
