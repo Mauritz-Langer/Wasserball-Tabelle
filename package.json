@@ -30,7 +30,7 @@
     "@angular/material": "^22.3.0",
     "@angular/platform-browser": "^22.2.6",
     "@angular/router": "^22.2.6",
-    "@angular/service-worker": "^22.2.6",
+    "@angular/service-worker": "^22.3.0",
     "html2canvas": "^1.4.1",
     "rxjs": "^7.8.2",
     "sql.js": "^1.17.0",
