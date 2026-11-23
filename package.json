@@ -21,7 +21,7 @@
     "crypto": false
   },
   "dependencies": {
-    "@amplitude/unified": "^1.2.3",
+    "@amplitude/unified": "^1.2.4",
     "@angular/cdk": "^22.3.0",
     "@angular/common": "^22.2.6",
     "@angular/compiler": "^22.2.6",
